@@ -75,10 +75,6 @@ export function SignIn() {
             ))}
           </ul>
         </div>
-
-        <p className="relative text-xs text-white/40">
-          Self-hosted · Air-gap capable · No cloud dependencies
-        </p>
       </div>
 
       {/* Form panel */}
@@ -90,17 +86,14 @@ export function SignIn() {
             </span>
           </div>
           <div className="mb-7">
-            <p className="text-xs font-semibold uppercase tracking-wider text-brand-600">
-              Staff portal
-            </p>
-            <h1 className="mt-1 text-2xl font-bold tracking-tight text-slate-900">
-              {forgotMode ? 'Reset your password' : 'Welcome back'}
+            <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+              {forgotMode ? 'Reset your password' : 'Sign in'}
             </h1>
-            <p className="mt-1 text-sm text-slate-500">
-              {forgotMode
-                ? 'Enter your account email and we’ll send you a reset link.'
-                : 'Sign in to access your workspace.'}
-            </p>
+            {forgotMode && (
+              <p className="mt-1 text-sm text-slate-500">
+                Enter your account email and we’ll send you a reset link.
+              </p>
+            )}
           </div>
 
           {forgotMode ? (
