@@ -2,7 +2,7 @@ import { lazy, Suspense } from 'react';
 import { Loader2, ShieldCheck } from 'lucide-react';
 import { Redirect, Route, Switch, useLocation } from 'wouter';
 import { Layout } from './components/Layout.tsx';
-import { useSession } from './lib/auth.ts';
+import { useSettledSession } from './lib/auth.ts';
 
 // Route pages are code-split so the public kiosk and each staff screen load on
 // demand, keeping the initial bundle small. Chunks are served locally by the
@@ -128,7 +128,7 @@ export function App() {
 }
 
 function StaffApp() {
-  const { data: session, isPending } = useSession();
+  const { data: session, isPending } = useSettledSession();
 
   if (isPending) return <FullScreenLoader />;
 

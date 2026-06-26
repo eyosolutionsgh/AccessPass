@@ -2,7 +2,7 @@ import { LogOut, Lock, Mail, ShieldCheck } from 'lucide-react';
 import { type FormEvent, type ReactNode, useState } from 'react';
 import { toast } from 'sonner';
 import { anyRoleHasPermission, type PermissionRequest } from '@vms/shared';
-import { signIn, signOut, useSession } from '../lib/auth.ts';
+import { signIn, signOut, useSettledSession } from '../lib/auth.ts';
 import { trpc } from '../lib/trpc.ts';
 import { Button } from './ui/button.tsx';
 import { InputWithIcon } from './ui/input.tsx';
@@ -23,7 +23,7 @@ type Props = {
  * of who was at post (SRS audit requirement — physical inspections need to verify staffing).
  */
 export function PostGate({ deviceId, permission, postLabel, children }: Props) {
-  const { data: session, isPending } = useSession();
+  const { data: session, isPending } = useSettledSession();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
