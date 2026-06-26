@@ -4,7 +4,6 @@ import {
   Hourglass,
   LogIn,
   LogOut,
-  Printer,
   QrCode,
   Search,
   Tags,
@@ -14,7 +13,8 @@ import {
 } from 'lucide-react';
 import { type FormEvent, Suspense, lazy, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import { invitationCodeSchema, type CheckInLookup } from '@vms/shared';
+import { invitationCodeSchema, anyRoleHasPermission, type CheckInLookup } from '@vms/shared';
+import { useSession } from '../lib/auth.ts';
 import { Avatar } from '../components/ui/avatar.tsx';
 import { Badge, StatusBadge } from '../components/ui/badge.tsx';
 import { Button } from '../components/ui/button.tsx';
@@ -54,6 +54,12 @@ const STAT_CARDS = [
 
 export function Reception() {
   const utils = trpc.useUtils();
+  const { data: session } = useSession();
+  const role = (session?.user as { role?: string | null } | undefined)?.role ?? null;
+  // Read-only oversight roles (e.g. administrator) see live occupancy but no front-desk actions.
+  const canProcess = anyRoleHasPermission(role, { checkin: ['process'] });
+  const canCheckout = anyRoleHasPermission(role, { checkin: ['checkout'] });
+
   const summary = trpc.dashboard.summary.useQuery({});
   const onSite = trpc.dashboard.onSite.useQuery({});
 
@@ -71,11 +77,6 @@ export function Reception() {
 
   const checkout = trpc.checkin.checkout.useMutation({
     onSuccess: () => (toast.success('Checked out'), refresh()),
-    onError: (e) => toast.error(e.message),
-  });
-
-  const reprint = trpc.badges.reprint.useMutation({
-    onSuccess: (b) => toast.success(`Badge ${b.badgeNumber} reprinted (reason logged)`),
     onError: (e) => toast.error(e.message),
   });
 
@@ -118,9 +119,9 @@ export function Reception() {
         ))}
       </div>
 
-      <AssistedCheckInCard onDone={refresh} />
+      {canProcess && <AssistedCheckInCard onDone={refresh} />}
 
-      <TagsOutCard />
+      {canCheckout && <TagsOutCard />}
 
       <Card className="overflow-hidden">
         <CardHeader
@@ -195,25 +196,18 @@ export function Reception() {
                 <td className="px-4 py-3 text-slate-600 nums">{fmtTime(v.timeIn)}</td>
                 <td className="px-4 py-3">
                   <div className="flex justify-end gap-2">
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      disabled={reprint.isPending}
-                      onClick={() => {
-                        const reason = window.prompt('Reason for badge reprint?');
-                        if (reason) reprint.mutate({ visitId: v.visitId, reason });
-                      }}
-                    >
-                      <Printer className="size-3.5" /> Reprint
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      disabled={checkout.isPending}
-                      onClick={() => checkout.mutate({ visitId: v.visitId })}
-                    >
-                      <LogOut className="size-3.5" /> Check out
-                    </Button>
+                    {canCheckout ? (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={checkout.isPending}
+                        onClick={() => checkout.mutate({ visitId: v.visitId })}
+                      >
+                        <LogOut className="size-3.5" /> Check out
+                      </Button>
+                    ) : (
+                      <span className="text-slate-400">—</span>
+                    )}
                   </div>
                 </td>
               </tr>
@@ -244,7 +238,9 @@ function fmtDateTime(d: Date | null) {
 function Detail({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">{label}</div>
+      <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+        {label}
+      </div>
       <div className="mt-0.5 font-medium text-slate-800">{value}</div>
     </div>
   );
@@ -354,7 +350,11 @@ function AssistedCheckInCard({ onDone }: { onDone: () => void }) {
             </p>
           )}
           <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => setPreview(null)} disabled={complete.isPending}>
+            <Button
+              variant="outline"
+              onClick={() => setPreview(null)}
+              disabled={complete.isPending}
+            >
               Back
             </Button>
             <Button

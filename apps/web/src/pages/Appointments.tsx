@@ -1,7 +1,8 @@
 import { CalendarCheck, ChevronRight, Search, Users, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'wouter';
-import { VISIT_STATUSES, type VisitStatusValue } from '@vms/shared';
+import { VISIT_STATUSES, anyRoleHasPermission, type VisitStatusValue } from '@vms/shared';
+import { useSession } from '../lib/auth.ts';
 import { Avatar } from '../components/ui/avatar.tsx';
 import { Button } from '../components/ui/button.tsx';
 import { Card } from '../components/ui/card.tsx';
@@ -51,6 +52,9 @@ function presetBounds(range: RangeKey): { from?: Date; to?: Date } {
 }
 
 export function Appointments() {
+  const { data: session } = useSession();
+  const role = (session?.user as { role?: string | null } | undefined)?.role ?? null;
+  const canCreate = anyRoleHasPermission(role, { appointment: ['create'] });
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('');
   const [facilityId, setFacilityId] = useState('');
@@ -123,11 +127,13 @@ export function Appointments() {
         title="Appointments"
         description="Browse, filter and manage every scheduled visit."
         actions={
-          <Link href="/appointments/new">
-            <Button>
-              <CalendarCheck className="size-4" /> New appointment
-            </Button>
-          </Link>
+          canCreate ? (
+            <Link href="/appointments/new">
+              <Button>
+                <CalendarCheck className="size-4" /> New appointment
+              </Button>
+            </Link>
+          ) : undefined
         }
       />
 

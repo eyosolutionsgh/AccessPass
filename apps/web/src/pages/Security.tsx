@@ -17,7 +17,8 @@ import {
 import { type FormEvent, useEffect, useState } from 'react';
 import { Link } from 'wouter';
 import { toast } from 'sonner';
-import { WATCHLIST_MATCH_TYPES } from '@vms/shared';
+import { WATCHLIST_MATCH_TYPES, anyRoleHasPermission } from '@vms/shared';
+import { useSession } from '../lib/auth.ts';
 import { Button } from '../components/ui/button.tsx';
 import { Card, CardHeader } from '../components/ui/card.tsx';
 import { EmptyState } from '../components/ui/empty-state.tsx';
@@ -35,9 +36,20 @@ import { trpc } from '../lib/trpc.ts';
 
 export function Security() {
   const utils = trpc.useUtils();
+  const { data: session } = useSession();
+  const role = (session?.user as { role?: string | null } | undefined)?.role ?? null;
+  // Read-only oversight roles (e.g. administrator) see the KPI cards but not the operational
+  // panels; watchlist management is reserved for security managers, not guards.
+  const canReadIncidents = anyRoleHasPermission(role, { incident: ['read'] });
+  const canResolveIncidents = anyRoleHasPermission(role, { incident: ['resolve'] });
+  const canReadWatchlist = anyRoleHasPermission(role, { watchlist: ['read'] });
+  const canManageWatchlist = anyRoleHasPermission(role, { watchlist: ['manage'] });
+  const canUseAnalyst = anyRoleHasPermission(role, { analyst: ['read'] });
+  const canCheckpointScan = anyRoleHasPermission(role, { checkin: ['override'] });
+
   const summary = trpc.dashboard.security.useQuery();
-  const incidents = trpc.incidents.list.useQuery({ status: 'open' });
-  const watchlist = trpc.watchlist.list.useQuery();
+  const incidents = trpc.incidents.list.useQuery({ status: 'open' }, { enabled: canReadIncidents });
+  const watchlist = trpc.watchlist.list.useQuery(undefined, { enabled: canReadWatchlist });
 
   useVisitEvents(() => {
     void utils.dashboard.security.invalidate();
@@ -147,11 +159,13 @@ export function Security() {
         description="Monitor incidents, overstays and the visitor watchlist."
         actions={
           <div className="flex gap-2">
-            <Link href="/security/scan">
-              <Button>
-                <ScanLine className="size-4" /> Checkpoint scan
-              </Button>
-            </Link>
+            {canCheckpointScan && (
+              <Link href="/security/scan">
+                <Button>
+                  <ScanLine className="size-4" /> Checkpoint scan
+                </Button>
+              </Link>
+            )}
             <Link href="/security/muster">
               <Button variant="destructive">
                 <ShieldAlert className="size-4" /> Emergency muster
@@ -174,183 +188,195 @@ export function Security() {
         ))}
       </div>
 
-      <Card className="overflow-hidden">
-        <CardHeader
-          icon={<AlertTriangle />}
-          title="Open incidents"
-          description="Active escalations awaiting review."
-          action={
-            <div className="flex items-center gap-2">
-              <span className="rounded-full bg-red-50 px-2.5 py-0.5 text-xs font-semibold text-red-700 ring-1 ring-inset ring-red-600/20 nums">
-                {incidents.data?.total ?? 0} open
-              </span>
-              <InputWithIcon
-                icon={<Search />}
-                value={incidentQuery}
-                onChange={(e) => setIncidentQuery(e.target.value)}
-                placeholder="Search type, visitor or description…"
-                wrapperClassName="w-full sm:w-64"
+      {canReadIncidents && (
+        <Card className="overflow-hidden">
+          <CardHeader
+            icon={<AlertTriangle />}
+            title="Open incidents"
+            description="Active escalations awaiting review."
+            action={
+              <div className="flex items-center gap-2">
+                <span className="rounded-full bg-red-50 px-2.5 py-0.5 text-xs font-semibold text-red-700 ring-1 ring-inset ring-red-600/20 nums">
+                  {incidents.data?.total ?? 0} open
+                </span>
+                <InputWithIcon
+                  icon={<Search />}
+                  value={incidentQuery}
+                  onChange={(e) => setIncidentQuery(e.target.value)}
+                  placeholder="Search type, visitor or description…"
+                  wrapperClassName="w-full sm:w-64"
+                />
+              </div>
+            }
+          />
+          <Table>
+            <THead>
+              <tr>
+                <Th>Type</Th>
+                <Th>Severity</Th>
+                <Th>Visitor</Th>
+                <Th>Description</Th>
+                <Th className="text-right">Action</Th>
+              </tr>
+            </THead>
+            <TBody>
+              {incidentTotal === 0 && (
+                <StateRow colSpan={5}>
+                  <EmptyState
+                    icon={ShieldCheck}
+                    title={incidentQuery ? 'No matches' : 'All clear'}
+                    description={
+                      incidentQuery
+                        ? 'Try a different search.'
+                        : 'There are no open incidents right now.'
+                    }
+                    compact
+                  />
+                </StateRow>
+              )}
+              {incidentPageItems.map((i) => (
+                <tr key={i.id} className="transition-colors hover:bg-slate-50/80">
+                  <td className="px-4 py-3 font-medium capitalize text-slate-800">
+                    {i.type.replace(/_/g, ' ')}
+                  </td>
+                  <td className="px-4 py-3">
+                    <SeverityBadge severity={i.severity} />
+                  </td>
+                  <td className="px-4 py-3 text-slate-700">{i.visitorName ?? '—'}</td>
+                  <td className="max-w-xs px-4 py-3 text-slate-600">
+                    <span className="line-clamp-2">{i.description ?? '—'}</span>
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    {canResolveIncidents ? (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={resolve.isPending}
+                        onClick={() => resolve.mutate({ incidentId: i.id })}
+                      >
+                        <ListChecks className="size-3.5" /> Resolve
+                      </Button>
+                    ) : (
+                      <span className="text-slate-400">—</span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </TBody>
+          </Table>
+          {incidentTotal > 0 && (
+            <div className="border-t border-slate-100 px-4 py-3">
+              <Pagination
+                page={incidentPage}
+                pageSize={incidentPageSize}
+                total={incidentTotal}
+                onPageChange={setIncidentPage}
+                onPageSizeChange={setIncidentPageSize}
+                label="incidents"
               />
             </div>
-          }
-        />
-        <Table>
-          <THead>
-            <tr>
-              <Th>Type</Th>
-              <Th>Severity</Th>
-              <Th>Visitor</Th>
-              <Th>Description</Th>
-              <Th className="text-right">Action</Th>
-            </tr>
-          </THead>
-          <TBody>
-            {incidentTotal === 0 && (
-              <StateRow colSpan={5}>
-                <EmptyState
-                  icon={ShieldCheck}
-                  title={incidentQuery ? 'No matches' : 'All clear'}
-                  description={
-                    incidentQuery
-                      ? 'Try a different search.'
-                      : 'There are no open incidents right now.'
-                  }
-                  compact
-                />
-              </StateRow>
-            )}
-            {incidentPageItems.map((i) => (
-              <tr key={i.id} className="transition-colors hover:bg-slate-50/80">
-                <td className="px-4 py-3 font-medium capitalize text-slate-800">
-                  {i.type.replace(/_/g, ' ')}
-                </td>
-                <td className="px-4 py-3">
-                  <SeverityBadge severity={i.severity} />
-                </td>
-                <td className="px-4 py-3 text-slate-700">{i.visitorName ?? '—'}</td>
-                <td className="max-w-xs px-4 py-3 text-slate-600">
-                  <span className="line-clamp-2">{i.description ?? '—'}</span>
-                </td>
-                <td className="px-4 py-3 text-right">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    disabled={resolve.isPending}
-                    onClick={() => resolve.mutate({ incidentId: i.id })}
-                  >
-                    <ListChecks className="size-3.5" /> Resolve
-                  </Button>
-                </td>
-              </tr>
-            ))}
-          </TBody>
-        </Table>
-        {incidentTotal > 0 && (
-          <div className="border-t border-slate-100 px-4 py-3">
-            <Pagination
-              page={incidentPage}
-              pageSize={incidentPageSize}
-              total={incidentTotal}
-              onPageChange={setIncidentPage}
-              onPageSizeChange={setIncidentPageSize}
-              label="incidents"
-            />
-          </div>
-        )}
-      </Card>
+          )}
+        </Card>
+      )}
 
-      <AiAnalystCard incidents={incidentItems} />
+      {canUseAnalyst && <AiAnalystCard incidents={incidentItems} />}
 
-      <Card>
-        <CardHeader
-          icon={<Ban />}
-          title="Watchlist"
-          description="Blocked identities are matched by secure hash — raw values are never stored."
-          action={
-            <InputWithIcon
-              icon={<Search />}
-              value={watchQuery}
-              onChange={(e) => setWatchQuery(e.target.value)}
-              placeholder="Search match type or reason…"
-              wrapperClassName="w-full sm:w-64"
-            />
-          }
-        />
-        <div className="p-5">
-          <form onSubmit={onAdd} className="mb-5 flex flex-wrap items-end gap-2">
-            <label className="flex flex-col gap-1">
-              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-                Match type
-              </span>
-              <Select
-                value={matchType}
-                onChange={(e) => setMatchType(e.target.value)}
-                className="w-32 capitalize"
-              >
-                {WATCHLIST_MATCH_TYPES.map((t) => (
-                  <option key={t} value={t}>
-                    {t}
-                  </option>
-                ))}
-              </Select>
-            </label>
-            <Input
-              value={value}
-              onChange={(e) => setValue(e.target.value)}
-              placeholder="Value to block (email, phone, name…)"
-              className="max-w-xs"
-            />
-            <Input
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
-              placeholder="Reason (optional)"
-              className="max-w-xs"
-            />
-            <Button type="submit" loading={addWatch.isPending}>
-              <Ban className="size-4" /> Add
-            </Button>
-          </form>
-          <ul className="divide-y divide-slate-100">
-            {watchTotal === 0 && (
-              <li className="py-3 text-sm text-slate-400">
-                {watchQuery ? 'No matching watchlist entries.' : 'No active watchlist entries.'}
-              </li>
-            )}
-            {watchPageItems.map((w) => (
-              <li key={w.id} className="flex items-center justify-between gap-3 py-2.5">
-                <span className="flex items-center gap-2 text-sm">
-                  <span className="rounded-md bg-slate-100 px-2 py-0.5 text-xs font-semibold capitalize text-slate-600">
-                    {w.matchType}
+      {canReadWatchlist && (
+        <Card>
+          <CardHeader
+            icon={<Ban />}
+            title="Watchlist"
+            description="Blocked identities are matched by secure hash — raw values are never stored."
+            action={
+              <InputWithIcon
+                icon={<Search />}
+                value={watchQuery}
+                onChange={(e) => setWatchQuery(e.target.value)}
+                placeholder="Search match type or reason…"
+                wrapperClassName="w-full sm:w-64"
+              />
+            }
+          />
+          <div className="p-5">
+            {canManageWatchlist && (
+              <form onSubmit={onAdd} className="mb-5 flex flex-wrap items-end gap-2">
+                <label className="flex flex-col gap-1">
+                  <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                    Match type
                   </span>
-                  {w.reason && <span className="text-slate-500">{w.reason}</span>}
-                </span>
-                <Button
-                  size="icon-sm"
-                  variant="ghost"
-                  disabled={removeWatch.isPending}
-                  onClick={() => removeWatch.mutate({ id: w.id })}
-                  aria-label="Remove from watchlist"
-                  className="text-slate-400 hover:text-red-600"
-                >
-                  <Trash2 className="size-4" />
+                  <Select
+                    value={matchType}
+                    onChange={(e) => setMatchType(e.target.value)}
+                    className="w-32 capitalize"
+                  >
+                    {WATCHLIST_MATCH_TYPES.map((t) => (
+                      <option key={t} value={t}>
+                        {t}
+                      </option>
+                    ))}
+                  </Select>
+                </label>
+                <Input
+                  value={value}
+                  onChange={(e) => setValue(e.target.value)}
+                  placeholder="Value to block (email, phone, name…)"
+                  className="max-w-xs"
+                />
+                <Input
+                  value={reason}
+                  onChange={(e) => setReason(e.target.value)}
+                  placeholder="Reason (optional)"
+                  className="max-w-xs"
+                />
+                <Button type="submit" loading={addWatch.isPending}>
+                  <Ban className="size-4" /> Add
                 </Button>
-              </li>
-            ))}
-          </ul>
-        </div>
-        {watchTotal > 0 && (
-          <div className="border-t border-slate-100 px-4 py-3">
-            <Pagination
-              page={watchPage}
-              pageSize={watchPageSize}
-              total={watchTotal}
-              onPageChange={setWatchPage}
-              onPageSizeChange={setWatchPageSize}
-              label="watchlist entries"
-            />
+              </form>
+            )}
+            <ul className="divide-y divide-slate-100">
+              {watchTotal === 0 && (
+                <li className="py-3 text-sm text-slate-400">
+                  {watchQuery ? 'No matching watchlist entries.' : 'No active watchlist entries.'}
+                </li>
+              )}
+              {watchPageItems.map((w) => (
+                <li key={w.id} className="flex items-center justify-between gap-3 py-2.5">
+                  <span className="flex items-center gap-2 text-sm">
+                    <span className="rounded-md bg-slate-100 px-2 py-0.5 text-xs font-semibold capitalize text-slate-600">
+                      {w.matchType}
+                    </span>
+                    {w.reason && <span className="text-slate-500">{w.reason}</span>}
+                  </span>
+                  {canManageWatchlist && (
+                    <Button
+                      size="icon-sm"
+                      variant="ghost"
+                      disabled={removeWatch.isPending}
+                      onClick={() => removeWatch.mutate({ id: w.id })}
+                      aria-label="Remove from watchlist"
+                      className="text-slate-400 hover:text-red-600"
+                    >
+                      <Trash2 className="size-4" />
+                    </Button>
+                  )}
+                </li>
+              ))}
+            </ul>
           </div>
-        )}
-      </Card>
+          {watchTotal > 0 && (
+            <div className="border-t border-slate-100 px-4 py-3">
+              <Pagination
+                page={watchPage}
+                pageSize={watchPageSize}
+                total={watchTotal}
+                onPageChange={setWatchPage}
+                onPageSizeChange={setWatchPageSize}
+                label="watchlist entries"
+              />
+            </div>
+          )}
+        </Card>
+      )}
     </div>
   );
 }
@@ -365,7 +391,9 @@ function AiAnalystCard({
   const [question, setQuestion] = useState('');
   const [showSimilar, setShowSimilar] = useState(false);
 
-  const summarize = trpc.ai.summarizeIncident.useMutation({ onError: (e) => toast.error(e.message) });
+  const summarize = trpc.ai.summarizeIncident.useMutation({
+    onError: (e) => toast.error(e.message),
+  });
   const ask = trpc.ai.askAudit.useMutation({ onError: (e) => toast.error(e.message) });
   const similar = trpc.ai.similarIncidents.useQuery(
     { incidentId: selectedId, k: 5 },
@@ -426,8 +454,8 @@ function AiAnalystCard({
               <p className="mt-2 text-xs">
                 {ask.data.integrity.ok ? (
                   <span className="inline-flex items-center gap-1 text-emerald-600">
-                    <ShieldCheck className="size-3.5" /> Audit chain intact ({ask.data.integrity.checked}{' '}
-                    entries)
+                    <ShieldCheck className="size-3.5" /> Audit chain intact (
+                    {ask.data.integrity.checked} entries)
                   </span>
                 ) : (
                   <span className="inline-flex items-center gap-1 text-red-600">
@@ -492,13 +520,20 @@ function AiAnalystCard({
                     <li className="px-3 py-2 text-sm text-slate-400">Searching…</li>
                   )}
                   {!similar.isFetching && (similar.data?.length ?? 0) === 0 && (
-                    <li className="px-3 py-2 text-sm text-slate-400">No similar incidents found.</li>
+                    <li className="px-3 py-2 text-sm text-slate-400">
+                      No similar incidents found.
+                    </li>
                   )}
                   {similar.data?.map((s) => (
-                    <li key={s.id} className="flex items-center justify-between gap-3 px-3 py-2 text-sm">
+                    <li
+                      key={s.id}
+                      className="flex items-center justify-between gap-3 px-3 py-2 text-sm"
+                    >
                       <span className="flex min-w-0 items-center gap-2">
                         <SeverityBadge severity={s.severity} />
-                        <span className="capitalize text-slate-700">{s.type.replace(/_/g, ' ')}</span>
+                        <span className="capitalize text-slate-700">
+                          {s.type.replace(/_/g, ' ')}
+                        </span>
                         <span className="line-clamp-1 text-slate-500">{s.description}</span>
                       </span>
                       <span className="nums shrink-0 rounded-md bg-brand-50 px-2 py-0.5 text-xs font-semibold text-brand-700">

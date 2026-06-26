@@ -15,6 +15,8 @@ import {
 import { useState, type ReactNode } from 'react';
 import { Link, useRoute } from 'wouter';
 import { toast } from 'sonner';
+import { anyRoleHasPermission } from '@vms/shared';
+import { useSession } from '../lib/auth.ts';
 import { Avatar } from '../components/ui/avatar.tsx';
 import { Button } from '../components/ui/button.tsx';
 import { Card, CardHeader } from '../components/ui/card.tsx';
@@ -37,9 +39,7 @@ function fmtDate(d: Date | null | undefined) {
 }
 
 function fmtClock(d: Date | null | undefined) {
-  return d
-    ? new Date(d).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
-    : '—';
+  return d ? new Date(d).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '—';
 }
 
 /** Date part for an <input type="date"> (YYYY-MM-DD, local). */
@@ -155,6 +155,15 @@ export function AppointmentDetail() {
   const utils = trpc.useUtils();
   const [rescheduling, setRescheduling] = useState(false);
 
+  const { data: session } = useSession();
+  const role = (session?.user as { role?: string | null } | undefined)?.role ?? null;
+  const canApprove = anyRoleHasPermission(role, { appointment: ['approve'] });
+  const canDeny = anyRoleHasPermission(role, { appointment: ['deny'] });
+  const canReschedule = anyRoleHasPermission(role, { appointment: ['update'] });
+  const canCancel = anyRoleHasPermission(role, { appointment: ['cancel'] });
+  const canResend = anyRoleHasPermission(role, { invitation: ['resend'] });
+  const canRevoke = anyRoleHasPermission(role, { invitation: ['revoke'] });
+
   const q = trpc.appointments.get.useQuery({ visitId: id }, { enabled: Boolean(id) });
   const trail = trpc.appointments.trail.useQuery({ visitId: id }, { enabled: Boolean(id) });
 
@@ -206,6 +215,18 @@ export function AppointmentDetail() {
   const busy =
     approve.isPending || deny.isPending || cancel.isPending || resend.isPending || revoke.isPending;
   const closed = ['checked_out', 'cancelled', 'denied'].includes(visit.status);
+
+  // Each action needs both the right visit status AND the role's permission — read-only
+  // oversight roles (administrator, auditor) see no action bar at all.
+  const showApprove = visit.status === 'pending_approval' && canApprove;
+  const showDeny = visit.status === 'pending_approval' && canDeny;
+  const showReschedule = RESCHEDULABLE.includes(visit.status) && canReschedule;
+  const showResend =
+    ['approved', 'invitation_sent', 'pre_registered'].includes(visit.status) && canResend;
+  const showRevoke = invitation?.status === 'active' && canRevoke;
+  const showCancel = !closed && canCancel;
+  const showActions =
+    showApprove || showDeny || showReschedule || showResend || showRevoke || showCancel;
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -277,9 +298,9 @@ export function AppointmentDetail() {
       </div>
 
       {/* Actions */}
-      <Card className="flex flex-wrap gap-2 p-4">
-        {visit.status === 'pending_approval' && (
-          <>
+      {showActions && (
+        <Card className="flex flex-wrap gap-2 p-4">
+          {showApprove && (
             <Button
               variant="success"
               disabled={busy}
@@ -287,6 +308,8 @@ export function AppointmentDetail() {
             >
               <CheckCircle2 className="size-4" /> Approve &amp; send invitation
             </Button>
+          )}
+          {showDeny && (
             <Button
               variant="destructive"
               disabled={busy}
@@ -297,44 +320,48 @@ export function AppointmentDetail() {
             >
               <XCircle className="size-4" /> Deny
             </Button>
-          </>
-        )}
+          )}
 
-        {RESCHEDULABLE.includes(visit.status) && (
-          <Button variant="outline" disabled={busy} onClick={() => setRescheduling(true)}>
-            <CalendarClock className="size-4" /> Reschedule
-          </Button>
-        )}
+          {showReschedule && (
+            <Button variant="outline" disabled={busy} onClick={() => setRescheduling(true)}>
+              <CalendarClock className="size-4" /> Reschedule
+            </Button>
+          )}
 
-        {['approved', 'invitation_sent', 'pre_registered'].includes(visit.status) && (
-          <Button variant="outline" disabled={busy} onClick={() => resend.mutate({ visitId: id })}>
-            <Send className="size-4" /> {invitation ? 'Resend invitation' : 'Send invitation'}
-          </Button>
-        )}
+          {showResend && (
+            <Button
+              variant="outline"
+              disabled={busy}
+              onClick={() => resend.mutate({ visitId: id })}
+            >
+              <Send className="size-4" /> {invitation ? 'Resend invitation' : 'Send invitation'}
+            </Button>
+          )}
 
-        {invitation?.status === 'active' && (
-          <Button
-            variant="outline"
-            disabled={busy}
-            onClick={() => revoke.mutate({ invitationId: invitation.id })}
-          >
-            <Ban className="size-4" /> Revoke invitation
-          </Button>
-        )}
+          {showRevoke && invitation && (
+            <Button
+              variant="outline"
+              disabled={busy}
+              onClick={() => revoke.mutate({ invitationId: invitation.id })}
+            >
+              <Ban className="size-4" /> Revoke invitation
+            </Button>
+          )}
 
-        {!closed && (
-          <Button
-            variant="ghost"
-            disabled={busy}
-            className="ml-auto text-slate-500 hover:text-red-600"
-            onClick={() => {
-              if (window.confirm('Cancel this appointment?')) cancel.mutate({ visitId: id });
-            }}
-          >
-            Cancel appointment
-          </Button>
-        )}
-      </Card>
+          {showCancel && (
+            <Button
+              variant="ghost"
+              disabled={busy}
+              className="ml-auto text-slate-500 hover:text-red-600"
+              onClick={() => {
+                if (window.confirm('Cancel this appointment?')) cancel.mutate({ visitId: id });
+              }}
+            >
+              Cancel appointment
+            </Button>
+          )}
+        </Card>
+      )}
 
       {/* Checkpoint trail — which checkpoints the visitor presented their credential at. */}
       {(trail.data?.length ?? 0) > 0 && (
