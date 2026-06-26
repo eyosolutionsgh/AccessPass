@@ -5,6 +5,7 @@
  */
 import { index, jsonb, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
 import { id, timestamps } from './_shared.ts';
+import { user } from './auth.ts';
 import { checkpointEventKind } from './enums.ts';
 import { facility } from './locations.ts';
 import { visit } from './visits.ts';
@@ -35,6 +36,8 @@ export const checkpointEvent = pgTable(
     kind: checkpointEventKind().notNull(),
     /** How the credential was presented: qr/code/nfc/tag. */
     method: text(),
+    /** Staff member (e.g. guard) who verified this passage, when scanned from an authenticated device. */
+    verifiedBy: text().references(() => user.id, { onDelete: 'set null' }),
     at: timestamp({ withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [

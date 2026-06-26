@@ -476,3 +476,114 @@ export async function checkOut(visitId: string, ctx: LookupContext, actor: Check
 
   return { visitId, status: 'checked_out' as const };
 }
+
+export type GuardScanResult =
+  | {
+      ok: true;
+      visitId: string;
+      visitorName: string;
+      organization: string | null;
+      hostName: string | null;
+      departmentName: string | null;
+      officeName: string | null;
+      purpose: string | null;
+      expectedArrival: Date | null;
+      expectedDeparture: Date | null;
+      checkpoint: string | null;
+      watchlisted: boolean;
+    }
+  | { ok: false; message: string };
+
+/**
+ * Guard-operated checkpoint scan (staff-authenticated, unlike the public kiosk `passageScan`):
+ * looks up a checked-in visitor's QR/code and returns full identity + visit details for the
+ * guard to verify on the spot, flags a watchlist match, and logs the passage attributed to the
+ * scanning guard (SRS §3.2 security_guard/security_manager checkpoint duty).
+ */
+export async function guardScan(
+  lookup: CheckInLookup,
+  ctx: { deviceId?: string; ip: string; guardId: string },
+): Promise<GuardScanResult> {
+  const invitation = await findInvitation(lookup);
+  if (!invitation) return { ok: false, message: 'No matching visit found.' };
+
+  const [visit] = await db
+    .select()
+    .from(schema.visit)
+    .where(eq(schema.visit.id, invitation.visitId));
+  if (!visit || visit.status !== 'checked_in') {
+    return { ok: false, message: 'This visitor is not currently checked in.' };
+  }
+
+  const [row] = await db
+    .select({
+      visitor: schema.visitor,
+      hostName: schema.host.name,
+      departmentName: schema.department.name,
+      officeName: schema.office.name,
+    })
+    .from(schema.visit)
+    .leftJoin(schema.visitor, eq(schema.visitor.id, schema.visit.visitorId))
+    .leftJoin(schema.host, eq(schema.host.id, schema.visit.hostId))
+    .leftJoin(schema.department, eq(schema.department.id, schema.host.departmentId))
+    .leftJoin(schema.office, eq(schema.office.id, schema.host.officeId))
+    .where(eq(schema.visit.id, visit.id));
+
+  const watchlisted = row?.visitor ? await isWatchlisted(row.visitor) : false;
+
+  await recordCheckpointEvent(db, {
+    visitId: visit.id,
+    deviceId: ctx.deviceId,
+    kind: 'passage',
+    method: lookup.kind,
+    verifiedBy: ctx.guardId,
+  });
+  await announceCheckpoint(visit.id);
+
+  let checkpoint: string | null = null;
+  if (ctx.deviceId) {
+    const [d] = await db
+      .select({ label: schema.deviceProfile.label })
+      .from(schema.deviceProfile)
+      .where(eq(schema.deviceProfile.deviceId, ctx.deviceId))
+      .limit(1);
+    checkpoint = d?.label ?? null;
+  }
+
+  if (watchlisted) {
+    await raiseIncident({
+      visitId: visit.id,
+      facilityId: visit.facilityId,
+      type: 'watchlist_match',
+      severity: 'high',
+      description: 'Watchlist match at checkpoint scan',
+      metadata: { guardId: ctx.guardId, deviceId: ctx.deviceId },
+      actor: { id: ctx.guardId },
+    });
+  }
+
+  await recordAudit(db, {
+    actorId: ctx.guardId,
+    action: 'checkpoint.guard_scan',
+    objectType: 'visit',
+    objectId: visit.id,
+    sourceIp: ctx.ip,
+    deviceId: ctx.deviceId,
+    metadata: { watchlisted },
+  });
+
+  return {
+    ok: true,
+    visitId: visit.id,
+    visitorName: row?.visitor?.fullName ?? 'Visitor',
+    organization: row?.visitor?.organization ?? null,
+    hostName: row?.hostName ?? null,
+    departmentName: row?.departmentName ?? null,
+    officeName: row?.officeName ?? null,
+    purpose: visit.purpose,
+    expectedArrival: visit.expectedArrival,
+    expectedDeparture: visit.expectedDeparture,
+    checkpoint,
+    watchlisted,
+  };
+}

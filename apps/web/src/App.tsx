@@ -31,6 +31,9 @@ const Reception = lazy(() =>
 );
 const Security = lazy(() => import('./pages/Security.tsx').then((m) => ({ default: m.Security })));
 const Muster = lazy(() => import('./pages/Muster.tsx').then((m) => ({ default: m.Muster })));
+const SecurityScan = lazy(() =>
+  import('./pages/SecurityScan.tsx').then((m) => ({ default: m.SecurityScan })),
+);
 const Reports = lazy(() => import('./pages/Reports.tsx').then((m) => ({ default: m.Reports })));
 const Audit = lazy(() => import('./pages/Audit.tsx').then((m) => ({ default: m.Audit })));
 // The Administration screens share one lazily-loaded chunk; each named export is a
@@ -131,6 +134,7 @@ function StaffApp() {
           <Route path="/reception" component={Reception} />
           <Route path="/security" component={Security} />
           <Route path="/security/muster" component={Muster} />
+          <Route path="/security/scan" component={SecurityScan} />
           <Route path="/reports" component={Reports} />
           <Route path="/audit" component={Audit} />
           <Route path="/admin">{() => <Redirect to="/admin/settings" />}</Route>

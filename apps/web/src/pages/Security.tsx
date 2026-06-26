@@ -4,6 +4,7 @@ import {
   CircleSlash,
   ListChecks,
   MessageSquareText,
+  ScanLine,
   Search,
   ShieldAlert,
   ShieldCheck,
@@ -145,11 +146,18 @@ export function Security() {
         title="Security"
         description="Monitor incidents, overstays and the visitor watchlist."
         actions={
-          <Link href="/security/muster">
-            <Button variant="destructive">
-              <ShieldAlert className="size-4" /> Emergency muster
-            </Button>
-          </Link>
+          <div className="flex gap-2">
+            <Link href="/security/scan">
+              <Button>
+                <ScanLine className="size-4" /> Checkpoint scan
+              </Button>
+            </Link>
+            <Link href="/security/muster">
+              <Button variant="destructive">
+                <ShieldAlert className="size-4" /> Emergency muster
+              </Button>
+            </Link>
+          </div>
         }
       />
 

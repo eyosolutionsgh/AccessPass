@@ -13,13 +13,20 @@ type CheckpointKind = (typeof schema.checkpointEventKind.enumValues)[number];
 /** Record a credential presentation at a checkpoint. Pass a tx to write inside an existing one. */
 export async function recordCheckpointEvent(
   conn: Database,
-  input: { visitId: string; deviceId?: string | null; kind: CheckpointKind; method?: string | null },
+  input: {
+    visitId: string;
+    deviceId?: string | null;
+    kind: CheckpointKind;
+    method?: string | null;
+    verifiedBy?: string | null;
+  },
 ): Promise<void> {
   await conn.insert(schema.checkpointEvent).values({
     visitId: input.visitId,
     deviceId: input.deviceId ?? null,
     kind: input.kind,
     method: input.method ?? null,
+    verifiedBy: input.verifiedBy ?? null,
   });
 }
 

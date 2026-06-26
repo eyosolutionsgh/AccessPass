@@ -9,6 +9,7 @@ import {
 import {
   checkOut,
   completeCheckIn,
+  guardScan,
   validateLookup,
   validateLookupReadOnly,
 } from '../../services/checkin.ts';
@@ -102,6 +103,17 @@ export const checkinRouter = router({
   checkpoint: rateLimited(30, 60)
     .input(checkInSubmitSchema)
     .mutation(({ input }) => passageScan(input.lookup, { deviceId: input.deviceId })),
+
+  /**
+   * Guard-operated checkpoint scan (staff, e.g. security_guard/security_manager): returns full
+   * visitor/host/visit details for on-the-spot verification and attributes the passage to the
+   * scanning guard.
+   */
+  guardScan: authorized({ checkin: ['override'] })
+    .input(checkInSubmitSchema)
+    .mutation(({ input, ctx }) =>
+      guardScan(input.lookup, { deviceId: input.deviceId, ip: ctx.ip, guardId: ctx.user.id }),
+    ),
 
   /** Issue a reusable tag/NFC to a checked-in visitor (public kiosk, rate-limited). */
   issueTag: rateLimited(30, 60).input(tagIssueSchema).mutation(({ input }) => issueTag(input)),
