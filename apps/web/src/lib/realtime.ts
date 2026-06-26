@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { io } from 'socket.io-client';
+import { apiBase } from './api.ts';
 
 /**
  * Subscribe to server visit events for live dashboards: lifecycle changes (`visit:event` —
@@ -11,7 +12,9 @@ export function useVisitEvents(handler: () => void) {
   ref.current = handler;
 
   useEffect(() => {
-    const socket = io({ path: '/socket.io' });
+    // `apiBase || undefined` keeps same-origin behaviour in dev; when the API is on its own host
+    // (api.vms.3dt.com.gh) connect there with credentials so the session cookie is sent.
+    const socket = io(apiBase || undefined, { path: '/socket.io', withCredentials: true });
     const fire = () => ref.current();
     socket.on('visit:event', fire);
     socket.on('visit:location', fire);

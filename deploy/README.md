@@ -16,14 +16,21 @@ self-hosted on one box — no managed cloud services.
 | `minio`        | minio/minio               | internal       | S3-compatible object storage (documents)  |
 | `mailpit`      | axllent/mailpit           | internal       | Outbound-mail sink (swap for real SMTP)   |
 
-Because the SPA talks to the API over **same-origin relative paths** (`/trpc`, `/api`,
-`/socket.io`), a single hostname (`vms.3dt.com.gh`) serves both — Caddy routes the API paths to
-`server` and everything else to `web`.
+Two hostnames, both pointed at this server:
+
+- `vms.3dt.com.gh` → the React SPA (`web` container)
+- `api.vms.3dt.com.gh` → the API (`server` container) — tRPC, REST gateway, better-auth, Socket.io
+
+The web bundle is built with `VITE_API_URL=https://api.vms.3dt.com.gh`, so the browser calls the
+API host directly (with credentials — the better-auth session cookie is set on that host).
+`vms.3dt.com.gh` and `api.vms.3dt.com.gh` share the registrable domain `3dt.com.gh`, so the
+session cookie is same-site and CORS is configured to allow the SPA origin.
 
 ## First-time deploy
 
-1. **DNS** — point an `A` record for `vms.3dt.com.gh` at the server's public IP. Caddy needs this
-   resolvable before it can complete the Let's Encrypt challenge.
+1. **DNS** — point `A` records for both `vms.3dt.com.gh` and `api.vms.3dt.com.gh` (a
+   `*.vms.3dt.com.gh` wildcard covers the latter) at the server's public IP. Caddy needs both
+   resolvable before it can complete the Let's Encrypt challenges.
 
 2. **Get the code onto the box** (`/opt/vms`):
 

@@ -1,18 +1,18 @@
 # VMS reverse proxy with automatic HTTPS (Let's Encrypt).
 #
-# The web SPA reaches the API over same-origin relative paths, so a SINGLE hostname serves
-# both: API/auth/tRPC/websocket/MCP/health paths go to the `server` container, and everything
-# else (the static SPA) goes to the `web` container.
+# Two hostnames, both pointed at this server (vms.3dt.com.gh + the *.vms.3dt.com.gh wildcard):
+#   ${VMS_DOMAIN}     (vms.3dt.com.gh)     -> the static React SPA (web container)
+#   ${VMS_API_DOMAIN} (api.vms.3dt.com.gh) -> the API (server container)
 #
-# Point an A record for vms.3dt.com.gh at this server's public IP before starting Caddy, or the
-# Let's Encrypt challenge will fail. The hostname is supplied via ${VMS_DOMAIN} from .env.
+# The web bundle is built with VITE_API_URL=https://api.vms.3dt.com.gh, so the browser calls the
+# API host directly (with credentials). The @api block on the SPA host is kept as a same-origin
+# fallback. DNS for both names must resolve here or the ACME challenge fails.
 {
 	email cloud.aaodoom@gmail.com
 }
 
 {$VMS_DOMAIN} {
-	# API surface (Express): better-auth (/api/auth), REST gateway (/api/v1), report exports
-	# (/api/reports), tRPC, Socket.io real-time, MCP, and health/readiness probes.
+	# Same-origin fallback for the API surface (the SPA normally targets the API host directly).
 	@api {
 		path /api/* /trpc/* /socket.io/* /mcp /mcp/* /health /ready
 	}
@@ -20,4 +20,10 @@
 
 	# Everything else: the static React SPA.
 	reverse_proxy web:80
+}
+
+# Dedicated API host: better-auth (/api/auth), REST gateway (/api/v1), report exports
+# (/api/reports), tRPC, Socket.io real-time, MCP, and health/readiness probes.
+{$VMS_API_DOMAIN} {
+	reverse_proxy server:4000
 }

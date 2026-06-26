@@ -17,6 +17,11 @@ WORKDIR /app
 
 COPY . .
 
+# API origin baked into the client bundle at BUILD time (Vite inlines import.meta.env.VITE_*).
+# Empty = same-origin; production split serves the API from api.vms.3dt.com.gh.
+ARG VITE_API_URL=""
+ENV VITE_API_URL=$VITE_API_URL
+
 # Install the web app's workspace subgraph (web + shared + server for types) and build it.
 # Bump the heap so the Vite build doesn't OOM on a small host.
 RUN pnpm install --frozen-lockfile \

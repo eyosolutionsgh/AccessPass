@@ -19,6 +19,7 @@ services:
       - '443:443'
     environment:
       VMS_DOMAIN: ${VMS_DOMAIN}
+      VMS_API_DOMAIN: ${VMS_API_DOMAIN}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
@@ -162,6 +163,8 @@ services:
     build:
       context: ..
       dockerfile: deploy/web.Dockerfile
+      args:
+        VITE_API_URL: ${VITE_API_URL}
     restart: unless-stopped
     depends_on:
       - server
