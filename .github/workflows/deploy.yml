@@ -1,0 +1,115 @@
+name: CI/CD (Hetzner)
+
+# Builds ON the production box via a self-hosted runner, mirroring the dvla_idp_backend pattern.
+#   - pull_request -> `build` job validates both images compile (visible merge signal)
+#   - push to main / manual -> `deploy` job builds + redeploys on the box,
+#     and auto-rolls-back web/server to their last-good images if the health check fails.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: cicd-vms-prod-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Merge signal: only builds the images, never touches the running stack.
+  build:
+    name: build
+    if: github.event_name == 'pull_request'
+    runs-on: [self-hosted, vms-prod]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Build server image (validation only — no deploy)
+        run: docker build -t vms-server-ci:${{ github.sha }} -f deploy/server.Dockerfile .
+
+      - name: Build web image (validation only — no deploy)
+        run: |
+          docker build -t vms-web-ci:${{ github.sha }} -f deploy/web.Dockerfile \
+            --build-arg VITE_API_URL=https://api.vms.3dt.com.gh .
+
+      - name: Clean up CI images
+        if: always()
+        run: |
+          docker rmi vms-server-ci:${{ github.sha }} vms-web-ci:${{ github.sha }} 2>/dev/null || true
+          docker image prune -f
+
+  deploy:
+    name: deploy
+    if: github.event_name != 'pull_request'
+    runs-on: [self-hosted, vms-prod]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Sync source into deploy dir (deploy/.env is left untouched — it holds the secrets)
+        run: |
+          rsync -a --delete \
+            --exclude '.git/' \
+            --exclude 'node_modules/' \
+            --exclude 'dist/' \
+            --exclude '.data/' \
+            --exclude '.env' \
+            --exclude '.env.*' \
+            ./ /opt/vms/
+
+      - name: Capture current images (for rollback)
+        id: prev
+        working-directory: /opt/vms
+        run: |
+          for svc in server web; do
+            CID=$(docker compose --env-file deploy/.env -f deploy/docker-compose.yml ps -q "$svc" 2>/dev/null || true)
+            if [ -n "$CID" ]; then
+              echo "${svc}_sha=$(docker inspect --format '{{.Image}}' "$CID")" >> "$GITHUB_OUTPUT"
+              echo "${svc}_ref=$(docker inspect --format '{{.Config.Image}}' "$CID")" >> "$GITHUB_OUTPUT"
+              echo "captured last-good image for $svc"
+            else
+              echo "no running $svc container yet (first deploy)"
+            fi
+          done
+
+      - name: Build & deploy server + web (migrations auto-apply via server entrypoint)
+        working-directory: /opt/vms
+        run: docker compose --env-file deploy/.env -f deploy/docker-compose.yml up -d --build server web
+
+      - name: Health check (auto-rollback on failure)
+        working-directory: /opt/vms
+        run: |
+          for i in $(seq 1 30); do
+            if curl -fsS --max-time 10 https://vms.3dt.com.gh/health >/dev/null 2>&1 && \
+               curl -fsS --max-time 10 https://vms.3dt.com.gh/ready >/dev/null 2>&1 && \
+               curl -fsS --max-time 10 https://vms.3dt.com.gh/ >/dev/null 2>&1; then
+              echo "✅ web + server healthy"; exit 0
+            fi
+            echo "waiting for stack... ($i)"; sleep 3
+          done
+          echo "❌ health check failed — rolling back to last-good images"
+          docker compose --env-file deploy/.env -f deploy/docker-compose.yml logs server web --tail=60 || true
+          ROLLED_BACK=false
+          SERVER_SHA="${{ steps.prev.outputs.server_sha }}"; SERVER_REF="${{ steps.prev.outputs.server_ref }}"
+          WEB_SHA="${{ steps.prev.outputs.web_sha }}"; WEB_REF="${{ steps.prev.outputs.web_ref }}"
+          if [ -n "$SERVER_SHA" ] && [ -n "$SERVER_REF" ]; then
+            docker tag "$SERVER_SHA" "$SERVER_REF"
+            ROLLED_BACK=true
+          fi
+          if [ -n "$WEB_SHA" ] && [ -n "$WEB_REF" ]; then
+            docker tag "$WEB_SHA" "$WEB_REF"
+            ROLLED_BACK=true
+          fi
+          if [ "$ROLLED_BACK" = true ]; then
+            docker compose --env-file deploy/.env -f deploy/docker-compose.yml up -d --no-build server web
+            echo "↩️ rolled back to previous images; production stays on last-good version"
+          else
+            echo "no previous images captured — cannot roll back automatically"
+          fi
+          exit 1
+
+      - name: Prune dangling images
+        if: always()
+        run: docker image prune -f
