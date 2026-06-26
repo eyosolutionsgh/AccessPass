@@ -82,7 +82,10 @@ export const host = ac.newRole({
 export const receptionist = ac.newRole({
   appointment: ['create', 'read', 'update'],
   invitation: ['read', 'resend'],
-  checkin: ['process', 'override', 'checkout'],
+  // Front desk operates the check-in and check-out posts only. The checkpoint scan
+  // (`override`, gating guardScan / the /checkpoint post) is a security-guard function,
+  // so it is deliberately withheld from reception.
+  checkin: ['process', 'checkout'],
   badge: ['issue', 'reprint', 'read'],
   visitor: ['create', 'read', 'update'],
   incident: ['create', 'read'],
@@ -124,21 +127,23 @@ export const securityManager = ac.newRole({
   analyst: ['read', 'suggest', 'operations'],
 });
 
+// Identity & system administration + read-only oversight — NOT a super-user. The administrator
+// manages accounts and system configuration and can see operational data, reports and the audit
+// trail for oversight, but performs no front-line work: no check-in/checkout/checkpoint, badge
+// issuing, booking/approving appointments, watchlist/access management or incident handling.
+// Those belong to reception and security roles (SRS FR-002, least privilege).
 export const systemAdministrator = ac.newRole({
-  appointment: ['create', 'read', 'update', 'cancel', 'approve', 'deny'],
-  invitation: ['create', 'resend', 'revoke', 'regenerate', 'read'],
-  checkin: ['process', 'override', 'checkout', 'bulk_checkout'],
-  badge: ['issue', 'reprint', 'read'],
-  visitor: ['create', 'read', 'update', 'delete'],
-  watchlist: ['read', 'manage'],
-  access: ['assign', 'revoke', 'read'],
-  incident: ['create', 'read', 'resolve'],
-  dashboard: ['reception', 'security', 'host'],
-  report: ['read', 'export'],
-  audit: ['read', 'export'],
+  // Staff/account management (mirrors the better-auth admin plugin verbs).
   user: ['create', 'read', 'list', 'update', 'set-email', 'delete', 'ban', 'set-role'],
+  // Facilities, categories, templates, retention, integrations.
   config: ['read', 'manage'],
-  analyst: ['read', 'suggest', 'operations'],
+  // Read-only oversight. Reception is a pure front-desk console (no oversight value for an
+  // administrator), so admin gets the security dashboard only — not reception.
+  appointment: ['read'],
+  visitor: ['read'],
+  dashboard: ['security'],
+  report: ['read'],
+  audit: ['read'],
 });
 
 export const auditor = ac.newRole({
