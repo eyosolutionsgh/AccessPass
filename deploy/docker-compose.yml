@@ -1,0 +1,180 @@
+# VMS — single-node production stack.
+#
+# Runtime layout on the server (/opt/vms is a clone of this repo):
+#   deploy/docker-compose.yml   (this file)
+#   deploy/Caddyfile            (reverse proxy)
+#   deploy/.env                 (secrets — generated on the box, NEVER committed)
+#
+# Only Caddy is published to the host (80/443). Postgres, Redis and MinIO stay on the internal
+# network and are never exposed publicly. Bring up with:
+#   docker compose --env-file .env -f deploy/docker-compose.yml up -d --build
+name: vms
+
+services:
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - '80:80'
+      - '443:443'
+    environment:
+      VMS_DOMAIN: ${VMS_DOMAIN}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - web
+      - server
+    networks:
+      - vms
+
+  postgres:
+    # pgvector/pgvector:pg16 = Postgres 16 + the `vector` extension (kept for parity with the
+    # schema; AI similarity search is unused while the AI stack is disabled).
+    image: pgvector/pgvector:pg16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - vms
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ['redis-server', '--appendonly', 'yes']
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - vms
+
+  minio:
+    image: minio/minio:latest
+    restart: unless-stopped
+    command: ['server', '/data', '--console-address', ':9001']
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ['CMD', 'mc', 'ready', 'local']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - vms
+
+  # One-shot: create the uploads bucket, then exit.
+  createbuckets:
+    image: minio/mc:latest
+    depends_on:
+      minio:
+        condition: service_started
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      S3_BUCKET: ${S3_BUCKET}
+    entrypoint: >
+      /bin/sh -c "
+      until mc alias set local http://minio:9000 $$MINIO_ROOT_USER $$MINIO_ROOT_PASSWORD; do echo 'waiting for minio...'; sleep 2; done;
+      mc mb --ignore-existing local/$$S3_BUCKET;
+      echo 'bucket ready: '$$S3_BUCKET;
+      "
+    networks:
+      - vms
+
+  # Dev/staging mail sink — captures all outbound invitation/notification email in a web UI
+  # (internal only, reachable via SSH tunnel to :8025). Swap SMTP_* in .env for the corporate
+  # relay to deliver mail for real.
+  mailpit:
+    image: axllent/mailpit:latest
+    restart: unless-stopped
+    environment:
+      MP_MAX_MESSAGES: '5000'
+      MP_DATABASE: /data/mailpit.db
+      MP_SMTP_AUTH_ACCEPT_ANY: 'true'
+      MP_SMTP_AUTH_ALLOW_INSECURE: 'true'
+    volumes:
+      - mailpit_data:/data
+    networks:
+      - vms
+
+  server:
+    build:
+      context: ..
+      dockerfile: deploy/server.Dockerfile
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: '4000'
+      APP_URL: ${APP_URL}
+      WEB_ORIGIN: ${WEB_ORIGIN}
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET}
+      BETTER_AUTH_URL: ${BETTER_AUTH_URL}
+      QR_TOKEN_SECRET: ${QR_TOKEN_SECRET}
+      FIELD_ENCRYPTION_KEY: ${FIELD_ENCRYPTION_KEY}
+      DATABASE_URL: ${DATABASE_URL}
+      REDIS_URL: ${REDIS_URL}
+      S3_ENDPOINT: ${S3_ENDPOINT}
+      S3_REGION: ${S3_REGION}
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY}
+      S3_SECRET_KEY: ${S3_SECRET_KEY}
+      S3_BUCKET: ${S3_BUCKET}
+      S3_FORCE_PATH_STYLE: 'true'
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT}
+      SMTP_SECURE: ${SMTP_SECURE}
+      SMTP_USER: ${SMTP_USER}
+      SMTP_PASS: ${SMTP_PASS}
+      SMTP_FROM: ${SMTP_FROM}
+      SMS_PROVIDER: ${SMS_PROVIDER}
+      NALO_SMS_USERNAME: ${NALO_SMS_USERNAME}
+      NALO_SMS_PASSWORD: ${NALO_SMS_PASSWORD}
+      NALO_SMS_SOURCE: ${NALO_SMS_SOURCE}
+      RETENTION_DAYS_DEFAULT: ${RETENTION_DAYS_DEFAULT}
+      SEED_ON_START: ${SEED_ON_START}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_started
+    networks:
+      - vms
+
+  web:
+    build:
+      context: ..
+      dockerfile: deploy/web.Dockerfile
+    restart: unless-stopped
+    depends_on:
+      - server
+    networks:
+      - vms
+
+networks:
+  vms:
+
+volumes:
+  pgdata:
+  redisdata:
+  minio_data:
+  mailpit_data:
+  caddy_data:
+  caddy_config:

@@ -1,0 +1,5 @@
+build/
+debug/
+# Licensed vendor SDKs — provided per-deployment, not committed.
+libs/provided/*.jar
+libs/bundled/*.jar

@@ -1,0 +1,8 @@
+<resources>
+    <!-- Full-bleed, no action bar: the web app owns the whole screen. -->
+    <style name="AppTheme" parent="@android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:windowFullscreen">true</item>
+        <item name="android:windowContentOverlay">@null</item>
+        <item name="android:colorAccent">#0B6BFF</item>
+    </style>
+</resources>

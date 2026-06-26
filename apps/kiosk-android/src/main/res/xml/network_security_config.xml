@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  On-prem deployments often serve the VMS web app over plain HTTP on the LAN.
+  Cleartext is permitted here so the kiosk can reach such a server. For the camera
+  QR fallback (getUserMedia) the browser still requires a secure context, so prefer
+  serving the web app over HTTPS (or use the hardware scanner) in production.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system" />
+            <certificates src="user" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>

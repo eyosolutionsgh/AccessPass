@@ -1,0 +1,8 @@
+node_modules
+dist
+build
+out
+coverage
+drizzle/meta
+pnpm-lock.yaml
+.data

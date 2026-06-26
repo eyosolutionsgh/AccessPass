@@ -1,0 +1,45 @@
+{
+  "name": "@vms/web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@hookform/resolvers": "^5.2.2",
+    "@tanstack/react-query": "^5.90.2",
+    "@trpc/client": "^11.6.0",
+    "@trpc/react-query": "^11.6.0",
+    "@vms/server": "workspace:*",
+    "@vms/shared": "workspace:*",
+    "@zxing/browser": "^0.2.0",
+    "better-auth": "^1.6.11",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "flag-icons": "^7.5.0",
+    "lucide-react": "^0.453.0",
+    "react": "^19.2.1",
+    "react-dom": "^19.2.1",
+    "react-hook-form": "^7.64.0",
+    "socket.io-client": "^4.8.3",
+    "sonner": "^2.0.7",
+    "superjson": "^1.13.3",
+    "tailwind-merge": "^3.3.1",
+    "wouter": "^3.3.5",
+    "zod": "^4.1.12"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.1.14",
+    "@types/node": "^24.7.0",
+    "@types/react": "^19.2.1",
+    "@types/react-dom": "^19.2.1",
+    "@vitejs/plugin-react": "^5.0.4",
+    "tailwindcss": "^4.1.14",
+    "typescript": "5.9.3",
+    "vite": "^7.1.7"
+  }
+}

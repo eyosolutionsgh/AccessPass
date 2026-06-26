@@ -1,0 +1,25 @@
+{
+  "name": "@vms/shared",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./db": "./src/db/schema/index.ts",
+    "./rbac": "./src/rbac/permissions.ts",
+    "./schemas": "./src/schemas/index.ts"
+  },
+  "scripts": {
+    "check": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "better-auth": "^1.6.11",
+    "drizzle-orm": "^0.45.2",
+    "zod": "^4.1.12"
+  },
+  "devDependencies": {
+    "typescript": "5.9.3",
+    "vitest": "^2.1.4"
+  }
+}

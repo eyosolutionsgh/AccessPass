@@ -1,0 +1,24 @@
+{
+  "name": "@vms/kiosk",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Locked-down Electron kiosk for visitor self-service check-in",
+  "main": "dist/main.js",
+  "scripts": {
+    "build": "esbuild src/main.ts src/preload.ts --bundle --platform=node --format=cjs --external:electron --external:pino --external:pino-pretty --outdir=dist --target=node20",
+    "dev": "pnpm build && electron .",
+    "start": "electron .",
+    "check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "pino": "^9.5.0",
+    "qrcode": "^1.5.4"
+  },
+  "devDependencies": {
+    "@types/node": "^24.7.0",
+    "@types/qrcode": "^1.5.5",
+    "electron": "^34.0.0",
+    "esbuild": "^0.25.0",
+    "typescript": "5.9.3"
+  }
+}

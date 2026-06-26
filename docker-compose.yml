@@ -1,0 +1,106 @@
+# On-prem infrastructure for local dev / single-node deployment.
+# All services self-hosted — no cloud dependencies (air-gap capable).
+services:
+  postgres:
+    # pgvector/pgvector:pg16 = official Postgres 16 + the `vector` extension (AI similarity search).
+    # Binary-compatible with the data dir; stage this image for air-gapped installs.
+    image: pgvector/pgvector:pg16
+    container_name: vms-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: vms
+      POSTGRES_PASSWORD: vms
+      POSTGRES_DB: vms
+    ports:
+      # Host port 5544 (not 5432) to avoid clashing with other local Postgres instances.
+      - '5544:5432'
+    volumes:
+      - ./.data/postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U vms -d vms']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: vms-redis
+    restart: unless-stopped
+    command: ['redis-server', '--appendonly', 'yes']
+    ports:
+      - '6390:6379'
+    volumes:
+      - ./.data/redis:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  minio:
+    image: minio/minio:latest
+    container_name: vms-minio
+    restart: unless-stopped
+    command: ['server', '/data', '--console-address', ':9001']
+    environment:
+      MINIO_ROOT_USER: vmsadmin
+      MINIO_ROOT_PASSWORD: vmsadminsecret
+    ports:
+      - '9100:9000' # S3 API
+      - '9101:9001' # Console
+    volumes:
+      - ./.data/minio:/data
+    healthcheck:
+      test: ['CMD', 'mc', 'ready', 'local']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # Speech-to-text (A1 voice input) — OpenAI-compatible Whisper (faster-whisper, arm64). The base
+  # model downloads on first start; pre-stage the cache volume for an air-gapped install.
+  whisper:
+    image: hwdsl2/whisper-server:latest
+    container_name: vms-whisper
+    restart: unless-stopped
+    environment:
+      ASR_MODEL: base
+    ports:
+      - '9099:9000'
+    volumes:
+      - ./.data/whisper:/root/.cache/huggingface
+
+  # Text-to-speech (A1 voice output) — OpenAI-compatible Piper (openedai-speech-min, arm64). Piper
+  # voices download on first synth into the mounted volume; pre-stage it for an air-gapped install.
+  tts:
+    image: ghcr.io/matatonic/openedai-speech-min:latest
+    container_name: vms-tts
+    restart: unless-stopped
+    ports:
+      - '9088:8000'
+    volumes:
+      - ./.data/tts:/app/voices
+
+  # Twi/Akan text-to-speech (A1 voice output) — BibleTTS Asante Twi VITS via Coqui TTS, wrapped as an
+  # OpenAI-compatible /v1/audio/speech service. CPU, 22kHz. The ~922MB model loads from the mounted
+  # ./.data/twi-tts/asante-twi/ folder (pre-stage it for an air-gapped install — no runtime download).
+  # License: CC-BY-SA-4.0 (commercial use permitted; ShareAlike). Replaces the non-commercial MMS engine.
+  twi-tts:
+    build: ./docker/twi-tts
+    image: vms-twi-tts:latest
+    container_name: vms-twi-tts
+    restart: unless-stopped
+    ports:
+      - '9087:8000'
+    volumes:
+      - ./.data/twi-tts:/models
+
+  # Dev-only SMTP sink — captures invitation/notification emails in a web UI.
+  # In production this is replaced by the corporate SMTP relay (see .env).
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: vms-mailpit
+    restart: unless-stopped
+    ports:
+      - '1025:1025' # SMTP
+      - '8025:8025' # Web UI
+    profiles: ['dev']

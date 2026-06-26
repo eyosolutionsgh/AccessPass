@@ -1,0 +1,32 @@
+# Keep the Docker build context small and reproducible — deps are installed
+# fresh inside the image, and these never belong in it.
+**/node_modules
+**/dist
+**/build
+**/out
+**/.turbo
+**/*.tsbuildinfo
+
+# Local data volumes / secrets
+.data
+**/.data
+.env
+**/.env
+**/.env.*
+!**/.env.example
+
+# VCS / editor / OS
+.git
+.gitignore
+.husky
+.idea
+.vscode
+**/.DS_Store
+
+# Electron packaging output
+apps/kiosk/release
+
+# Logs / coverage / docs that bloat context
+**/*.log
+**/coverage
+*.docx

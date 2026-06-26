@@ -1,0 +1,3 @@
+CREATE TYPE "public"."audit_actor_kind" AS ENUM('human', 'system', 'ai');--> statement-breakpoint
+ALTER TABLE "audit_log" ADD COLUMN "seq" bigint NOT NULL GENERATED ALWAYS AS IDENTITY (sequence name "audit_log_seq_seq" INCREMENT BY 1 MINVALUE 1 MAXVALUE 9223372036854775807 START WITH 1 CACHE 1);--> statement-breakpoint
+ALTER TABLE "audit_log" ADD COLUMN "actor_kind" "audit_actor_kind" DEFAULT 'human' NOT NULL;

@@ -1,0 +1,7 @@
+{
+  "webUrl": "http://10.0.2.2:5173",
+  "startPath": "/check-in",
+  "deviceId": "kiosk-android-1",
+  "facilityId": "",
+  "lockTask": false
+}
