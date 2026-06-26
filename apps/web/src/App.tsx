@@ -10,6 +10,12 @@ import { useSession } from './lib/auth.ts';
 const CheckIn = lazy(() =>
   import('./pages/public/CheckIn.tsx').then((m) => ({ default: m.CheckIn })),
 );
+const CheckOut = lazy(() =>
+  import('./pages/public/CheckOut.tsx').then((m) => ({ default: m.CheckOut })),
+);
+const Checkpoint = lazy(() =>
+  import('./pages/public/Checkpoint.tsx').then((m) => ({ default: m.Checkpoint })),
+);
 const PreRegister = lazy(() =>
   import('./pages/public/PreRegister.tsx').then((m) => ({ default: m.PreRegister })),
 );
@@ -84,11 +90,24 @@ function PageLoader() {
 export function App() {
   const [location] = useLocation();
 
-  // Visitor-facing routes are public (the invitation token is the credential).
+  // Kiosk/post routes are publicly reachable, but each gates itself behind a staff sign-in
+  // (PostGate) so a visitor can only scan/enter a code while a staff member is at post.
   if (location.startsWith('/check-in'))
     return (
       <Suspense fallback={<FullScreenLoader />}>
         <CheckIn />
+      </Suspense>
+    );
+  if (location.startsWith('/check-out'))
+    return (
+      <Suspense fallback={<FullScreenLoader />}>
+        <CheckOut />
+      </Suspense>
+    );
+  if (location.startsWith('/checkpoint'))
+    return (
+      <Suspense fallback={<FullScreenLoader />}>
+        <Checkpoint />
       </Suspense>
     );
   if (location.startsWith('/pre-register'))

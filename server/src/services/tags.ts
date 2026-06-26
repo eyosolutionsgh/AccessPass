@@ -23,7 +23,8 @@ export async function issueTag(input: TagIssueInput) {
     .from(schema.visitTag)
     .where(and(eq(schema.visitTag.tagId, input.tagId), isNull(schema.visitTag.returnedAt)))
     .limit(1);
-  if (inUse) return { ok: false as const, message: 'That tag is already issued to another visitor.' };
+  if (inUse)
+    return { ok: false as const, message: 'That tag is already issued to another visitor.' };
 
   const [row] = await db
     .insert(schema.visitTag)
@@ -38,13 +39,18 @@ export async function issueTag(input: TagIssueInput) {
 }
 
 /** Return a tag — marks it returned and checks the visitor out if still on-site. */
-export async function returnTag(input: TagReturnInput, ctx: { ip: string }) {
+export async function returnTag(
+  input: TagReturnInput,
+  ctx: { ip: string },
+  actor: { id: string; role?: string | null } | null = null,
+) {
   const [tag] = await db
     .select()
     .from(schema.visitTag)
     .where(and(eq(schema.visitTag.tagId, input.tagId), isNull(schema.visitTag.returnedAt)))
     .limit(1);
-  if (!tag) return { ok: false as const, message: 'No active tag with that ID. Please see reception.' };
+  if (!tag)
+    return { ok: false as const, message: 'No active tag with that ID. Please see reception.' };
 
   await db
     .update(schema.visitTag)
@@ -59,10 +65,15 @@ export async function returnTag(input: TagReturnInput, ctx: { ip: string }) {
 
   let checkedOut = false;
   if (v?.status === 'checked_in') {
-    await checkOut(tag.visitId, { ip: ctx.ip, deviceId: input.deviceId });
+    await checkOut(tag.visitId, { ip: ctx.ip, deviceId: input.deviceId }, actor);
     checkedOut = true;
   }
-  return { ok: true as const, visitId: tag.visitId, visitorName: v?.visitorName ?? null, checkedOut };
+  return {
+    ok: true as const,
+    visitId: tag.visitId,
+    visitorName: v?.visitorName ?? null,
+    checkedOut,
+  };
 }
 
 /** Tags still out (not returned) — the reconciliation report. */

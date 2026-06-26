@@ -106,10 +106,11 @@ async function resolveCheckoutVisit(lookup: CheckoutLookup): Promise<string | nu
 
 export type SelfCheckoutResult = { ok: true; visitId: string } | { ok: false; message: string };
 
-/** Self-service check-out at a kiosk by invitation code or badge QR (SRS FR-080). */
+/** Check-out by invitation code or badge QR, attributed to the staff member at post. */
 export async function checkOutSelf(
   lookup: CheckoutLookup,
   ctx: LookupContext,
+  actor: Actor | null = null,
 ): Promise<SelfCheckoutResult> {
   const visitId = await resolveCheckoutVisit(lookup);
   if (!visitId)
@@ -118,7 +119,7 @@ export async function checkOutSelf(
   if (!visit || visit.status !== 'checked_in') {
     return { ok: false, message: 'This visit is not currently checked in. Please see reception.' };
   }
-  await checkOut(visitId, ctx);
+  await checkOut(visitId, ctx, actor);
   return { ok: true, visitId };
 }
 

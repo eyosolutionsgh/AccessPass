@@ -122,7 +122,7 @@ export function Audit() {
               <Th>Action</Th>
               <Th>Object</Th>
               <Th>Result</Th>
-              <Th>Source IP</Th>
+              <Th>Post</Th>
             </tr>
           </THead>
           <TBody>
@@ -158,9 +158,7 @@ export function Audit() {
                 <td className="px-4 py-2.5">
                   <ResultBadge result={a.result} />
                 </td>
-                <td className="px-4 py-2.5 font-mono text-xs text-slate-400">
-                  {a.sourceIp ?? '—'}
-                </td>
+                <td className="px-4 py-2.5 text-slate-500">{a.post ?? a.deviceId ?? '—'}</td>
               </tr>
             ))}
           </TBody>

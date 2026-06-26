@@ -495,10 +495,10 @@ export type GuardScanResult =
   | { ok: false; message: string };
 
 /**
- * Guard-operated checkpoint scan (staff-authenticated, unlike the public kiosk `passageScan`):
- * looks up a checked-in visitor's QR/code and returns full identity + visit details for the
- * guard to verify on the spot, flags a watchlist match, and logs the passage attributed to the
- * scanning guard (SRS §3.2 security_guard/security_manager checkpoint duty).
+ * Guard-operated checkpoint scan: looks up a checked-in visitor's QR/code and returns full
+ * identity + visit details for the guard to verify on the spot, flags a watchlist match, and
+ * logs the passage attributed to the scanning guard (SRS §3.2 security_guard/security_manager
+ * checkpoint duty).
  */
 export async function guardScan(
   lookup: CheckInLookup,

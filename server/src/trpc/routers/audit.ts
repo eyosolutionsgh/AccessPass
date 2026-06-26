@@ -27,11 +27,13 @@ export const auditRouter = router({
           result: schema.auditLog.result,
           actorRole: schema.auditLog.actorRole,
           actorEmail: schema.user.email,
-          sourceIp: schema.auditLog.sourceIp,
+          deviceId: schema.auditLog.deviceId,
+          post: schema.deviceProfile.label,
           createdAt: schema.auditLog.createdAt,
         })
         .from(schema.auditLog)
         .leftJoin(schema.user, eq(schema.user.id, schema.auditLog.actorId))
+        .leftJoin(schema.deviceProfile, eq(schema.deviceProfile.deviceId, schema.auditLog.deviceId))
         .where(where)
         .orderBy(desc(schema.auditLog.createdAt))
         .limit(input.pageSize)
