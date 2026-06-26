@@ -49,6 +49,9 @@
   --animate-rise: rise 0.5s var(--ease-out-soft) both;
   --animate-scale-in: scale-in 0.35s var(--ease-out-soft) both;
   --animate-pulse-ring: pulse-ring 2s ease-in-out infinite;
+  /* Slow ambient drift for decorative backdrop glows. */
+  --animate-float: float 9s ease-in-out infinite;
+  --animate-float-slow: float 14s ease-in-out infinite;
 
   @keyframes fade-in {
     from {
@@ -87,6 +90,15 @@
     50% {
       opacity: 0.85;
       box-shadow: 0 0 0 5px oklch(0.7 0.135 196 / 0);
+    }
+  }
+  @keyframes float {
+    0%,
+    100% {
+      transform: translateY(0) translateX(0);
+    }
+    50% {
+      transform: translateY(-22px) translateX(10px);
     }
   }
 }

@@ -5,12 +5,12 @@ import { requestPasswordReset, signIn } from '../lib/auth.ts';
 import { Button } from '../components/ui/button.tsx';
 import { InputWithIcon } from '../components/ui/input.tsx';
 
-/** Decorative facility pins scattered over the backdrop — purely visual. */
+/** Decorative facility checkpoints scattered over the backdrop — purely visual. */
 const PINS = [
-  { top: '24%', left: '21%', size: 'size-8', tone: 'text-brand-600' },
-  { top: '17%', left: '68%', size: 'size-6', tone: 'text-brand-400' },
-  { top: '70%', left: '29%', size: 'size-7', tone: 'text-brand-500' },
-  { top: '63%', left: '76%', size: 'size-5', tone: 'text-accent-500' },
+  { top: '18%', left: '13%', size: 'size-7', tone: 'text-brand-300/70' },
+  { top: '26%', left: '85%', size: 'size-5', tone: 'text-accent-400/70' },
+  { top: '72%', left: '16%', size: 'size-6', tone: 'text-brand-200/60' },
+  { top: '78%', left: '83%', size: 'size-7', tone: 'text-brand-300/60' },
 ];
 
 export function SignIn() {
@@ -40,72 +40,67 @@ export function SignIn() {
     setForgotSent(true);
   }
 
-  return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-gradient-to-br from-brand-50 via-white to-indigo-50 px-4 py-12 lg:justify-end lg:px-20">
-      {/* Decorative backdrop — a stylised map of facility checkpoints, purely visual. */}
-      <div className="absolute inset-0 hidden lg:block">
-        <div className="absolute inset-0 bg-grid opacity-60" />
-        <div className="absolute -left-24 -top-24 size-96 rounded-full bg-brand-200/50 blur-3xl" />
-        <div className="absolute -bottom-32 left-1/4 size-[28rem] rounded-full bg-accent-400/15 blur-3xl" />
-        <div className="absolute right-1/4 top-0 size-72 rounded-full bg-brand-300/30 blur-3xl" />
+  const title = forgotSent
+    ? 'Check your email'
+    : forgotMode
+      ? 'Reset your password'
+      : 'Welcome back';
+  const subtitle = forgotSent
+    ? `If an account exists for ${email}, a secure reset link is on its way.`
+    : forgotMode
+      ? 'Enter your account email and we’ll send you a secure reset link.'
+      : 'Sign in to the Visitor Management System';
 
-        <div className="absolute left-1/3 top-1/2 flex size-72 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-white/80 shadow-2xl ring-1 ring-black/5 backdrop-blur">
-          <ShieldCheck className="size-24 text-brand-200" strokeWidth={1.25} />
-        </div>
+  return (
+    <div className="bg-mesh relative flex min-h-screen items-center justify-center overflow-hidden px-4 py-12">
+      {/* Immersive decorative backdrop — a stylised map of facility checkpoints, purely visual. */}
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div className="bg-grid absolute inset-0 opacity-[0.07]" />
+        <div className="absolute -left-32 -top-32 size-[34rem] animate-float-slow rounded-full bg-brand-500/30 blur-3xl" />
+        <div className="absolute -bottom-40 -right-24 size-[36rem] animate-float rounded-full bg-accent-500/20 blur-3xl" />
+        <div className="absolute right-1/4 top-10 size-72 rounded-full bg-brand-400/20 blur-3xl" />
+
+        {/* Giant faint shield watermark anchoring the security motif behind the card. */}
+        <ShieldCheck
+          className="absolute left-1/2 top-1/2 size-[42rem] -translate-x-1/2 -translate-y-1/2 text-white/[0.04]"
+          strokeWidth={0.5}
+        />
         {PINS.map((p, i) => (
           <MapPin
             key={i}
-            className={`absolute drop-shadow-sm ${p.size} ${p.tone}`}
+            className={`absolute drop-shadow-lg ${p.size} ${p.tone}`}
             style={{ top: p.top, left: p.left }}
             fill="currentColor"
-            fillOpacity={0.15}
+            fillOpacity={0.2}
           />
         ))}
-
-        <div className="absolute left-12 top-12 flex items-center gap-3">
-          <span className="flex size-11 items-center justify-center rounded-2xl bg-white shadow-md ring-1 ring-black/5">
-            <ShieldCheck className="size-6 text-brand-600" />
-          </span>
-          <div>
-            <p className="text-lg font-bold tracking-tight text-slate-900">VMS</p>
-            <p className="text-sm text-slate-500">Visitor Management System</p>
-          </div>
-        </div>
       </div>
 
-      {/* Sign-in card */}
+      {/* Centered sign-in column */}
       <div className="relative z-10 w-full max-w-sm animate-rise">
-        <div className="mb-8 lg:hidden">
-          <span className="flex size-12 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-500 to-brand-700 text-white shadow-[var(--shadow-brand)]">
-            <ShieldCheck className="size-6" />
+        {/* Lockup */}
+        <div className="mb-7 flex flex-col items-center text-center">
+          <span
+            className={`flex size-14 items-center justify-center rounded-2xl text-white shadow-[var(--shadow-brand)] ring-1 ring-white/20 ${
+              forgotSent
+                ? 'bg-gradient-to-br from-emerald-500 to-emerald-600'
+                : 'bg-gradient-to-br from-brand-500 to-brand-700'
+            }`}
+          >
+            {forgotSent ? <CheckCircle2 className="size-7" /> : <ShieldCheck className="size-7" />}
           </span>
-        </div>
-        <div className="mb-7">
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-            {forgotMode ? 'Reset your password' : 'Sign in'}
-          </h1>
-          {forgotMode && (
-            <p className="mt-1 text-sm text-slate-500">
-              Enter your account email and we’ll send you a reset link.
-            </p>
-          )}
+          <h1 className="mt-5 text-2xl font-bold tracking-tight text-white">{title}</h1>
+          <p className="mt-1.5 text-sm text-slate-300">{subtitle}</p>
         </div>
 
-        {forgotMode ? (
-          forgotSent ? (
-            <div className="rounded-2xl border border-slate-200/80 bg-white p-8 text-center shadow-lg ring-1 ring-slate-900/[0.02]">
-              <span className="mx-auto flex size-12 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
-                <CheckCircle2 className="size-6" />
-              </span>
-              <h2 className="mt-4 text-lg font-bold tracking-tight text-slate-900">
-                Check your email
-              </h2>
-              <p className="mt-1 text-sm text-slate-500">
-                If an account exists for {email}, a reset link is on its way.
-              </p>
+        {/* Card */}
+        <div className="rounded-2xl border border-white/60 bg-white/95 p-7 shadow-[0_30px_80px_-24px_oklch(0.272_0.09_270/0.85)] ring-1 ring-black/5 backdrop-blur-xl">
+          {forgotMode ? (
+            forgotSent ? (
               <Button
                 variant="outline"
-                className="mt-5 w-full"
+                className="w-full"
+                size="lg"
                 onClick={() => {
                   setForgotMode(false);
                   setForgotSent(false);
@@ -113,12 +108,36 @@ export function SignIn() {
               >
                 Back to sign in
               </Button>
-            </div>
+            ) : (
+              <form onSubmit={onForgotSubmit} className="space-y-4">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold uppercase tracking-wide text-slate-600">
+                    Email
+                  </label>
+                  <InputWithIcon
+                    icon={<Mail />}
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    autoComplete="username"
+                    className="h-12 rounded-xl text-[15px]"
+                    required
+                  />
+                </div>
+                <Button type="submit" className="w-full" size="lg" loading={loading}>
+                  {loading ? 'Sending…' : 'Send reset link'}
+                </Button>
+                <button
+                  type="button"
+                  onClick={() => setForgotMode(false)}
+                  className="w-full text-center text-sm font-medium text-slate-500 transition-colors hover:text-brand-600"
+                >
+                  ← Back to sign in
+                </button>
+              </form>
+            )
           ) : (
-            <form
-              onSubmit={onForgotSubmit}
-              className="space-y-4 rounded-2xl border border-slate-200/80 bg-white p-6 shadow-lg ring-1 ring-slate-900/[0.02]"
-            >
+            <form onSubmit={onSubmit} className="space-y-4">
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold uppercase tracking-wide text-slate-600">
                   Email
@@ -129,67 +148,50 @@ export function SignIn() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   autoComplete="username"
+                  className="h-12 rounded-xl text-[15px]"
                   required
                 />
               </div>
-              <Button type="submit" className="w-full" size="lg" loading={loading}>
-                {loading ? 'Sending…' : 'Send reset link'}
-              </Button>
-              <button
-                type="button"
-                onClick={() => setForgotMode(false)}
-                className="w-full text-center text-sm font-medium text-slate-500 transition-colors hover:text-brand-600"
-              >
-                ← Back to sign in
-              </button>
-            </form>
-          )
-        ) : (
-          <form
-            onSubmit={onSubmit}
-            className="space-y-4 rounded-2xl border border-slate-200/80 bg-white p-6 shadow-lg ring-1 ring-slate-900/[0.02]"
-          >
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold uppercase tracking-wide text-slate-600">
-                Email
-              </label>
-              <InputWithIcon
-                icon={<Mail />}
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                autoComplete="username"
-                required
-              />
-            </div>
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between">
-                <label className="text-xs font-semibold uppercase tracking-wide text-slate-600">
-                  Password
-                </label>
-                <button
-                  type="button"
-                  onClick={() => setForgotMode(true)}
-                  className="text-xs font-medium text-brand-600 transition-colors hover:text-brand-700"
-                >
-                  Forgot password?
-                </button>
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-semibold uppercase tracking-wide text-slate-600">
+                    Password
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setForgotMode(true)}
+                    className="text-xs font-medium text-brand-600 transition-colors hover:text-brand-700"
+                  >
+                    Forgot password?
+                  </button>
+                </div>
+                <InputWithIcon
+                  icon={<Lock />}
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  autoComplete="current-password"
+                  placeholder="••••••••"
+                  className="h-12 rounded-xl text-[15px]"
+                  required
+                />
               </div>
-              <InputWithIcon
-                icon={<Lock />}
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                autoComplete="current-password"
-                placeholder="••••••••"
-                required
-              />
-            </div>
-            <Button type="submit" className="w-full" size="lg" loading={loading}>
-              {loading ? 'Signing in…' : 'Sign in'}
-            </Button>
-          </form>
-        )}
+              <Button
+                type="submit"
+                size="lg"
+                loading={loading}
+                className="w-full bg-gradient-to-r from-brand-600 to-brand-500 shadow-[var(--shadow-brand)] hover:from-brand-700 hover:to-brand-600"
+              >
+                {loading ? 'Signing in…' : 'Sign in'}
+              </Button>
+            </form>
+          )}
+        </div>
+
+        {/* Trust footer */}
+        <p className="mt-6 flex items-center justify-center gap-1.5 text-xs text-slate-400">
+          <Lock className="size-3.5" /> Authorized personnel only · Secured connection
+        </p>
       </div>
     </div>
   );
