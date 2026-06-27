@@ -1093,7 +1093,12 @@ export function Help() {
             cursorY = margin;
             continue;
           }
-          const sliceCanvasH = Math.min(Math.floor(avail / ratio), canvas.height - srcY);
+          // At least one pixel row per page so the loop always makes progress, even
+          // if a degenerate ratio would otherwise floor the available height to zero.
+          const sliceCanvasH = Math.max(
+            1,
+            Math.min(Math.floor(avail / ratio), canvas.height - srcY),
+          );
           const slice = document.createElement('canvas');
           slice.width = canvas.width;
           slice.height = sliceCanvasH;
