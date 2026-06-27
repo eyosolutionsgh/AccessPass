@@ -1,13 +1,15 @@
 /**
- * Public user manual (/help). Air-gap safe: pure presentational React + design tokens, no CDN,
+ * Internal user manual (/help). Air-gap safe: pure presentational React + design tokens, no CDN,
  * no session/tRPC dependencies — so it renders for signed-out staff straight from the sign-in
  * page and for signed-in staff from the sidebar. Sections carry stable ids so other pages can
  * deep-link to the relevant help (e.g. /help#booking) and the browser scrolls there on load.
  */
 import { useEffect, useState, type ReactNode } from 'react';
 import {
+  AlertTriangle,
   ArrowLeft,
   ArrowRight,
+  Ban,
   BarChart3,
   Bell,
   BookOpen,
@@ -15,7 +17,10 @@ import {
   CalendarPlus,
   CheckCircle2,
   ChevronRight,
+  ClipboardCheck,
   DoorOpen,
+  FileSpreadsheet,
+  FileText,
   Footprints,
   LayoutDashboard,
   Lock,
@@ -26,23 +31,35 @@ import {
   QrCode,
   ScanLine,
   ShieldCheck,
+  ShieldAlert,
   Sliders,
+  Tags,
   Target,
   TrendingUp,
   Users,
+  UserRound,
+  XCircle,
 } from 'lucide-react';
 
 type Section = { id: string; label: string; icon: typeof BookOpen };
 
 const SECTIONS: Section[] = [
   { id: 'overview', label: 'Overview', icon: BookOpen },
+  { id: 'getting-started', label: 'Getting started', icon: QrCode },
+  { id: 'quick-start', label: 'Quick start by role', icon: ClipboardCheck },
   { id: 'roles', label: 'Roles & who can book', icon: Users },
   { id: 'booking', label: 'Booking an appointment', icon: CalendarPlus },
+  { id: 'pre-registration', label: 'Pre-registration', icon: FileText },
   { id: 'checkpoints', label: 'Security posts & checkpoints', icon: ScanLine },
+  { id: 'reception', label: 'Reception desk', icon: DoorOpen },
   { id: 'tracking', label: 'Live tracking & dashboards', icon: MapPin },
+  { id: 'security', label: 'Security operations', icon: ShieldAlert },
+  { id: 'muster', label: 'Emergency muster', icon: AlertTriangle },
   { id: 'analytics', label: 'Visitor analytics', icon: BarChart3 },
   { id: 'notifications', label: 'Notifications', icon: Bell },
   { id: 'admin', label: 'Administration', icon: Sliders },
+  { id: 'privacy', label: 'Privacy & audit', icon: Lock },
+  { id: 'troubleshooting', label: 'Common exceptions', icon: XCircle },
 ];
 
 /* ───────────────────────── building blocks ───────────────────────── */
@@ -123,6 +140,87 @@ function Chip({ tone, children }: { tone: 'green' | 'slate'; children: ReactNode
   );
 }
 
+function InfoGrid({
+  items,
+  columns = 'sm:grid-cols-2',
+}: {
+  items: { icon: typeof BookOpen; title: string; text: ReactNode }[];
+  columns?: string;
+}) {
+  return (
+    <div className={`grid gap-3 ${columns}`}>
+      {items.map((item) => {
+        const Icon = item.icon;
+        return (
+          <div key={item.title} className="rounded-2xl border border-slate-200 bg-white p-4">
+            <span className="flex size-9 items-center justify-center rounded-lg bg-brand-50 text-brand-600">
+              <Icon className="size-5" />
+            </span>
+            <p className="mt-3 text-sm font-semibold text-slate-900">{item.title}</p>
+            <p className="mt-1 text-sm leading-relaxed text-slate-600">{item.text}</p>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function Checklist({ items }: { items: ReactNode[] }) {
+  return (
+    <ul className="space-y-2">
+      {items.map((item, i) => (
+        <li key={i} className="flex gap-2.5">
+          <CheckCircle2 className="mt-1 size-4 shrink-0 text-emerald-600" />
+          <span>{item}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function Procedure({ steps }: { steps: ReactNode[] }) {
+  return (
+    <ol className="space-y-3">
+      {steps.map((step, i) => (
+        <li key={i} className="flex gap-3">
+          <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-brand-600 text-sm font-bold text-white">
+            {i + 1}
+          </span>
+          <p className="pt-0.5">{step}</p>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+function DefinitionTable({
+  rows,
+}: {
+  rows: { term: string; detail: ReactNode; flag?: ReactNode }[];
+}) {
+  return (
+    <div className="overflow-hidden rounded-2xl border border-slate-200">
+      <table className="block w-full text-sm sm:table">
+        <tbody className="block divide-y divide-slate-100 sm:table-row-group">
+          {rows.map((row) => (
+            <tr key={row.term} className="block align-top sm:table-row">
+              <td className="block break-words px-4 pb-1 pt-3 font-semibold text-slate-900 sm:table-cell sm:w-48 sm:py-3">
+                {row.term}
+              </td>
+              <td className="block px-4 py-1 text-slate-600 sm:table-cell sm:py-3">{row.detail}</td>
+              {row.flag && (
+                <td className="block px-4 pb-3 pt-1 text-left sm:table-cell sm:w-24 sm:py-3 sm:text-right">
+                  {row.flag}
+                </td>
+              )}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 /* small mock primitives reused inside Frames */
 function MockField({ label, value }: { label: string; value: string }) {
   return (
@@ -148,7 +246,7 @@ function FlowDiagram() {
     { icon: MapPin, label: 'Check-out', sub: 'Exit recorded' },
   ];
   return (
-    <Frame url="vms.local — visitor journey">
+    <Frame url="VMS · Visitor journey">
       <div className="flex flex-wrap items-stretch justify-center gap-2">
         {nodes.map((n, i) => (
           <div key={n.label} className="flex items-center gap-2">
@@ -175,7 +273,7 @@ function FlowDiagram() {
 
 function BookingMock() {
   return (
-    <Frame url="vms.local/appointments/new">
+    <Frame url="VMS · New appointment">
       <div className="mx-auto max-w-md space-y-3">
         <div className="flex items-center gap-2 text-sm font-semibold text-slate-800">
           <CalendarPlus className="size-4 text-brand-600" /> New appointment
@@ -203,7 +301,7 @@ function BookingMock() {
 
 function CheckpointMock() {
   return (
-    <Frame url="vms.local/checkpoint">
+    <Frame url="VMS · Checkpoint">
       <div className="mx-auto max-w-sm space-y-4">
         <div className="rounded-2xl border border-slate-200 bg-white p-5 text-center shadow-sm">
           <span className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-brand-50 text-brand-600">
@@ -248,7 +346,7 @@ function TrailMock() {
     { kind: 'Check-out', at: 'Main Reception', t: '11:06', tone: 'bg-slate-100 text-slate-500' },
   ];
   return (
-    <Frame url="vms.local/appointments/…">
+    <Frame url="VMS · Appointment detail">
       <div className="mx-auto max-w-sm">
         <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-800">
           <Footprints className="size-4 text-brand-600" /> Checkpoint trail
@@ -284,7 +382,7 @@ function AnalyticsMock() {
     { label: 'Contract signing', n: 1, cls: 'bg-emerald-500' },
   ];
   return (
-    <Frame url="vms.local/reports — visitor insights">
+    <Frame url="VMS · Visitor insights">
       <div className="space-y-4">
         <div className="flex items-center gap-3">
           <span className="flex size-10 items-center justify-center rounded-2xl bg-brand-600 text-sm font-bold text-white">
@@ -318,7 +416,7 @@ function AnalyticsMock() {
             <div className="space-y-1.5 rounded-lg border border-slate-200 bg-white p-2.5">
               {purposes.map((p) => (
                 <div key={p.label} className="flex items-center gap-2">
-                  <span className="w-24 shrink-0 truncate text-[11px] text-slate-600">
+                  <span className="w-32 shrink-0 truncate text-[11px] text-slate-600">
                     {p.label}
                   </span>
                   <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-100">
@@ -372,6 +470,196 @@ const ROLES: { role: string; can: string; book: boolean }[] = [
   },
 ];
 
+const ROLE_STARTS = [
+  {
+    icon: CalendarPlus,
+    title: 'Host or officer',
+    text: 'Open Appointments to see your expected visitors. Use New appointment when you are inviting someone yourself, then watch the appointment detail page for approval state, invitation state and arrival updates.',
+  },
+  {
+    icon: Users,
+    title: 'Secretary',
+    text: 'Create and update visits for officers in your own office. Pick the department, office and officer carefully; the system scopes your booking permissions to that office.',
+  },
+  {
+    icon: DoorOpen,
+    title: 'Receptionist',
+    text: 'Keep Reception open during arrivals. Use assisted check-in for QR/code lookup, verify the visitor, issue badges or reusable tags, and check visitors out when they leave.',
+  },
+  {
+    icon: ScanLine,
+    title: 'Security guard',
+    text: 'Use Security for incidents and the Checkpoint scan screen at posts. Scan the visitor credential, review the host, purpose, time window and watchlist warning, then allow or escalate.',
+  },
+  {
+    icon: ShieldAlert,
+    title: 'Security manager',
+    text: 'Use Security for open incidents, overstays, watchlist management, checkpoint oversight, emergency muster and reports that support security review.',
+  },
+  {
+    icon: Sliders,
+    title: 'Administrator',
+    text: 'Set up facilities, departments, offices, checkpoints, visitor categories, device behavior, users, roles, date/time defaults and retention. Operational actions stay with reception and security.',
+  },
+  {
+    icon: BarChart3,
+    title: 'Auditor',
+    text: 'Use Reports and Audit log for read-only oversight. Export only the information needed for the audit period and purpose.',
+  },
+];
+
+const ACCESS_GUIDE = [
+  {
+    term: 'Read this manual',
+    detail: (
+      <>From the sign-in page, select Help. After sign-in, use the Help item in the sidebar.</>
+    ),
+    flag: <Chip tone="slate">staff</Chip>,
+  },
+  {
+    term: 'Start work',
+    detail: (
+      <>
+        Open VMS, sign in with your staff account, then use the sidebar to choose the area you need.
+        The sidebar only shows pages your role is allowed to use.
+      </>
+    ),
+    flag: <Chip tone="slate">staff</Chip>,
+  },
+  {
+    term: 'See expected visitors',
+    detail: (
+      <>
+        Choose Appointments in the sidebar. Use the filters to find visits by date, visitor, host,
+        department, approval state or arrival state.
+      </>
+    ),
+    flag: <Chip tone="slate">staff</Chip>,
+  },
+  {
+    term: 'Book a visit',
+    detail: (
+      <>
+        Choose Appointments, then select New appointment. Enter the visitor, host, location, purpose
+        and visit time, then submit for approval or invitation.
+      </>
+    ),
+    flag: <Chip tone="green">booking</Chip>,
+  },
+  {
+    term: 'Receive a visitor',
+    detail: (
+      <>
+        Choose Reception in the sidebar. Search the expected visit, scan the appointment QR code or
+        enter the invitation code, verify the person, then complete assisted check-in.
+      </>
+    ),
+    flag: <Chip tone="green">desk</Chip>,
+  },
+  {
+    term: 'Use a check-in post',
+    detail: (
+      <>
+        On the reception tablet or kiosk, a staff user signs in and unlocks the configured check-in
+        post. The visitor presents their appointment QR code or invitation code to be scanned.
+      </>
+    ),
+    flag: <Chip tone="green">post</Chip>,
+  },
+  {
+    term: 'Visitor appointment QR',
+    detail: (
+      <>
+        The visitor receives this in their invitation. They do not browse the system; they only show
+        the QR code to reception or security, or open the controlled pre-registration prompt when
+        required.
+      </>
+    ),
+    flag: <Chip tone="green">visitor</Chip>,
+  },
+  {
+    term: 'Check a visitor out',
+    detail: (
+      <>
+        From Reception or the exit device, scan the visitor badge, QR code or reusable tag. Confirm
+        the visitor has left, collect any temporary credential, then complete check-out.
+      </>
+    ),
+    flag: <Chip tone="green">post</Chip>,
+  },
+  {
+    term: 'Run a checkpoint',
+    detail: (
+      <>
+        At the guard post, sign in and open the checkpoint screen for that location. Scan the badge
+        or QR code, review the verification result, then allow, deny or escalate according to
+        policy.
+      </>
+    ),
+    flag: <Chip tone="green">post</Chip>,
+  },
+  {
+    term: 'Do a detailed security scan',
+    detail: (
+      <>
+        Choose Security scan from the security workspace when you need fuller details such as host,
+        department, purpose, expected time window, checkpoint and watchlist warning.
+      </>
+    ),
+    flag: <Chip tone="slate">staff</Chip>,
+  },
+  {
+    term: 'Monitor security operations',
+    detail: (
+      <>
+        Choose Security in the sidebar to monitor incidents, overstays, denied entries, watchlist
+        state and staffed checkpoint activity.
+      </>
+    ),
+    flag: <Chip tone="slate">staff</Chip>,
+  },
+  {
+    term: 'Start emergency muster',
+    detail: (
+      <>
+        Choose Security, then Muster. Use the live on-site list to mark visitors accounted for,
+        print the roll-call or export the list for the incident team.
+      </>
+    ),
+    flag: <Chip tone="slate">staff</Chip>,
+  },
+  {
+    term: 'Complete pre-registration',
+    detail: (
+      <>
+        If the invitation asks for pre-registration, the visitor opens that invitation link, enters
+        the required details and acknowledgements, then presents the QR code on arrival.
+      </>
+    ),
+    flag: <Chip tone="green">visitor</Chip>,
+  },
+  {
+    term: 'Review reports',
+    detail: (
+      <>
+        Choose Reports in the sidebar. Search by visitor, host, date range, facility or status, then
+        export only what your role and audit purpose require.
+      </>
+    ),
+    flag: <Chip tone="slate">staff</Chip>,
+  },
+  {
+    term: 'Configure the system',
+    detail: (
+      <>
+        Administrators choose Administration in the sidebar to manage facilities, departments,
+        offices, checkpoints, visitor categories, users, roles, devices and retention settings.
+      </>
+    ),
+    flag: <Chip tone="slate">admin</Chip>,
+  },
+];
+
 const BOOKING_STEPS = [
   'A host, secretary or receptionist opens New appointment and enters the visitor’s name plus an email or phone number.',
   'They pick the department, office and officer being visited, the purpose, date and time. The system blocks double-booking the officer, room or visitor.',
@@ -384,8 +672,83 @@ const LIFECYCLE = [
   'Pending approval',
   'Approved',
   'Invitation sent',
+  'Pre-registered',
   'Checked in',
   'Checked out',
+];
+
+const STATUS_GUIDE = [
+  { term: 'Draft', detail: 'A visit has been started but is not yet ready for an invitation.' },
+  {
+    term: 'Pending approval',
+    detail:
+      'The visit needs approval because of its category, area, risk, policy or other configured rule.',
+  },
+  {
+    term: 'Approved',
+    detail: 'The visit may proceed. The system can issue or resend the invitation.',
+  },
+  {
+    term: 'Invitation sent',
+    detail: 'The visitor has been sent a QR code and/or manual invitation code.',
+  },
+  {
+    term: 'Pre-registered',
+    detail: 'The visitor completed required details and acknowledgements before arrival.',
+  },
+  { term: 'Checked in', detail: 'The visitor is currently on-site and appears in live lists.' },
+  {
+    term: 'Checked out',
+    detail:
+      'The visitor has left, the visit is closed, and any temporary credential should be inactive.',
+  },
+  {
+    term: 'Cancelled / denied / expired / no show',
+    detail: 'Terminal states used for visits that should not admit a visitor.',
+  },
+];
+
+const EXCEPTIONS = [
+  {
+    term: 'Visitor forgot invitation',
+    detail:
+      'Reception searches by visitor, company, host, phone/email or appointment time, verifies identity, then uses assisted check-in. Record the reason if an exception is made.',
+  },
+  {
+    term: 'QR code will not scan',
+    detail:
+      'Use the manual invitation code. If the visitor only has the email, reception can search the expected visits and complete the check-in after verification.',
+  },
+  {
+    term: 'Invalid or repeated code attempts',
+    detail:
+      'The visitor-facing QR/code flow shows a controlled error. Repeated failures are rate-limited and logged; security should review if the attempts look suspicious.',
+  },
+  {
+    term: 'Pre-registration incomplete',
+    detail:
+      'Ask the visitor to finish the link in their invitation. Reception may override only after verifying the missing information according to site policy.',
+  },
+  {
+    term: 'Visitor arrives early or late',
+    detail:
+      'Follow the configured arrival window. Outside that window, route to reception, host approval or security approval according to policy.',
+  },
+  {
+    term: 'Watchlist match',
+    detail:
+      'Do not complete the staff-assisted entry. Security is alerted; verify identity carefully and follow the controlled site procedure before allowing or denying passage.',
+  },
+  {
+    term: 'Badge printer or tag issue fails',
+    detail:
+      'Issue a manual badge or tag if your procedure allows it, then reprint or reconcile once the device is available. The exception should remain auditable.',
+  },
+  {
+    term: 'Visitor does not check out',
+    detail:
+      'Use Reception, Security or Muster to reconcile on-site visitors. Collect reusable tags and close visits only after confirming the visitor has left.',
+  },
 ];
 
 /* ───────────────────────── page ───────────────────────── */
@@ -508,6 +871,31 @@ export function Help() {
               them at each checkpoint they pass, and finally they are checked out. At every step the
               system records what happened and streams it live to the people who need to know.
             </p>
+            <InfoGrid
+              columns="sm:grid-cols-2 lg:grid-cols-4"
+              items={[
+                {
+                  icon: CalendarPlus,
+                  title: 'Plan the visit',
+                  text: 'Capture the visitor, host, facility, office, category, purpose and visit window.',
+                },
+                {
+                  icon: QrCode,
+                  title: 'Issue the credential',
+                  text: 'Send a QR token and short manual code after the visit is approved.',
+                },
+                {
+                  icon: DoorOpen,
+                  title: 'Admit and track',
+                  text: 'Verify the visitor at reception and at staffed checkpoints as they move.',
+                },
+                {
+                  icon: FileSpreadsheet,
+                  title: 'Close and report',
+                  text: 'Check the visitor out, revoke temporary access and keep the visit auditable.',
+                },
+              ]}
+            />
             <Figure caption="The visitor journey — one record shared across reception, security and the host.">
               <FlowDiagram />
             </Figure>
@@ -515,6 +903,42 @@ export function Help() {
               Reception, security and the visiting officer all see the same live status. When a
               visitor scans at a checkpoint, their host instantly sees “At East Wing checkpoint”,
               and the security dashboard updates its on-site count.
+            </Callout>
+          </Section>
+
+          <Section
+            id="getting-started"
+            icon={QrCode}
+            title="Getting started"
+            lead="Use the system by choosing the task you need from the sidebar or from the correct staffed device. Visitors do not navigate the system; they only present their appointment QR code or complete the invitation link when asked."
+          >
+            <p>
+              This is an internal staff system: staff pages require sign-in and role permission.
+              Post screens are designed for kiosks, tablets and guard desks, but they still require
+              a staff member to unlock and operate the post. The table below explains where each
+              person starts and what they should do next.
+            </p>
+            <DefinitionTable rows={ACCESS_GUIDE} />
+            <Callout>
+              For fixed devices, administrators should configure the device profile under
+              Administration, then label the device clearly, such as Reception check-in, Exit
+              check-out or East Gate checkpoint. Staff should use the labelled device instead of
+              typing addresses manually.
+            </Callout>
+          </Section>
+
+          <Section
+            id="quick-start"
+            icon={ClipboardCheck}
+            title="Quick start by role"
+            lead="Start from the screen that matches your responsibility. The sidebar only shows the areas your role is allowed to use, so if you do not see a page, your role probably does not perform that task."
+          >
+            <InfoGrid items={ROLE_STARTS} columns="sm:grid-cols-2 lg:grid-cols-3" />
+            <Callout>
+              The system is intentionally role-limited. For example, administrators configure the
+              platform but do not check visitors in; auditors can read reports but do not change
+              visits; security guards can verify and resolve incidents but do not create
+              appointments.
             </Callout>
           </Section>
 
@@ -550,6 +974,10 @@ export function Help() {
               Security and audit roles deliberately cannot create appointments, and the
               administrator manages accounts and configuration rather than day-to-day visits.
             </p>
+            <div className="pt-2">
+              <p className="mb-3 text-sm font-semibold text-slate-700">Common visit statuses</p>
+              <DefinitionTable rows={STATUS_GUIDE} />
+            </div>
           </Section>
 
           <Section
@@ -558,16 +986,15 @@ export function Help() {
             title="Booking an appointment"
             lead="Hosts book their own visitors; secretaries book for the officers in their office; receptionists book walk-ins at the desk."
           >
-            <ol className="space-y-3">
-              {BOOKING_STEPS.map((step, i) => (
-                <li key={i} className="flex gap-3">
-                  <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-brand-600 text-sm font-bold text-white">
-                    {i + 1}
-                  </span>
-                  <p className="pt-0.5">{step}</p>
-                </li>
-              ))}
-            </ol>
+            <Procedure steps={BOOKING_STEPS} />
+            <Checklist
+              items={[
+                'Add either an email address or a phone number so the visitor can receive the invitation.',
+                'Choose the department first, then the office, then the officer. This prevents bookings against the wrong host or room.',
+                'Use the visitor category to trigger approval, escort or induction requirements where your site uses them.',
+                'Set an estimated end time. This supports clash detection, overstay monitoring and emergency reporting.',
+              ]}
+            />
             <Figure caption="New appointment — capture the visitor, the officer and the time; the invitation is sent automatically.">
               <BookingMock />
             </Figure>
@@ -586,6 +1013,33 @@ export function Help() {
                 ))}
               </div>
             </div>
+          </Section>
+
+          <Section
+            id="pre-registration"
+            icon={FileText}
+            title="Pre-registration"
+            lead="Some visitor categories require the visitor to complete details or acknowledge policies before arrival. The invitation link takes them to a controlled pre-registration form; it is not an open portal into the system."
+          >
+            <p>
+              Pre-registration collects only the details configured for the visitor category, such
+              as contact information, safety acknowledgements, induction confirmation or other
+              policy fields. Once complete, the visit status changes to{' '}
+              <strong>Pre-registered</strong> and reception can process the arrival faster.
+            </p>
+            <Checklist
+              items={[
+                'Visitors open the pre-registration link from their invitation.',
+                'They review the host, location and facility address before submitting details.',
+                'Required acknowledgements must be ticked before the form can be completed.',
+                'Expired or invalid links show a controlled message and do not reveal private visit data.',
+              ]}
+            />
+            <Callout>
+              If the visitor reaches reception without completing pre-registration, the check-in
+              flow will warn staff. Reception can continue only if site policy allows them to verify
+              and capture the missing information at the desk.
+            </Callout>
           </Section>
 
           <Section
@@ -634,6 +1088,53 @@ export function Help() {
           </Section>
 
           <Section
+            id="reception"
+            icon={DoorOpen}
+            title="Reception desk"
+            lead="Reception is the live front-desk workspace for arrivals, departures, badge control and on-site reconciliation."
+          >
+            <p>
+              Keep the Reception page open during arrival periods. It shows KPI cards for visitors
+              on-site, pre-registered, expected and pending approval, followed by assisted check-in,
+              tag reconciliation and the live on-site list.
+            </p>
+            <Procedure
+              steps={[
+                'Ask the visitor for their QR code or manual invitation code.',
+                'Use Assisted check-in to scan or look up the code.',
+                'Review the visitor, host, facility, appointment time and any pre-registration warning.',
+                'Verify identity according to your site procedure, then choose Check in.',
+                'Issue the printed badge, QR credential or reusable tag shown by the device profile.',
+                'When the visitor leaves, scan their QR/tag or use the on-site list to check them out.',
+              ]}
+            />
+            <InfoGrid
+              items={[
+                {
+                  icon: UserRound,
+                  title: 'On-site now',
+                  text: 'A live list of visitors currently inside, including host, badge and check-in time.',
+                },
+                {
+                  icon: Tags,
+                  title: 'Tags out',
+                  text: 'Reusable cards or NFC tags that have been issued and still need to be collected.',
+                },
+                {
+                  icon: Printer,
+                  title: 'Badge handling',
+                  text: 'Badges can be printed, tags can be issued, and badge/tag exceptions should be reconciled before close of day.',
+                },
+                {
+                  icon: Bell,
+                  title: 'Host notification',
+                  text: 'Checking in a visitor updates live dashboards and notifies the host through configured channels.',
+                },
+              ]}
+            />
+          </Section>
+
+          <Section
             id="tracking"
             icon={MapPin}
             title="Live tracking & dashboards"
@@ -649,6 +1150,70 @@ export function Help() {
             <Figure caption="The checkpoint trail — every post the visitor passed, in order, with timestamps.">
               <TrailMock />
             </Figure>
+          </Section>
+
+          <Section
+            id="security"
+            icon={ShieldAlert}
+            title="Security operations"
+            lead="Security uses the live console to monitor incidents, overstays, denied entries, watchlist state and staffed checkpoint scans."
+          >
+            <InfoGrid
+              items={[
+                {
+                  icon: LayoutDashboard,
+                  title: 'Security dashboard',
+                  text: 'Shows on-site count, open incidents, overstays and denied visits in the last 24 hours.',
+                },
+                {
+                  icon: AlertTriangle,
+                  title: 'Open incidents',
+                  text: 'Review active escalations, search by type or visitor, and resolve them once the security action is complete.',
+                },
+                {
+                  icon: Ban,
+                  title: 'Watchlist',
+                  text: 'Security managers add or remove blocked identities. Entries are matched securely so raw blocked values are not exposed in the list.',
+                },
+                {
+                  icon: ScanLine,
+                  title: 'Checkpoint scan',
+                  text: 'Guards scan a checked-in visitor at a post and see identity, host, department, purpose, time window and watchlist warning.',
+                },
+              ]}
+            />
+            <Procedure
+              steps={[
+                'Open Security and review the KPI cards before shift handover.',
+                'Use Checkpoint scan at a staffed post when a visitor presents a badge, QR or code.',
+                'Compare the visitor in front of you with the displayed name, host, organization, visit purpose and expected window.',
+                'If the result is not verified, expired, wrong-location, duplicated or watchlisted, pause the visitor and follow the escalation procedure.',
+                'Resolve incidents only after the denial, escort, correction, checkout or other required action is complete.',
+              ]}
+            />
+          </Section>
+
+          <Section
+            id="muster"
+            icon={AlertTriangle}
+            title="Emergency muster"
+            lead="Emergency muster is the live roll-call view for everyone currently checked in. It can be used on-screen, printed or exported during an evacuation or incident."
+          >
+            <p>
+              Open <strong>Security → Emergency muster</strong> when the site needs an immediate
+              visitor headcount. The page refreshes regularly and shows each checked-in visitor,
+              host, badge number and contact details where policy allows. Tap a row to mark a
+              visitor accounted for; the progress summary updates as people are confirmed.
+            </p>
+            <Checklist
+              items={[
+                'Use the search box to find visitors by name, host or badge number.',
+                'Mark visitors as accounted for only after direct confirmation from the muster point or responsible host.',
+                'Export CSV when the response team needs an offline copy or later reconciliation.',
+                'Use Print if electronic access may be unreliable during the incident.',
+                'After the incident, reconcile remaining visitors in Reception or Security so the on-site list becomes accurate again.',
+              ]}
+            />
           </Section>
 
           <Section
@@ -672,6 +1237,30 @@ export function Help() {
               Available to security managers, auditors and administrators (read-only oversight).
               Guards use the live security console; deep analytics live on Reports.
             </Callout>
+            <DefinitionTable
+              rows={[
+                {
+                  term: 'Daily volume',
+                  detail:
+                    'A trend of checked-in visitors by day, useful for staffing reception and reviewing peak arrival patterns.',
+                },
+                {
+                  term: 'Visits by status',
+                  detail:
+                    'A status mix showing checked-in, checked-out, pending, denied, expired, cancelled and other lifecycle states.',
+                },
+                {
+                  term: 'Visitor log',
+                  detail:
+                    'A searchable operational record with visitor, host, facility, status, check-in and check-out times.',
+                },
+                {
+                  term: 'Exports',
+                  detail:
+                    'CSV and Excel exports are role-restricted and should be filtered to the date range needed before use.',
+                },
+              ]}
+            />
           </Section>
 
           <Section
@@ -711,6 +1300,14 @@ export function Help() {
               Email and SMS are sent independently and retried automatically, so a visitor still
               gets their invitation by email even if the SMS can’t be delivered.
             </p>
+            <Checklist
+              items={[
+                'Invitation messages include visit details, arrival instructions, a QR link and/or manual code.',
+                'Arrival notifications tell the host when the visitor has checked in.',
+                'Cancellation, reschedule, denial and expiry events keep the visitor record consistent even if a channel fails.',
+                'Notification failures are logged for staff follow-up and retry; they do not corrupt the visit status.',
+              ]}
+            />
           </Section>
 
           <Section
@@ -719,6 +1316,11 @@ export function Help() {
             title="Administration"
             lead="Administrators set up the building and the team; security managers tune day-to-day controls."
           >
+            <p>
+              Set up Administration in the same order people move through the product: first the
+              place, then the team, then visitor rules, then device behavior. That keeps the booking
+              screens clean because departments, offices and officers appear in the right cascade.
+            </p>
             <div className="grid gap-3 sm:grid-cols-2">
               {[
                 {
@@ -756,6 +1358,65 @@ export function Help() {
                 </div>
               ))}
             </div>
+            <Procedure
+              steps={[
+                'System settings: set organization name, country, date format, timezone, retention days and voice settings.',
+                'Facilities: add each premises or site with a short code and timezone.',
+                'Departments and offices: create the organizational structure that hosts belong to.',
+                'Users: invite staff, assign least-privilege roles, and attach hosts/secretaries to their department and office.',
+                'Visitor categories: define which visit types require approval, escort or induction.',
+                'Checkpoints: register devices and choose scanner source, printer target and credential mode such as QR only, printed badge or reusable tag/NFC.',
+              ]}
+            />
+          </Section>
+
+          <Section
+            id="privacy"
+            icon={Lock}
+            title="Privacy & audit"
+            lead="Visitor data is operationally sensitive. The system is built to minimize exposure, separate duties by role, and preserve an audit trail for important actions."
+          >
+            <InfoGrid
+              items={[
+                {
+                  icon: Lock,
+                  title: 'No raw secrets in QR codes',
+                  text: 'QR codes use opaque tokens or signed links. They should not contain raw personal data.',
+                },
+                {
+                  icon: Users,
+                  title: 'Least privilege',
+                  text: 'Each role sees only the screens and actions needed for its duty, and read-only oversight cannot perform front-line work.',
+                },
+                {
+                  icon: FileText,
+                  title: 'Retention',
+                  text: 'Closed visitor records are retained only for the configured period, then anonymized or removed according to policy.',
+                },
+                {
+                  icon: ClipboardCheck,
+                  title: 'Audit trail',
+                  text: 'Appointment changes, invitations, check-in/out, incidents, exports and admin changes are logged.',
+                },
+              ]}
+            />
+            <Checklist
+              items={[
+                'Do not export more visitor data than the task requires.',
+                'Do not store invitation codes, QR payloads, API keys or integration credentials in plain text outside the system.',
+                'Use the Audit log for compliance review instead of informal screenshots where possible.',
+                'When correcting visitor details, keep the correction reason clear enough for later review.',
+              ]}
+            />
+          </Section>
+
+          <Section
+            id="troubleshooting"
+            icon={XCircle}
+            title="Common exceptions"
+            lead="Most problems at the desk or checkpoint should be handled without breaking the audit trail. Use the controlled path first, then escalate when policy requires it."
+          >
+            <DefinitionTable rows={EXCEPTIONS} />
           </Section>
 
           <div className="mt-10 flex items-center justify-between rounded-2xl border border-slate-200 bg-white p-5">

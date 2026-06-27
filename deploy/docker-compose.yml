@@ -5,8 +5,8 @@
 #   deploy/Caddyfile            (reverse proxy)
 #   deploy/.env                 (secrets — generated on the box, NEVER committed)
 #
-# Only Caddy is published to the host (80/443). Postgres, Redis and MinIO stay on the internal
-# network and are never exposed publicly. Bring up with:
+# Only Caddy is published to the host (80/443). Postgres, Redis and MinIO stay on the private
+# Docker network. Bring up with:
 #   docker compose --env-file .env -f deploy/docker-compose.yml up -d --build
 name: vms
 
@@ -165,6 +165,8 @@ services:
       dockerfile: deploy/web.Dockerfile
       args:
         VITE_API_URL: ${VITE_API_URL}
+        VITE_INTERNAL_WEB_ORIGIN: ${VITE_INTERNAL_WEB_ORIGIN}
+        VITE_LOCAL_WEB_ORIGIN: ${VITE_LOCAL_WEB_ORIGIN}
     restart: unless-stopped
     depends_on:
       - server

@@ -21,6 +21,10 @@ COPY . .
 # Empty = same-origin; production split serves the API from api.vms.3dt.com.gh.
 ARG VITE_API_URL=""
 ENV VITE_API_URL=$VITE_API_URL
+ARG VITE_INTERNAL_WEB_ORIGIN=""
+ENV VITE_INTERNAL_WEB_ORIGIN=$VITE_INTERNAL_WEB_ORIGIN
+ARG VITE_LOCAL_WEB_ORIGIN=""
+ENV VITE_LOCAL_WEB_ORIGIN=$VITE_LOCAL_WEB_ORIGIN
 
 # Install the web app's workspace subgraph (web + shared + server for types) and build it.
 # Bump the heap so the Vite build doesn't OOM on a small host.
