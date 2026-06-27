@@ -22,6 +22,7 @@ import { useSession } from '../lib/auth.ts';
 import { Button } from '../components/ui/button.tsx';
 import { Card, CardHeader } from '../components/ui/card.tsx';
 import { EmptyState } from '../components/ui/empty-state.tsx';
+import { HelpLink } from '../components/HelpLink.tsx';
 import { SpeakButton } from '../components/SpeakButton.tsx';
 import { Input, InputWithIcon } from '../components/ui/input.tsx';
 import { PageHeader } from '../components/ui/page-header.tsx';
@@ -158,7 +159,8 @@ export function Security() {
         title="Security"
         description="Monitor incidents, overstays and the visitor watchlist."
         actions={
-          <div className="flex gap-2">
+          <div className="flex items-center gap-2">
+            <HelpLink section="checkpoints" />
             {canCheckpointScan && (
               <Link href="/security/scan">
                 <Button>

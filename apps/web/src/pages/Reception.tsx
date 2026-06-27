@@ -20,6 +20,7 @@ import { Badge, StatusBadge } from '../components/ui/badge.tsx';
 import { Button } from '../components/ui/button.tsx';
 import { Card, CardHeader } from '../components/ui/card.tsx';
 import { EmptyState } from '../components/ui/empty-state.tsx';
+import { HelpLink } from '../components/HelpLink.tsx';
 import { Input, InputWithIcon } from '../components/ui/input.tsx';
 import { PageHeader } from '../components/ui/page-header.tsx';
 import { Pagination } from '../components/ui/pagination.tsx';
@@ -104,6 +105,7 @@ export function Reception() {
         eyebrow="Front desk"
         title="Reception"
         description="Live occupancy, assisted check-in and badge control."
+        actions={<HelpLink section="checkpoints" />}
       />
 
       <div className="grid grid-cols-2 gap-4 stagger lg:grid-cols-4">
