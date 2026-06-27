@@ -1,7 +1,9 @@
 import { CheckCircle2, HelpCircle, Lock, Mail, MapPin, ShieldCheck } from 'lucide-react';
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { toast } from 'sonner';
 import { requestPasswordReset, signIn } from '../lib/auth.ts';
+import { useOrgName } from '../lib/branding.ts';
+import { Logo } from '../components/Logo.tsx';
 import { Button } from '../components/ui/button.tsx';
 import { InputWithIcon } from '../components/ui/input.tsx';
 
@@ -19,6 +21,10 @@ export function SignIn() {
   const [loading, setLoading] = useState(false);
   const [forgotMode, setForgotMode] = useState(false);
   const [forgotSent, setForgotSent] = useState(false);
+  const orgName = useOrgName();
+  useEffect(() => {
+    document.title = orgName;
+  }, [orgName]);
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -49,7 +55,7 @@ export function SignIn() {
     ? `If an account exists for ${email}, a secure reset link is on its way.`
     : forgotMode
       ? 'Enter your account email and we’ll send you a secure reset link.'
-      : 'Sign in to the Visitor Management System';
+      : `Sign in to ${orgName}`;
 
   return (
     <div className="bg-mesh relative flex min-h-screen items-center justify-center overflow-hidden px-4 py-12">
@@ -91,15 +97,13 @@ export function SignIn() {
       <div className="relative z-10 w-full max-w-sm animate-rise">
         {/* Lockup */}
         <div className="mb-7 flex flex-col items-center text-center">
-          <span
-            className={`flex size-14 items-center justify-center rounded-2xl text-white shadow-[var(--shadow-brand)] ring-1 ring-white/20 ${
-              forgotSent
-                ? 'bg-gradient-to-br from-emerald-500 to-emerald-600'
-                : 'bg-gradient-to-br from-brand-500 to-brand-700'
-            }`}
-          >
-            {forgotSent ? <CheckCircle2 className="size-7" /> : <ShieldCheck className="size-7" />}
-          </span>
+          {forgotSent ? (
+            <span className="flex size-14 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-600 text-white shadow-[var(--shadow-brand)] ring-1 ring-white/20">
+              <CheckCircle2 className="size-7" />
+            </span>
+          ) : (
+            <Logo className="size-14 rounded-2xl shadow-[var(--shadow-brand)] ring-1 ring-white/20" />
+          )}
           <h1 className="mt-5 text-2xl font-bold tracking-tight text-white">{title}</h1>
           <p className="mt-1.5 text-sm text-slate-300">{subtitle}</p>
         </div>
