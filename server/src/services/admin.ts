@@ -2,6 +2,7 @@ import { desc, eq, sql } from 'drizzle-orm';
 import {
   DEFAULT_DEVICE_PROFILE,
   schema,
+  type AdminSetActiveInput,
   type DateFormat,
   type DeviceProfile,
   type DeviceUpsertInput,
@@ -133,10 +134,21 @@ export async function getDeviceProfile(deviceId: string): Promise<DeviceProfile>
 }
 
 export async function upsertDeviceProfile(input: DeviceUpsertInput, actor: Actor) {
+  // A device inherits its facility from the point it's stationed at (the point is the location);
+  // fall back to any explicitly-passed facilityId for unassigned/spare devices.
+  let facilityId = input.facilityId ?? null;
+  if (input.pointId) {
+    const [pt] = await db
+      .select({ facilityId: schema.point.facilityId })
+      .from(schema.point)
+      .where(eq(schema.point.id, input.pointId));
+    facilityId = pt?.facilityId ?? facilityId;
+  }
   const values = {
     deviceId: input.deviceId,
     label: input.label ?? null,
-    facilityId: input.facilityId ?? null,
+    facilityId,
+    pointId: input.pointId ?? null,
     profile: input.profile,
   };
   const [row] = await db
@@ -144,7 +156,13 @@ export async function upsertDeviceProfile(input: DeviceUpsertInput, actor: Actor
     .values(values)
     .onConflictDoUpdate({
       target: schema.deviceProfile.deviceId,
-      set: { label: values.label, facilityId: values.facilityId, profile: values.profile, updatedAt: new Date() },
+      set: {
+        label: values.label,
+        facilityId: values.facilityId,
+        pointId: values.pointId,
+        profile: values.profile,
+        updatedAt: new Date(),
+      },
     })
     .returning();
   await recordAudit(db, {
@@ -158,15 +176,25 @@ export async function upsertDeviceProfile(input: DeviceUpsertInput, actor: Actor
   return row;
 }
 
-export async function deleteDeviceProfile(deviceId: string, actor: Actor) {
-  await db.delete(schema.deviceProfile).where(eq(schema.deviceProfile.deviceId, deviceId));
+/**
+ * Soft-delete / restore a checkpoint (device profile). Deactivating keeps the device's checkpoint
+ * trail intact and drops it out of the active checkpoint list, without un-registering the device.
+ */
+export async function setCheckpointActive(input: AdminSetActiveInput, actor: Actor) {
+  const [row] = await db
+    .update(schema.deviceProfile)
+    .set({ isActive: input.isActive })
+    .where(eq(schema.deviceProfile.id, input.id))
+    .returning();
   await recordAudit(db, {
     actorId: actor.id,
     actorRole: actor.role,
-    action: 'device_profile.delete',
+    action: 'device_profile.set_active',
     objectType: 'device_profile',
-    metadata: { deviceId },
+    objectId: input.id,
+    metadata: { isActive: input.isActive },
   });
+  return row;
 }
 
 // ── Facility ────────────────────────────────────────────────────────────────
@@ -199,6 +227,24 @@ export async function updateFacility(input: z.infer<typeof facilityUpdateSchema>
     action: 'facility.update',
     objectType: 'facility',
     objectId: id,
+  });
+  return row;
+}
+
+/** Soft-delete / restore a facility (sets isActive). Deactivated facilities drop out of pickers. */
+export async function setFacilityActive(input: AdminSetActiveInput, actor: Actor) {
+  const [row] = await db
+    .update(schema.facility)
+    .set({ isActive: input.isActive })
+    .where(eq(schema.facility.id, input.id))
+    .returning();
+  await recordAudit(db, {
+    actorId: actor.id,
+    actorRole: actor.role,
+    action: 'facility.set_active',
+    objectType: 'facility',
+    objectId: input.id,
+    metadata: { isActive: input.isActive },
   });
   return row;
 }
@@ -237,6 +283,24 @@ export async function updateCategory(input: z.infer<typeof categoryUpdateSchema>
   return row;
 }
 
+/** Soft-delete / restore a visitor category (sets isActive). Inactive categories drop out of forms. */
+export async function setCategoryActive(input: AdminSetActiveInput, actor: Actor) {
+  const [row] = await db
+    .update(schema.visitorCategory)
+    .set({ isActive: input.isActive })
+    .where(eq(schema.visitorCategory.id, input.id))
+    .returning();
+  await recordAudit(db, {
+    actorId: actor.id,
+    actorRole: actor.role,
+    action: 'category.set_active',
+    objectType: 'visitor_category',
+    objectId: input.id,
+    metadata: { isActive: input.isActive },
+  });
+  return row;
+}
+
 // ── Departments / divisions ─────────────────────────────────────────────────
 export function listDepartments() {
   return db
@@ -245,6 +309,7 @@ export function listDepartments() {
       name: schema.department.name,
       facilityId: schema.department.facilityId,
       facilityName: schema.facility.name,
+      isActive: schema.department.isActive,
       createdAt: schema.department.createdAt,
     })
     .from(schema.department)
@@ -290,15 +355,25 @@ export async function updateDepartment(
   return row;
 }
 
-export async function deleteDepartment(id: string, actor: Actor) {
-  await db.delete(schema.department).where(eq(schema.department.id, id));
+/**
+ * Soft-delete / restore a department (sets isActive). Deactivating keeps its offices and any
+ * host/visit references intact, but drops it out of every booking lookup.
+ */
+export async function setDepartmentActive(input: AdminSetActiveInput, actor: Actor) {
+  const [row] = await db
+    .update(schema.department)
+    .set({ isActive: input.isActive })
+    .where(eq(schema.department.id, input.id))
+    .returning();
   await recordAudit(db, {
     actorId: actor.id,
     actorRole: actor.role,
-    action: 'department.delete',
+    action: 'department.set_active',
     objectType: 'department',
-    objectId: id,
+    objectId: input.id,
+    metadata: { isActive: input.isActive },
   });
+  return row;
 }
 
 // ── Offices / rooms ──────────────────────────────────────────────────────────
@@ -309,6 +384,7 @@ export function listOffices() {
       name: schema.office.name,
       departmentId: schema.office.departmentId,
       departmentName: schema.department.name,
+      isActive: schema.office.isActive,
       createdAt: schema.office.createdAt,
     })
     .from(schema.office)
@@ -333,7 +409,11 @@ export async function createOffice(input: z.infer<typeof officeCreateSchema>, ac
 
 export async function updateOffice(input: z.infer<typeof officeUpdateSchema>, actor: Actor) {
   const { id, ...rest } = input;
-  const [row] = await db.update(schema.office).set(rest).where(eq(schema.office.id, id)).returning();
+  const [row] = await db
+    .update(schema.office)
+    .set(rest)
+    .where(eq(schema.office.id, id))
+    .returning();
   await recordAudit(db, {
     actorId: actor.id,
     actorRole: actor.role,
@@ -344,15 +424,22 @@ export async function updateOffice(input: z.infer<typeof officeUpdateSchema>, ac
   return row;
 }
 
-export async function deleteOffice(id: string, actor: Actor) {
-  await db.delete(schema.office).where(eq(schema.office.id, id));
+/** Soft-delete / restore an office (sets isActive). Inactive offices drop out of booking pickers. */
+export async function setOfficeActive(input: AdminSetActiveInput, actor: Actor) {
+  const [row] = await db
+    .update(schema.office)
+    .set({ isActive: input.isActive })
+    .where(eq(schema.office.id, input.id))
+    .returning();
   await recordAudit(db, {
     actorId: actor.id,
     actorRole: actor.role,
-    action: 'office.delete',
+    action: 'office.set_active',
     objectType: 'office',
-    objectId: id,
+    objectId: input.id,
+    metadata: { isActive: input.isActive },
   });
+  return row;
 }
 
 /**

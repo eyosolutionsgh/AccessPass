@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
+  adminSetActiveSchema,
   checkInSubmitSchema,
+  deviceLoginSchema,
+  pointAssignSchema,
+  pointCreateSchema,
   checkoutLookupSchema,
   directoryImportSchema,
   incidentCreateSchema,
@@ -105,9 +109,7 @@ describe('admin inputs (SRS §6.11, §10.4)', () => {
         role: 'receptionist',
       }).role,
     ).toBe('receptionist');
-    expect(() =>
-      userCreateSchema.parse({ name: 'X', email: 'x@y.z', role: 'wizard' }),
-    ).toThrow();
+    expect(() => userCreateSchema.parse({ name: 'X', email: 'x@y.z', role: 'wizard' })).toThrow();
   });
 
   it('requires at least one host in a directory import', () => {
@@ -115,5 +117,31 @@ describe('admin inputs (SRS §6.11, §10.4)', () => {
       directoryImportSchema.parse({ hosts: [{ name: 'A', email: 'a@vms.local' }] }).hosts,
     ).toHaveLength(1);
     expect(() => directoryImportSchema.parse({ hosts: [] })).toThrow();
+  });
+
+  it('soft-delete toggle requires a uuid id and boolean flag', () => {
+    const id = crypto.randomUUID();
+    expect(adminSetActiveSchema.parse({ id, isActive: false })).toEqual({ id, isActive: false });
+    expect(() => adminSetActiveSchema.parse({ id: 'not-a-uuid', isActive: true })).toThrow();
+    expect(() => adminSetActiveSchema.parse({ id })).toThrow();
+  });
+
+  it('point create defaults kind to checkpoint and validates the kind enum', () => {
+    expect(pointCreateSchema.parse({ name: 'Main Reception' }).kind).toBe('checkpoint');
+    expect(pointCreateSchema.parse({ name: 'Gate 2', kind: 'security' }).kind).toBe('security');
+    expect(() => pointCreateSchema.parse({ name: 'X', kind: 'lobby' })).toThrow();
+    expect(() => pointCreateSchema.parse({ name: '' })).toThrow();
+  });
+
+  it('point assignment takes a point id + a list of user ids', () => {
+    const pointId = crypto.randomUUID();
+    expect(pointAssignSchema.parse({ pointId, userIds: ['u1', 'u2'] }).userIds).toHaveLength(2);
+    expect(pointAssignSchema.parse({ pointId, userIds: [] }).userIds).toHaveLength(0);
+    expect(() => pointAssignSchema.parse({ pointId: 'nope', userIds: [] })).toThrow();
+  });
+
+  it('device login requires a device id', () => {
+    expect(deviceLoginSchema.parse({ deviceId: 'lobby-1' }).deviceId).toBe('lobby-1');
+    expect(() => deviceLoginSchema.parse({ deviceId: '' })).toThrow();
   });
 });

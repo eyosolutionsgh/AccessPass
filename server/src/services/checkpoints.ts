@@ -2,7 +2,7 @@
  * Checkpoint events — a visitor's movement trail across an institution's checkpoints (each
  * checkpoint is a registered device). Written on check-in, check-out, and internal passage scans.
  */
-import { desc, eq, inArray } from 'drizzle-orm';
+import { desc, eq, inArray, sql } from 'drizzle-orm';
 import { schema } from '@vms/shared';
 import { db, type Database } from '../db.ts';
 import { emitVisitLocation } from '../realtime.ts';
@@ -20,21 +20,37 @@ export async function recordCheckpointEvent(
     verifiedBy?: string | null;
   },
 ): Promise<void> {
+  // Snapshot the device's current point so the trail stays stable even if the device is later
+  // reassigned or swapped out (the point is the durable location, the device is replaceable).
+  let pointId: string | null = null;
+  if (input.deviceId) {
+    const [d] = await conn
+      .select({ pointId: schema.deviceProfile.pointId })
+      .from(schema.deviceProfile)
+      .where(eq(schema.deviceProfile.deviceId, input.deviceId));
+    pointId = d?.pointId ?? null;
+  }
   await conn.insert(schema.checkpointEvent).values({
     visitId: input.visitId,
     deviceId: input.deviceId ?? null,
+    pointId,
     kind: input.kind,
     method: input.method ?? null,
     verifiedBy: input.verifiedBy ?? null,
   });
 }
 
+/** The location name for a trail row — the point it was stationed at, falling back to the device label. */
+const checkpointName = sql<
+  string | null
+>`coalesce(${schema.point.name}, ${schema.deviceProfile.label})`;
+
 /** The visit's latest checkpoint = the visitor's current location (with checkpoint name). */
 export async function currentCheckpoint(visitId: string) {
   const [latest] = await db
     .select({
       deviceId: schema.checkpointEvent.deviceId,
-      checkpoint: schema.deviceProfile.label,
+      checkpoint: checkpointName,
       kind: schema.checkpointEvent.kind,
       at: schema.checkpointEvent.at,
     })
@@ -43,6 +59,7 @@ export async function currentCheckpoint(visitId: string) {
       schema.deviceProfile,
       eq(schema.deviceProfile.deviceId, schema.checkpointEvent.deviceId),
     )
+    .leftJoin(schema.point, eq(schema.point.id, schema.checkpointEvent.pointId))
     .where(eq(schema.checkpointEvent.visitId, visitId))
     .orderBy(desc(schema.checkpointEvent.at))
     .limit(1);
@@ -56,7 +73,7 @@ export async function currentLocations(visitIds: string[]) {
   const rows = await db
     .select({
       visitId: schema.checkpointEvent.visitId,
-      checkpoint: schema.deviceProfile.label,
+      checkpoint: checkpointName,
       kind: schema.checkpointEvent.kind,
       at: schema.checkpointEvent.at,
     })
@@ -65,6 +82,7 @@ export async function currentLocations(visitIds: string[]) {
       schema.deviceProfile,
       eq(schema.deviceProfile.deviceId, schema.checkpointEvent.deviceId),
     )
+    .leftJoin(schema.point, eq(schema.point.id, schema.checkpointEvent.pointId))
     .where(inArray(schema.checkpointEvent.visitId, visitIds))
     .orderBy(desc(schema.checkpointEvent.at));
   for (const r of rows) {
@@ -112,7 +130,7 @@ export function visitCheckpointTrail(visitId: string) {
     .select({
       id: schema.checkpointEvent.id,
       deviceId: schema.checkpointEvent.deviceId,
-      checkpoint: schema.deviceProfile.label,
+      checkpoint: checkpointName,
       kind: schema.checkpointEvent.kind,
       method: schema.checkpointEvent.method,
       at: schema.checkpointEvent.at,
@@ -122,6 +140,7 @@ export function visitCheckpointTrail(visitId: string) {
       schema.deviceProfile,
       eq(schema.deviceProfile.deviceId, schema.checkpointEvent.deviceId),
     )
+    .leftJoin(schema.point, eq(schema.point.id, schema.checkpointEvent.pointId))
     .where(eq(schema.checkpointEvent.visitId, visitId))
     .orderBy(schema.checkpointEvent.at);
 }

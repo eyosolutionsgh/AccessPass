@@ -371,29 +371,59 @@ export function AppointmentDetail() {
             title="Checkpoint trail"
             description="Where this visitor presented their credential, in order."
           />
-          <ol className="divide-y divide-slate-100 px-5 py-1">
-            {trail.data?.map((e) => (
-              <li key={e.id} className="flex items-center justify-between gap-4 py-2.5">
-                <span className="flex items-center gap-2 text-sm font-medium text-slate-800">
-                  <span
-                    className={`flex size-7 items-center justify-center rounded-lg ${
-                      e.kind === 'check_in'
-                        ? 'bg-emerald-50 text-emerald-600'
-                        : e.kind === 'check_out'
-                          ? 'bg-slate-100 text-slate-500'
-                          : 'bg-brand-50 text-brand-600'
-                    }`}
-                  >
-                    <MapPin className="size-3.5" />
+          <ol className="px-5 py-1">
+            {trail.data?.map((e, i) => {
+              const kindLabel =
+                e.kind === 'check_in' ? 'Entry' : e.kind === 'check_out' ? 'Exit' : 'Passage';
+              const place = e.checkpoint ?? e.deviceId ?? 'Unknown checkpoint';
+              // Show the physical device when it differs from the point name, plus how the
+              // credential was presented (qr / code / nfc / tag).
+              const meta = [
+                e.checkpoint && e.deviceId ? `device ${e.deviceId}` : null,
+                e.method,
+              ].filter(Boolean);
+              const last = i === (trail.data?.length ?? 0) - 1;
+              return (
+                <li key={e.id} className="flex gap-3 py-2.5">
+                  <span className="flex flex-col items-center">
+                    <span
+                      className={`flex size-7 items-center justify-center rounded-lg ${
+                        e.kind === 'check_in'
+                          ? 'bg-emerald-50 text-emerald-600'
+                          : e.kind === 'check_out'
+                            ? 'bg-slate-100 text-slate-500'
+                            : 'bg-brand-50 text-brand-600'
+                      }`}
+                    >
+                      <MapPin className="size-3.5" />
+                    </span>
+                    {!last && <span className="mt-1 w-px flex-1 bg-slate-200" />}
                   </span>
-                  {e.checkpoint ?? e.deviceId ?? 'Unknown checkpoint'}
-                  <span className="text-xs font-normal capitalize text-slate-400">
-                    {e.kind.replace('_', ' ')}
-                  </span>
-                </span>
-                <span className="text-xs text-slate-500">{fmt(e.at)}</span>
-              </li>
-            ))}
+                  <div className="flex flex-1 items-start justify-between gap-4 pb-1">
+                    <div>
+                      <p className="text-sm font-medium text-slate-800">
+                        {place}
+                        <span
+                          className={`ml-2 rounded-full px-2 py-0.5 text-xs font-semibold ${
+                            e.kind === 'check_in'
+                              ? 'bg-emerald-50 text-emerald-700'
+                              : e.kind === 'check_out'
+                                ? 'bg-slate-100 text-slate-500'
+                                : 'bg-brand-50 text-brand-700'
+                          }`}
+                        >
+                          {kindLabel}
+                        </span>
+                      </p>
+                      {meta.length > 0 && (
+                        <p className="mt-0.5 text-xs text-slate-400">{meta.join(' · ')}</p>
+                      )}
+                    </div>
+                    <span className="shrink-0 text-xs text-slate-500">{fmt(e.at)}</span>
+                  </div>
+                </li>
+              );
+            })}
           </ol>
         </Card>
       )}

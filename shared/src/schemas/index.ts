@@ -271,14 +271,20 @@ export const departmentCreateSchema = z.object({
   facilityId: z.uuid().optional(),
 });
 export const departmentUpdateSchema = departmentCreateSchema.partial().extend({ id: z.uuid() });
-export const departmentDeleteSchema = z.object({ id: z.uuid() });
 
 export const officeCreateSchema = z.object({
   name: z.string().min(1).max(120),
   departmentId: z.uuid(),
 });
 export const officeUpdateSchema = officeCreateSchema.partial().extend({ id: z.uuid() });
-export const officeDeleteSchema = z.object({ id: z.uuid() });
+
+/**
+ * Soft-delete / restore toggle shared by every admin configuration model (facility, visitor
+ * category, department, office, checkpoint). Deactivating sets `isActive = false` instead of a
+ * destructive delete, so historical references (visits, hosts, trails) stay intact.
+ */
+export const adminSetActiveSchema = z.object({ id: z.uuid(), isActive: z.boolean() });
+export type AdminSetActiveInput = z.infer<typeof adminSetActiveSchema>;
 
 /** Supported default date-display formats (admin-configurable; SRS NFR-MNT-01). */
 export const dateFormatSchema = z.enum(['DD/MM/YYYY', 'MM/DD/YYYY', 'YYYY-MM-DD', 'D MMM YYYY']);
@@ -358,9 +364,42 @@ export const deviceUpsertSchema = z.object({
   deviceId: z.string().min(1).max(120),
   label: z.string().max(120).optional(),
   facilityId: z.uuid().optional(),
+  /** The point this device is stationed at (reassignable; omit/null = unassigned spare). */
+  pointId: z.uuid().nullish(),
   profile: deviceProfileSchema,
 });
 export type DeviceUpsertInput = z.infer<typeof deviceUpsertSchema>;
+
+// ── Points (operating locations) + staffing assignments ──────────────────────
+/** A point's category — mirrors the `point_kind` enum; behaviour comes from the device profile. */
+export const POINT_KINDS = ['reception', 'security', 'checkpoint', 'exit', 'other'] as const;
+export const pointKindSchema = z.enum(POINT_KINDS);
+export type PointKind = z.infer<typeof pointKindSchema>;
+export const POINT_KIND_LABELS: Record<PointKind, string> = {
+  reception: 'Reception desk',
+  security: 'Security check-point',
+  checkpoint: 'Internal checkpoint',
+  exit: 'Exit',
+  other: 'Other',
+};
+
+export const pointCreateSchema = z.object({
+  name: z.string().min(1).max(120),
+  kind: pointKindSchema.default('checkpoint'),
+  facilityId: z.uuid().nullish(),
+});
+export const pointUpdateSchema = pointCreateSchema.partial().extend({ id: z.uuid() });
+
+/** Replace the full set of staff assigned to a point (who may sign a device in there). */
+export const pointAssignSchema = z.object({
+  pointId: z.uuid(),
+  userIds: z.array(z.string()).max(500),
+});
+export type PointAssignInput = z.infer<typeof pointAssignSchema>;
+
+/** A staff member signing a device in/out at its point (kiosk PostGate). */
+export const deviceLoginSchema = z.object({ deviceId: z.string().min(1).max(120) });
+export type DeviceLoginInput = z.infer<typeof deviceLoginSchema>;
 
 export const DEVICE_TYPE_LABELS: Record<DeviceType, string> = {
   generic: 'Generic (any tablet/phone)',

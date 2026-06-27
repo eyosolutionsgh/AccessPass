@@ -19,7 +19,12 @@ const RESET_TOKEN_TTL_SECONDS = 60 * 60 * 24;
 export const auth = betterAuth({
   baseURL: env.BETTER_AUTH_URL,
   secret: env.BETTER_AUTH_SECRET,
-  trustedOrigins: [env.WEB_ORIGIN, env.APP_URL],
+  // In development, trust any localhost port so alternate dev/preview servers (e.g. a second Vite
+  // instance on another port) can authenticate. Production stays locked to the configured origins.
+  trustedOrigins:
+    env.NODE_ENV === 'development'
+      ? [env.WEB_ORIGIN, env.APP_URL, 'http://localhost:*', 'http://127.0.0.1:*']
+      : [env.WEB_ORIGIN, env.APP_URL],
   database: drizzleAdapter(db, {
     provider: 'pg',
     schema: {
