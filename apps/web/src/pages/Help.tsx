@@ -252,41 +252,180 @@ function MockField({ label, value }: { label: string; value: string }) {
 
 function FlowDiagram() {
   const nodes = [
-    { icon: CalendarPlus, label: 'Booking', sub: 'Host / reception' },
-    { icon: Mail, label: 'Invitation', sub: 'QR + code sent' },
-    { icon: ShieldCheck, label: 'Outer security', sub: 'Optional gate scan' },
-    { icon: DoorOpen, label: 'Reception', sub: 'Check-in' },
-    { icon: ScanLine, label: 'Secure entry', sub: 'Internal scan' },
-    { icon: Building2, label: 'Visit location', sub: 'Office / meeting room' },
-    { icon: ScanLine, label: 'Secure exit', sub: 'Return scan if required' },
-    { icon: MapPin, label: 'Check-out', sub: 'Exit recorded' },
+    { label: 'Booking', sub: 'Host or reception sets up the visit, picks the date and officer.' },
+    { label: 'Invitation', sub: 'A QR pass and short manual code are sent to the visitor.' },
+    {
+      label: 'Outer security',
+      sub: 'Optional gate scan before reception on high-security sites.',
+      optional: true,
+    },
+    { label: 'Reception', sub: 'The visitor is checked in and the badge is activated.' },
+    {
+      label: 'Secure entry',
+      sub: 'Optional internal scan into a restricted zone.',
+      optional: true,
+    },
+    { label: 'Visit location', sub: 'The visitor meets the host at the office or meeting room.' },
+    {
+      label: 'Secure exit',
+      sub: 'Optional return scan when leaving the secure area.',
+      optional: true,
+    },
+    { label: 'Check-out', sub: 'Departure is recorded and the badge is revoked.' },
   ];
+  const colors = [
+    '#dc2626',
+    '#ea580c',
+    '#d97706',
+    '#16a34a',
+    '#0d9488',
+    '#0284c7',
+    '#4f46e5',
+    '#7c3aed',
+  ];
+
+  // Waypoints down a portrait viewBox that form a winding "road".
+  const pts: [number, number][] = [
+    [205, 70],
+    [95, 140],
+    [205, 210],
+    [95, 280],
+    [205, 350],
+    [95, 420],
+    [205, 490],
+    [150, 560],
+  ];
+  const roadD = pts
+    .map((p, i) => {
+      const [x, y] = p;
+      if (i === 0) return `M ${x} ${y}`;
+      const [px, py] = pts[i - 1] ?? p;
+      const midY = (py + y) / 2;
+      return `C ${px} ${midY} ${x} ${midY} ${x} ${y}`;
+    })
+    .join(' ');
+
   return (
     <Frame url="VMS · Visitor journey">
-      <div className="flex flex-wrap items-stretch justify-center gap-2">
-        {nodes.map((n, i) => (
-          <div key={n.label} className="flex items-center gap-2">
-            <div className="flex w-32 flex-col items-center gap-1.5 rounded-xl border border-slate-200 bg-white p-3 text-center shadow-sm">
-              <span className="flex size-9 items-center justify-center rounded-lg bg-brand-50 text-brand-600">
-                <n.icon className="size-4.5" />
+      <div className="grid items-center gap-8 lg:grid-cols-[minmax(0,1fr)_300px]">
+        {/* left: numbered milestones */}
+        <ol className="relative">
+          <span
+            aria-hidden="true"
+            className="absolute bottom-5 left-[18px] top-5 w-px bg-slate-200"
+          />
+          {nodes.map((n, i) => (
+            <li key={n.label} className="relative flex gap-4 py-2.5">
+              <span className="relative z-10 flex size-9 shrink-0 items-center justify-center">
+                <span
+                  className="absolute inset-0 rotate-45 rounded-[7px] border-2 bg-white shadow-sm"
+                  style={{ borderColor: colors[i] }}
+                />
+                <span className="relative text-sm font-bold" style={{ color: colors[i] }}>
+                  {i + 1}
+                </span>
               </span>
-              <span className="text-sm font-semibold text-slate-800">{n.label}</span>
-              <span className="text-[11px] text-slate-400">{n.sub}</span>
-            </div>
-            {i < nodes.length - 1 && <ArrowRight className="size-4 shrink-0 text-slate-300" />}
-          </div>
-        ))}
+              <div className="min-w-0 pt-0.5">
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                  <h4
+                    className="text-sm font-bold uppercase tracking-wide"
+                    style={{ color: colors[i] }}
+                  >
+                    {n.label}
+                  </h4>
+                  {n.optional && (
+                    <span className="inline-flex items-center rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-slate-500">
+                      Optional
+                    </span>
+                  )}
+                </div>
+                <p className="mt-0.5 text-xs leading-5 text-slate-500">{n.sub}</p>
+              </div>
+            </li>
+          ))}
+        </ol>
+
+        {/* right: winding road with signpost markers */}
+        <div className="hidden lg:block">
+          <svg
+            viewBox="0 0 300 610"
+            className="mx-auto h-auto w-full max-w-[280px]"
+            role="img"
+            aria-label="Winding road showing the eight stages of a visit"
+          >
+            {/* road body + dashed centre line */}
+            <path
+              d={roadD}
+              fill="none"
+              stroke="#1e293b"
+              strokeWidth={44}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <path
+              d={roadD}
+              fill="none"
+              stroke="#334155"
+              strokeWidth={40}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <path
+              d={roadD}
+              fill="none"
+              stroke="#f8fafc"
+              strokeWidth={2.5}
+              strokeLinecap="round"
+              strokeDasharray="3 18"
+            />
+            {/* signposts */}
+            {pts.map((p, i) => (
+              <g key={i}>
+                <line
+                  x1={p[0]}
+                  y1={p[1]}
+                  x2={p[0]}
+                  y2={p[1] - 30}
+                  stroke="#94a3b8"
+                  strokeWidth={2.5}
+                />
+                <rect
+                  x={p[0] - 16}
+                  y={p[1] - 62}
+                  width={32}
+                  height={32}
+                  rx={6}
+                  transform={`rotate(45 ${p[0]} ${p[1] - 46})`}
+                  fill={colors[i]}
+                />
+                <text
+                  x={p[0]}
+                  y={p[1] - 46}
+                  textAnchor="middle"
+                  dominantBaseline="central"
+                  fontSize={15}
+                  fontWeight={700}
+                  fill="#ffffff"
+                >
+                  {i + 1}
+                </text>
+              </g>
+            ))}
+          </svg>
+        </div>
       </div>
-      <div className="mt-4 space-y-1 text-center text-xs text-slate-400">
-        <p>
-          Most sites go straight from invitation to reception. High-security sites can require a
-          guard scan before reception, into the secure area, and again when the visitor leaves that
-          area before check-out.
-        </p>
-        <p className="inline-flex items-center gap-1.5">
+
+      <div className="mt-6 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 border-t border-slate-100 pt-4 text-xs text-slate-500">
+        <span className="inline-flex items-center gap-1.5">
+          <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-slate-500">
+            Optional
+          </span>{' '}
+          steps are site-dependent
+        </span>
+        <span className="inline-flex items-center gap-1.5">
           <span className="size-1.5 animate-pulse rounded-full bg-emerald-500" /> Live events stream
-          to reception, security &amp; the host throughout
-        </p>
+          to reception, security &amp; the host
+        </span>
       </div>
     </Frame>
   );
@@ -1061,10 +1200,10 @@ export function Help() {
             </Figure>
             <Callout>
               Reception, security and the visiting officer all see the same live status. Most sites
-              send visitors straight to reception. Highly secured sites, such as presidential
-              offices, central banks or restricted compounds, can add checkpoint scans before
-              reception, into the secure area, between secure zones and again when the visitor
-              leaves the secure area before check-out.
+              send visitors straight to reception. Highly secured sites, such as central banks or
+              restricted compounds, can add checkpoint scans before reception, into the secure area,
+              between secure zones and again when the visitor leaves the secure area before
+              check-out.
             </Callout>
           </Section>
 
@@ -1204,7 +1343,11 @@ export function Help() {
               <BookingMock />
             </Figure>
             <div>
-              <p className="mb-3 text-sm font-semibold text-slate-700">A visit moves through:</p>
+              <p className="mb-1 text-sm font-semibold text-slate-700">Visit status lifecycle</p>
+              <p className="mb-3 text-xs text-slate-500">
+                These are the record statuses a visit moves through in the system — distinct from
+                the physical checkpoints in the visitor journey on the Overview page.
+              </p>
               <div className="flex flex-wrap items-center gap-2">
                 {LIFECYCLE.map((s, i) => (
                   <span key={s} className="flex items-center gap-2">
