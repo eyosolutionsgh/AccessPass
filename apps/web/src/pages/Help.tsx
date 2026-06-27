@@ -251,8 +251,11 @@ function FlowDiagram() {
   const nodes = [
     { icon: CalendarPlus, label: 'Booking', sub: 'Host / reception' },
     { icon: Mail, label: 'Invitation', sub: 'QR + code sent' },
+    { icon: ShieldCheck, label: 'Outer security', sub: 'Optional gate scan' },
     { icon: DoorOpen, label: 'Reception', sub: 'Check-in' },
-    { icon: ScanLine, label: 'Checkpoints', sub: 'Guard scans' },
+    { icon: ScanLine, label: 'Secure entry', sub: 'Internal scan' },
+    { icon: Building2, label: 'Visit location', sub: 'Office / meeting room' },
+    { icon: ScanLine, label: 'Secure exit', sub: 'Return scan if required' },
     { icon: MapPin, label: 'Check-out', sub: 'Exit recorded' },
   ];
   return (
@@ -260,7 +263,7 @@ function FlowDiagram() {
       <div className="flex flex-wrap items-stretch justify-center gap-2">
         {nodes.map((n, i) => (
           <div key={n.label} className="flex items-center gap-2">
-            <div className="flex w-28 flex-col items-center gap-1.5 rounded-xl border border-slate-200 bg-white p-3 text-center shadow-sm">
+            <div className="flex w-32 flex-col items-center gap-1.5 rounded-xl border border-slate-200 bg-white p-3 text-center shadow-sm">
               <span className="flex size-9 items-center justify-center rounded-lg bg-brand-50 text-brand-600">
                 <n.icon className="size-4.5" />
               </span>
@@ -271,11 +274,16 @@ function FlowDiagram() {
           </div>
         ))}
       </div>
-      <div className="mt-4 flex items-center justify-center gap-2 text-xs text-slate-400">
-        <span className="inline-flex items-center gap-1.5">
+      <div className="mt-4 space-y-1 text-center text-xs text-slate-400">
+        <p>
+          Most sites go straight from invitation to reception. High-security sites can require a
+          guard scan before reception, into the secure area, and again when the visitor leaves that
+          area before check-out.
+        </p>
+        <p className="inline-flex items-center gap-1.5">
           <span className="size-1.5 animate-pulse rounded-full bg-emerald-500" /> Live events stream
           to reception, security &amp; the host throughout
-        </span>
+        </p>
       </div>
     </Frame>
   );
@@ -1013,9 +1021,12 @@ export function Help() {
           >
             <p>
               Every visit follows one journey. An appointment is booked, an invitation with a QR
-              code is sent to the visitor, the visitor is checked in at reception, security verifies
-              them at each checkpoint they pass, and finally they are checked out. At every step the
-              system records what happened and streams it live to the people who need to know.
+              code is sent to the visitor, the visitor is checked in at reception or first screened
+              by security where the site requires it, security verifies them at each checkpoint they
+              pass, the visitor goes to the office, conference room or other visit location, then
+              passes the required security point again on the way out before final check-out. At
+              every step the system records what happened and streams it live to the people who need
+              to know.
             </p>
             <InfoGrid
               columns="sm:grid-cols-2 lg:grid-cols-4"
@@ -1046,9 +1057,11 @@ export function Help() {
               <FlowDiagram />
             </Figure>
             <Callout>
-              Reception, security and the visiting officer all see the same live status. When a
-              visitor scans at a checkpoint, their host instantly sees “At East Wing checkpoint”,
-              and the security dashboard updates its on-site count.
+              Reception, security and the visiting officer all see the same live status. Most sites
+              send visitors straight to reception. Highly secured sites, such as presidential
+              offices, central banks or restricted compounds, can add checkpoint scans before
+              reception, into the secure area, between secure zones and again when the visitor
+              leaves the secure area before check-out.
             </Callout>
           </Section>
 
@@ -1085,6 +1098,11 @@ export function Help() {
               matching address on that device and configure the device profile in Administration so
               the scanner, camera, printer and credential behavior match the hardware at that point.
             </p>
+            <Callout>
+              For most sites, configure Reception and Check-out first. For highly secured locations,
+              add Security checkpoint devices at the gate, before visitors enter restricted visit
+              areas, and where they return through security before final check-out.
+            </Callout>
             <DefinitionTable rows={POINT_SETUP_URLS} />
             <h3 className="pt-4 text-base font-semibold text-slate-900">
               How to configure a staffed point
@@ -1230,24 +1248,24 @@ export function Help() {
             id="checkpoints"
             icon={ScanLine}
             title="Security posts & checkpoints"
-            lead="Three kinds of post handle arrivals and movement: the reception check-in desk, the check-out desk, and security checkpoints inside the facility. Every post is staffed — a visitor can only be processed while a staff member is signed in at that post."
+            lead="Security checkpoints are optional and site-dependent. Many offices send visitors straight to reception; highly secured sites can add staffed guard points before reception, before entering restricted areas, when leaving those areas and at final exit."
           >
             <div className="grid gap-3 sm:grid-cols-3">
               {[
                 {
                   icon: DoorOpen,
-                  t: 'Check-in desk',
-                  d: 'Reception scans the QR or enters the code to admit the visitor and (optionally) issue a badge.',
+                  t: 'Standard site',
+                  d: 'The visitor goes straight to reception. Reception scans the QR or enters the code, verifies the person and issues the badge if used.',
+                },
+                {
+                  icon: ShieldCheck,
+                  t: 'High-security gate',
+                  d: 'A guard scans the appointment QR before reception, confirms the visit is expected, then directs the visitor to reception.',
                 },
                 {
                   icon: ScanLine,
-                  t: 'Checkpoint',
-                  d: 'Security scans the visitor at internal posts; full verification details are shown for on-the-spot checks.',
-                },
-                {
-                  icon: MapPin,
-                  t: 'Check-out desk',
-                  d: 'On the way out the visitor is scanned again, the badge is returned and exit time is recorded.',
+                  t: 'Restricted areas',
+                  d: 'Security scans the visitor after reception before they enter the office, conference room or secure zone, then scans again when they leave that area.',
                 },
               ].map((p) => (
                 <div key={p.t} className="rounded-2xl border border-slate-200 bg-white p-4">
@@ -1262,9 +1280,10 @@ export function Help() {
             <p>
               The visitor presents the QR code from their invitation, or types the short entry code
               if they don’t have the QR. The system checks the code is valid, within its time
-              window, and not on the watchlist — raising an incident automatically if a match is
-              found. Staff never see whether a code “exists” when it fails, so codes can’t be
-              guessed.
+              window, and allowed at that point. Use the configured checkpoint order for the site: a
+              simple office may only use reception and check-out, while a highly secured place may
+              require a gate scan before reception, a scan into the secure visit location, and a
+              return scan before the final check-out.
             </p>
             <Figure caption="A security checkpoint verifying a visitor by QR or entry code.">
               <CheckpointMock />
