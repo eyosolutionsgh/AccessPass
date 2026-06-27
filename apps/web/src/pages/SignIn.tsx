@@ -1,4 +1,4 @@
-import { CheckCircle2, Lock, Mail, MapPin, ShieldCheck } from 'lucide-react';
+import { CheckCircle2, HelpCircle, Lock, Mail, MapPin, ShieldCheck } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
 import { toast } from 'sonner';
 import { requestPasswordReset, signIn } from '../lib/auth.ts';
@@ -53,6 +53,17 @@ export function SignIn() {
 
   return (
     <div className="bg-mesh relative flex min-h-screen items-center justify-center overflow-hidden px-4 py-12">
+      {/* Help / user manual — opens in a new tab; available before sign-in. */}
+      <a
+        href="/help"
+        target="_blank"
+        rel="noopener noreferrer"
+        title="Open the user manual"
+        className="absolute right-4 top-4 z-20 inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-sm font-medium text-white/80 backdrop-blur transition-colors hover:bg-white/20 hover:text-white"
+      >
+        <HelpCircle className="size-4" /> Help
+      </a>
+
       {/* Immersive decorative backdrop — a stylised map of facility checkpoints, purely visual. */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
         <div className="bg-grid absolute inset-0 opacity-[0.07]" />

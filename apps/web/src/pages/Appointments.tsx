@@ -7,6 +7,7 @@ import { Avatar } from '../components/ui/avatar.tsx';
 import { Button } from '../components/ui/button.tsx';
 import { Card } from '../components/ui/card.tsx';
 import { EmptyState } from '../components/ui/empty-state.tsx';
+import { HelpLink } from '../components/HelpLink.tsx';
 import { InputWithIcon, Input } from '../components/ui/input.tsx';
 import { PageHeader } from '../components/ui/page-header.tsx';
 import { Pagination } from '../components/ui/pagination.tsx';
@@ -127,13 +128,16 @@ export function Appointments() {
         title="Appointments"
         description="Browse, filter and manage every scheduled visit."
         actions={
-          canCreate ? (
-            <Link href="/appointments/new">
-              <Button>
-                <CalendarCheck className="size-4" /> New appointment
-              </Button>
-            </Link>
-          ) : undefined
+          <div className="flex items-center gap-2">
+            <HelpLink section="booking" />
+            {canCreate && (
+              <Link href="/appointments/new">
+                <Button>
+                  <CalendarCheck className="size-4" /> New appointment
+                </Button>
+              </Link>
+            )}
+          </div>
         }
       />
 

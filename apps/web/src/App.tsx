@@ -23,6 +23,7 @@ const ResetPassword = lazy(() =>
   import('./pages/public/ResetPassword.tsx').then((m) => ({ default: m.ResetPassword })),
 );
 const SignIn = lazy(() => import('./pages/SignIn.tsx').then((m) => ({ default: m.SignIn })));
+const Help = lazy(() => import('./pages/Help.tsx').then((m) => ({ default: m.Help })));
 const Appointments = lazy(() =>
   import('./pages/Appointments.tsx').then((m) => ({ default: m.Appointments })),
 );
@@ -121,6 +122,13 @@ export function App() {
     return (
       <Suspense fallback={<FullScreenLoader />}>
         <ResetPassword />
+      </Suspense>
+    );
+  // Public user manual — reachable from the sign-in page and the sidebar (no session required).
+  if (location.startsWith('/help'))
+    return (
+      <Suspense fallback={<FullScreenLoader />}>
+        <Help />
       </Suspense>
     );
 

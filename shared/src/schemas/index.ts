@@ -455,3 +455,15 @@ export const reportRangeSchema = z.object({
   to: z.coerce.date().optional(),
 });
 export type ReportRangeInput = z.infer<typeof reportRangeSchema>;
+
+/** Visitor-insights search: find a recurring visitor by name, org, email or phone. */
+export const visitorSearchSchema = z.object({
+  q: z.string().trim().min(1).max(120),
+});
+export type VisitorSearchInput = z.infer<typeof visitorSearchSchema>;
+
+/** Per-visitor analytics drill-down (visit frequency + purpose breakdown). */
+export const visitorAnalyticsSchema = z.object({
+  visitorId: z.uuid(),
+});
+export type VisitorAnalyticsInput = z.infer<typeof visitorAnalyticsSchema>;

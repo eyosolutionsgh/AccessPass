@@ -5,6 +5,7 @@ import {
   ChevronDown,
   DoorClosed,
   DoorOpen,
+  HelpCircle,
   LogOut,
   Menu,
   Network,
@@ -55,13 +56,43 @@ const NAV: NavItem[] = [
     icon: Sliders,
     perm: { config: ['manage'] },
     children: [
-      { href: '/admin/settings', label: 'System settings', icon: Sliders, perm: { config: ['manage'] } },
-      { href: '/admin/users', label: 'User management', icon: UsersRound, perm: { user: ['read'] } },
-      { href: '/admin/checkpoints', label: 'Checkpoints', icon: ScanLine, perm: { config: ['manage'] } },
-      { href: '/admin/facilities', label: 'Facilities', icon: Building2, perm: { config: ['manage'] } },
-      { href: '/admin/departments', label: 'Departments', icon: Network, perm: { config: ['manage'] } },
+      {
+        href: '/admin/settings',
+        label: 'System settings',
+        icon: Sliders,
+        perm: { config: ['manage'] },
+      },
+      {
+        href: '/admin/users',
+        label: 'User management',
+        icon: UsersRound,
+        perm: { user: ['read'] },
+      },
+      {
+        href: '/admin/checkpoints',
+        label: 'Checkpoints',
+        icon: ScanLine,
+        perm: { config: ['manage'] },
+      },
+      {
+        href: '/admin/facilities',
+        label: 'Facilities',
+        icon: Building2,
+        perm: { config: ['manage'] },
+      },
+      {
+        href: '/admin/departments',
+        label: 'Departments',
+        icon: Network,
+        perm: { config: ['manage'] },
+      },
       { href: '/admin/offices', label: 'Offices', icon: DoorClosed, perm: { config: ['manage'] } },
-      { href: '/admin/categories', label: 'Visitor categories', icon: Tags, perm: { config: ['manage'] } },
+      {
+        href: '/admin/categories',
+        label: 'Visitor categories',
+        icon: Tags,
+        perm: { config: ['manage'] },
+      },
     ],
   },
 ];
@@ -145,7 +176,10 @@ function NavGroup({
         />
         <span className="flex-1 text-left">{item.label}</span>
         <ChevronDown
-          className={cn('size-4 shrink-0 text-slate-500 transition-transform', open && 'rotate-180')}
+          className={cn(
+            'size-4 shrink-0 text-slate-500 transition-transform',
+            open && 'rotate-180',
+          )}
         />
       </button>
       {open && (
@@ -230,6 +264,17 @@ function SidebarContent({
         )}
       </nav>
 
+      {/* Help & docs — opens the user manual in a new tab, just above the user. */}
+      <a
+        href="/help"
+        target="_blank"
+        rel="noopener noreferrer"
+        onClick={onNavigate}
+        className="mt-2 flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-slate-400 transition-colors hover:bg-white/10 hover:text-white"
+      >
+        <HelpCircle className="size-[18px]" /> Help &amp; docs
+      </a>
+
       <div className="mt-2 flex items-center gap-2.5 border-t border-white/10 px-1 pt-3">
         <Avatar name={displayName} className="size-8 rounded-lg" />
         <div className="min-w-0 flex-1">
@@ -264,7 +309,10 @@ export function Layout({
   const [mobileOpen, setMobileOpen] = useState(false);
   const items = NAV.filter((item) => anyRoleHasPermission(role ?? null, item.perm)).map((item) =>
     item.children
-      ? { ...item, children: item.children.filter((c) => anyRoleHasPermission(role ?? null, c.perm)) }
+      ? {
+          ...item,
+          children: item.children.filter((c) => anyRoleHasPermission(role ?? null, c.perm)),
+        }
       : item,
   );
   const canCreate = anyRoleHasPermission(role ?? null, { appointment: ['create'] });

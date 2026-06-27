@@ -8,6 +8,8 @@ import { PageHeader } from '../components/ui/page-header.tsx';
 import { Pagination } from '../components/ui/pagination.tsx';
 import { StatusBadge } from '../components/ui/badge.tsx';
 import { StateRow, TBody, Table, Th, THead } from '../components/ui/table.tsx';
+import { HelpLink } from '../components/HelpLink.tsx';
+import { VisitorInsights } from '../components/VisitorInsights.tsx';
 import { apiBase } from '../lib/api.ts';
 import { trpc } from '../lib/trpc.ts';
 
@@ -79,6 +81,7 @@ export function Reports() {
         description="Visitor volume, status mix and an exportable visit log."
         actions={
           <>
+            <HelpLink section="analytics" />
             <a href={`${apiBase}/api/reports/visitor-log.csv`} download>
               <Button variant="outline">
                 <Download className="size-4" /> CSV
@@ -191,6 +194,9 @@ export function Reports() {
           </div>
         </Card>
       </div>
+
+      {/* Per-visitor analyst drill-down */}
+      <VisitorInsights />
 
       {/* Visitor log */}
       <Card className="overflow-hidden">

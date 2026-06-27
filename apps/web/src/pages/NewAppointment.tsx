@@ -11,6 +11,7 @@ import { ScanIdButton, type ExtractedId } from '../components/ScanIdButton.tsx';
 import { Button } from '../components/ui/button.tsx';
 import { Card, CardHeader } from '../components/ui/card.tsx';
 import { Input } from '../components/ui/input.tsx';
+import { HelpLink } from '../components/HelpLink.tsx';
 import { PageHeader } from '../components/ui/page-header.tsx';
 import { PhoneInput } from '../components/ui/phone-input.tsx';
 import { Select } from '../components/ui/select.tsx';
@@ -123,6 +124,7 @@ export function NewAppointment() {
         eyebrow="New visit"
         title="New appointment"
         description="Register a visitor and schedule their visit."
+        actions={<HelpLink section="booking" />}
       />
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
