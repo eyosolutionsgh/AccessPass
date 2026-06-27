@@ -66,15 +66,20 @@ In the addresses below, replace `<your-vms-address>` with your site's internal V
 | Detailed security scan | Use `<your-vms-address>/security/scan` where guards need fuller verification details before allowing passage, including host, purpose, department, time window and watchlist warnings.                        | staff    |
 | Security console       | Use `<your-vms-address>/security` on the security office computer for incidents, overstays, denied entries, watchlist review and overall checkpoint monitoring.                                               | staff    |
 
-### How to configure a staffed point
+### Points and devices are separate
 
-1. Sign in as an administrator and open Administration from the sidebar.
-2. Open Checkpoints and devices, then add or edit the point you are preparing.
-3. Give the point a clear name, such as Reception desk, Exit desk, Main Gate or East Wing checkpoint.
-4. Choose what the point does: check-in, check-out, security checkpoint, reception desk or security scan.
-5. Select the scanner source, camera behavior, printer target and credential type used at that point.
-6. Open the matching station address on the physical tablet, kiosk or desk computer and sign in with the assigned staff or station account.
-7. Test the full flow with a real or test appointment: scan the QR code, print or assign the badge if used, then check the visitor out.
+A **point** is a fixed operating location, such as a reception desk or a security check-point. A **device** is the physical tablet stationed at that point. They are kept separate so the location keeps its identity, its staffing and the visitor trail even when the hardware changes: if a tablet is faulty, register a replacement device, point it at the same location and deactivate the old one. The point, its assigned staff and the visitor trail are unaffected. Manage both under Administration → Checkpoints (Points and devices).
+
+### How to set up a staffed point
+
+1. Sign in as an administrator and open Administration → Checkpoints (Points and devices).
+2. Under Points, add the location and give it a clear name and kind, such as Main Reception (reception desk) or Main Gate (security check-point).
+3. Register the tablet under Devices: enter its device ID, choose the point it is stationed at, and set the scanner, camera, printer and credential options for that hardware.
+4. Open the point's Staff list and tick the staff members allowed to operate it — only assigned staff can sign a device in there.
+5. On the physical tablet, open the matching station address, run Kiosk setup once to record its device ID, then have an assigned staff member sign in.
+6. Test the full flow with a real or test appointment: scan the QR code, print or assign the badge if used, then check the visitor out.
+
+> Who can open a post: when a staff member signs in on a device, the system checks that they are assigned to the point that device is stationed at. If they are not, the post stays closed and no visitor can be processed there, even if their role would otherwise allow it. Administrators can always open any post for setup and inspection, and can see who is currently signed in where from the Points and devices screen.
 
 ### Device settings to confirm
 

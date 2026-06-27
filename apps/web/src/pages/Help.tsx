@@ -103,6 +103,35 @@ function Figure({ children, caption }: { children: ReactNode; caption: string })
   );
 }
 
+/**
+ * A real product screenshot, shown inside the browser frame. Images are served same-origin from
+ * `/public/help` (no remote assets — air-gap safe).
+ */
+function Shot({
+  src,
+  alt,
+  url,
+  caption,
+}: {
+  src: string;
+  alt: string;
+  url: string;
+  caption: string;
+}) {
+  return (
+    <Figure caption={caption}>
+      <Frame url={url}>
+        <img
+          src={src}
+          alt={alt}
+          loading="lazy"
+          className="block w-full rounded-lg ring-1 ring-slate-200"
+        />
+      </Frame>
+    </Figure>
+  );
+}
+
 function Section({
   id,
   icon: Icon,
@@ -1265,20 +1294,60 @@ export function Help() {
               areas, and where they return through security before final check-out.
             </Callout>
             <DefinitionTable rows={POINT_SETUP_URLS} />
+
             <h3 className="pt-4 text-base font-semibold text-slate-900">
-              How to configure a staffed point
+              Points and devices are separate
+            </h3>
+            <p>
+              A <strong>point</strong> is a fixed operating location — a reception desk or a
+              security check-point. A <strong>device</strong> is the physical tablet stationed at a
+              point. They are kept separate so the location keeps its identity, its staffing and the
+              visitor trail even when the hardware changes: if a tablet is faulty, you register a
+              replacement and point it at the same place. Manage both under{' '}
+              <strong>Administration → Checkpoints</strong> (Points &amp; devices).
+            </p>
+            <Shot
+              src="/help/points-devices.png"
+              url="VMS · Points & devices"
+              alt="Admin Points and devices screen showing a Main Reception point and three devices, with the Lobby device signed in by Demo Receptionist."
+              caption="Points & devices: each point lists its devices and assigned staff; each device shows its point and a status dot for who is currently signed in."
+            />
+            <Callout>
+              <strong>Replacing a faulty device:</strong> register the replacement tablet with a new
+              device ID, set its point to the same location, then deactivate the old device. The
+              point, its assigned staff and the visitor trail are unaffected.
+            </Callout>
+
+            <h3 className="pt-4 text-base font-semibold text-slate-900">
+              How to set up a staffed point
             </h3>
             <Procedure
               steps={[
-                'Sign in as an administrator and open Administration from the sidebar.',
-                'Open Checkpoints & devices, then add or edit the point you are preparing.',
-                'Give the point a clear name, such as Reception desk, Exit desk, Main Gate or East Wing checkpoint.',
-                'Choose what the point does: check-in, check-out, security checkpoint, reception desk or security scan.',
-                'Select the scanner source, camera behavior, printer target and credential type used at that point.',
-                'Open the matching station address on the physical tablet, kiosk or desk computer and sign in with the assigned staff or station account.',
+                'Sign in as an administrator and open Administration → Checkpoints (Points & devices).',
+                'Under Points, add the location and give it a clear name and kind, such as Main Reception (reception desk) or Main Gate (security check-point).',
+                'Register the tablet under Devices: enter its device ID, choose the point it is stationed at, and set the scanner, camera, printer and credential options for that hardware.',
+                'Open the point’s Staff list and tick the staff members allowed to operate it — only assigned staff can sign a device in there.',
+                'On the physical tablet, open the matching station address, run Kiosk setup once to record its device ID, then have an assigned staff member sign in.',
                 'Test the full flow with a real or test appointment: scan the QR code, print or assign the badge if used, then check the visitor out.',
               ]}
             />
+
+            <h3 className="pt-4 text-base font-semibold text-slate-900">
+              Assign who can staff a point
+            </h3>
+            <p>
+              Use the <strong>Staff</strong> button on a point to choose who may operate it. A staff
+              member must be assigned to a point before they can sign a device in there, so a guard
+              or receptionist can only open a post they are responsible for. Administrators can
+              always open any post for setup and inspection.
+            </p>
+            <Shot
+              src="/help/staff-modal.png"
+              url="VMS · Points & devices"
+              alt="The Staff for Main Reception dialog with Demo Receptionist selected."
+              caption="Assigning staff to a point — only the people ticked here can sign a device in at that point."
+            />
+
             <h3 className="pt-4 text-base font-semibold text-slate-900">
               Device settings to confirm
             </h3>
@@ -1453,6 +1522,34 @@ export function Help() {
             <Figure caption="A security checkpoint verifying a visitor by QR or entry code.">
               <CheckpointMock />
             </Figure>
+
+            <h3 className="pt-4 text-base font-semibold text-slate-900">Who can open a post</h3>
+            <p>
+              Every post is locked to its point. When a staff member signs in on a device, the
+              system checks that they are assigned to the point that device is stationed at. If they
+              are not, the post stays closed and no visitor can be processed there — even if their
+              role would otherwise allow it. This guarantees there is always a known, accountable
+              person at post.
+            </p>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Shot
+                src="/help/checkpoint-denied.png"
+                url="VMS · Checkpoint"
+                alt="A checkpoint post showing 'Not assigned to this post' for a guard who is not assigned to Main Reception."
+                caption="Not assigned: a staff member who isn’t assigned to the device’s point is turned away."
+              />
+              <Shot
+                src="/help/checkin-granted.png"
+                url="VMS · Check in"
+                alt="A check-in post open for Demo Receptionist at Main Reception."
+                caption="Assigned: the post opens, showing the staff member and the point they are operating."
+              />
+            </div>
+            <Callout>
+              Administrators can see who is currently signed in where on the{' '}
+              <strong>Points &amp; devices</strong> screen: a green dot and the person’s name next
+              to a device mean a post is staffed; a grey “Unstaffed” dot means no one is signed in.
+            </Callout>
           </Section>
 
           <Section
