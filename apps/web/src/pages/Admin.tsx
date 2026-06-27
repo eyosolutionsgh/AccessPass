@@ -4,16 +4,18 @@ import {
   Clock,
   DoorClosed,
   Mail,
+  MapPin,
   Network,
   Pencil,
   Plus,
+  Power,
+  PowerOff,
   ScanLine,
   Search,
   Send,
   ShieldCheck,
   Sliders,
   Tags,
-  Trash2,
   UserCheck,
   UserMinus,
   UserPlus,
@@ -23,6 +25,8 @@ import { type FormEvent, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import {
   CREDENTIAL_MODE_LABELS,
+  POINT_KIND_LABELS,
+  POINT_KINDS,
   ROLE_VALUES,
   SCANNER_SOURCE_LABELS,
   VOICE_LABELS,
@@ -34,6 +38,7 @@ import {
   voiceNameSchema,
   type DateFormat,
   type DeviceProfile,
+  type PointKind,
   type VoiceLanguage,
   type VoiceName,
 } from '@vms/shared';
@@ -98,9 +103,10 @@ export function AdminCheckpoints() {
       <PageHeader
         icon={ScanLine}
         eyebrow="Administration"
-        title="Checkpoints"
-        description="Devices visitors check in/out (or pass) at."
+        title="Points & devices"
+        description="Operating locations (reception desks, security check-points), the devices stationed at them, and who may staff each."
       />
+      <PointsSection utils={utils} />
       <CheckpointsSection utils={utils} />
     </div>
   );
@@ -291,16 +297,79 @@ function SettingsSection({ utils }: { utils: Utils }) {
   );
 }
 
+/**
+ * Soft-delete toggle reused by every admin configuration list. Deactivating asks for confirmation
+ * (it hides the item from new bookings/pickers) but is always reversible via Reactivate.
+ */
+function ActiveToggle({
+  isActive,
+  pending,
+  noun,
+  onToggle,
+}: {
+  isActive: boolean;
+  pending: boolean;
+  noun: string;
+  onToggle: (next: boolean) => void;
+}) {
+  return isActive ? (
+    <Button
+      size="sm"
+      variant="ghost"
+      loading={pending}
+      className="text-slate-400 hover:text-amber-600"
+      title={`Deactivate ${noun}`}
+      onClick={() => {
+        if (
+          window.confirm(
+            `Deactivate this ${noun}? It will be hidden from new bookings, but you can restore it later.`,
+          )
+        )
+          onToggle(false);
+      }}
+    >
+      <PowerOff className="size-3.5" />
+    </Button>
+  ) : (
+    <Button
+      size="sm"
+      variant="ghost"
+      loading={pending}
+      className="text-emerald-600 hover:text-emerald-700"
+      title={`Reactivate ${noun}`}
+      onClick={() => onToggle(true)}
+    >
+      <Power className="size-3.5" /> Restore
+    </Button>
+  );
+}
+
 function FacilitiesSection({ utils }: { utils: Utils }) {
   const list = trpc.admin.facilityList.useQuery();
+  const refresh = () => utils.admin.facilityList.invalidate();
   const create = trpc.admin.facilityCreate.useMutation({
-    onSuccess: () => (toast.success('Facility added'), utils.admin.facilityList.invalidate()),
+    onSuccess: () => (toast.success('Facility added'), refresh()),
+    onError: (e) => toast.error(e.message),
+  });
+  const update = trpc.admin.facilityUpdate.useMutation({
+    onSuccess: () => (toast.success('Facility updated'), refresh()),
+    onError: (e) => toast.error(e.message),
+  });
+  const setActive = trpc.admin.facilitySetActive.useMutation({
+    onSuccess: (_d, v) => (
+      toast.success(v.isActive ? 'Facility restored' : 'Facility deactivated'),
+      refresh()
+    ),
     onError: (e) => toast.error(e.message),
   });
   const [name, setName] = useState('');
   const [code, setCode] = useState('');
   const [timezone, setTimezone] = useState('UTC');
   const [query, setQuery] = useState('');
+  const [editId, setEditId] = useState<string | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editCode, setEditCode] = useState('');
+  const [editTz, setEditTz] = useState('UTC');
 
   const { pageItems, total, page, pageSize, setPage, setPageSize } = useClientTable(
     list.data ?? [],
@@ -354,20 +423,77 @@ function FacilitiesSection({ utils }: { utils: Utils }) {
         </form>
         <ul className="divide-y divide-slate-100">
           {total === 0 && (
-            <li className="py-3 text-sm text-slate-400">{query ? 'No matches.' : 'No facility.'}</li>
-          )}
-          {pageItems.map((p) => (
-            <li key={p.id} className="flex items-center justify-between gap-2 py-2.5">
-              <span className="flex items-center gap-2 text-sm font-medium text-slate-800">
-                <span className="flex size-7 items-center justify-center rounded-lg bg-slate-100 text-slate-500">
-                  <Building2 className="size-3.5" />
-                </span>
-                {p.name}
-                <Badge tone="slate">{p.code}</Badge>
-              </span>
-              <span className="text-xs text-slate-500">{p.timezone}</span>
+            <li className="py-3 text-sm text-slate-400">
+              {query ? 'No matches.' : 'No facility.'}
             </li>
-          ))}
+          )}
+          {pageItems.map((p) =>
+            editId === p.id ? (
+              <li key={p.id} className="flex flex-wrap items-center gap-2 py-2.5">
+                <Input
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  className="min-w-32 flex-1"
+                />
+                <Input
+                  value={editCode}
+                  onChange={(e) => setEditCode(e.target.value)}
+                  className="w-24"
+                />
+                <TimezoneCombobox value={editTz} onChange={setEditTz} className="w-40" />
+                <Button
+                  size="sm"
+                  loading={update.isPending}
+                  onClick={() =>
+                    update.mutate(
+                      { id: p.id, name: editName.trim(), code: editCode.trim(), timezone: editTz },
+                      { onSuccess: () => setEditId(null) },
+                    )
+                  }
+                >
+                  Save
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => setEditId(null)}>
+                  Cancel
+                </Button>
+              </li>
+            ) : (
+              <li
+                key={p.id}
+                className={`flex flex-wrap items-center justify-between gap-2 py-2.5 ${p.isActive ? '' : 'opacity-60'}`}
+              >
+                <span className="flex items-center gap-2 text-sm font-medium text-slate-800">
+                  <span className="flex size-7 items-center justify-center rounded-lg bg-slate-100 text-slate-500">
+                    <Building2 className="size-3.5" />
+                  </span>
+                  {p.name}
+                  <Badge tone="slate">{p.code}</Badge>
+                  {!p.isActive && <Badge tone="amber">Inactive</Badge>}
+                </span>
+                <span className="flex items-center gap-1">
+                  <span className="mr-1 text-xs text-slate-500">{p.timezone}</span>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => {
+                      setEditId(p.id);
+                      setEditName(p.name);
+                      setEditCode(p.code);
+                      setEditTz(p.timezone);
+                    }}
+                  >
+                    <Pencil className="size-3.5" /> Edit
+                  </Button>
+                  <ActiveToggle
+                    isActive={p.isActive}
+                    pending={setActive.isPending}
+                    noun="facility"
+                    onToggle={(isActive) => setActive.mutate({ id: p.id, isActive })}
+                  />
+                </span>
+              </li>
+            ),
+          )}
         </ul>
         {total > 0 && (
           <div className="mt-3 border-t border-slate-100 pt-3">
@@ -386,16 +512,43 @@ function FacilitiesSection({ utils }: { utils: Utils }) {
   );
 }
 
+type CategoryFlags = {
+  requiresApproval: boolean;
+  requiresEscort: boolean;
+  requiresInduction: boolean;
+};
+const CATEGORY_FLAGS = ['requiresApproval', 'requiresEscort', 'requiresInduction'] as const;
+
 function CategoriesSection({ utils }: { utils: Utils }) {
   const list = trpc.admin.categoryList.useQuery();
+  const refresh = () => utils.admin.categoryList.invalidate();
   const create = trpc.admin.categoryCreate.useMutation({
-    onSuccess: () => (toast.success('Category added'), utils.admin.categoryList.invalidate()),
+    onSuccess: () => (toast.success('Category added'), refresh()),
+    onError: (e) => toast.error(e.message),
+  });
+  const update = trpc.admin.categoryUpdate.useMutation({
+    onSuccess: () => (toast.success('Category updated'), refresh()),
+    onError: (e) => toast.error(e.message),
+  });
+  const setActive = trpc.admin.categorySetActive.useMutation({
+    onSuccess: (_d, v) => (
+      toast.success(v.isActive ? 'Category restored' : 'Category deactivated'),
+      refresh()
+    ),
     onError: (e) => toast.error(e.message),
   });
   const [name, setName] = useState('');
   const [code, setCode] = useState('');
   const [query, setQuery] = useState('');
-  const [flags, setFlags] = useState({
+  const [flags, setFlags] = useState<CategoryFlags>({
+    requiresApproval: false,
+    requiresEscort: false,
+    requiresInduction: false,
+  });
+  const [editId, setEditId] = useState<string | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editCode, setEditCode] = useState('');
+  const [editFlags, setEditFlags] = useState<CategoryFlags>({
     requiresApproval: false,
     requiresEscort: false,
     requiresInduction: false,
@@ -470,25 +623,103 @@ function CategoriesSection({ utils }: { utils: Utils }) {
         </form>
         <ul className="divide-y divide-slate-100">
           {total === 0 && (
-            <li className="py-3 text-sm text-slate-400">{query ? 'No matches.' : 'No categories.'}</li>
-          )}
-          {pageItems.map((c) => (
-            <li key={c.id} className="flex items-center justify-between gap-2 py-2.5">
-              <span className="flex items-center gap-2 text-sm font-medium text-slate-800">
-                {c.name}
-                <Badge tone="slate">{c.code}</Badge>
-              </span>
-              <span className="text-xs text-slate-500">
-                {[
-                  c.requiresApproval && 'approval',
-                  c.requiresEscort && 'escort',
-                  c.requiresInduction && 'induction',
-                ]
-                  .filter(Boolean)
-                  .join(' · ') || 'no requirements'}
-              </span>
+            <li className="py-3 text-sm text-slate-400">
+              {query ? 'No matches.' : 'No categories.'}
             </li>
-          ))}
+          )}
+          {pageItems.map((c) =>
+            editId === c.id ? (
+              <li key={c.id} className="space-y-2 py-2.5">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Input
+                    value={editName}
+                    onChange={(e) => setEditName(e.target.value)}
+                    className="min-w-32 flex-1"
+                  />
+                  <Input
+                    value={editCode}
+                    onChange={(e) => setEditCode(e.target.value)}
+                    className="w-24"
+                  />
+                  <Button
+                    size="sm"
+                    loading={update.isPending}
+                    onClick={() =>
+                      update.mutate(
+                        { id: c.id, name: editName.trim(), code: editCode.trim(), ...editFlags },
+                        { onSuccess: () => setEditId(null) },
+                      )
+                    }
+                  >
+                    Save
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={() => setEditId(null)}>
+                    Cancel
+                  </Button>
+                </div>
+                <div className="flex flex-wrap gap-3">
+                  {CATEGORY_FLAGS.map((f) => (
+                    <label
+                      key={f}
+                      className="flex cursor-pointer items-center gap-1.5 text-xs font-medium text-slate-600"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={editFlags[f]}
+                        onChange={(e) => setEditFlags((s) => ({ ...s, [f]: e.target.checked }))}
+                        className="size-3.5 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+                      />
+                      {f.replace('requires', '')}
+                    </label>
+                  ))}
+                </div>
+              </li>
+            ) : (
+              <li
+                key={c.id}
+                className={`flex flex-wrap items-center justify-between gap-2 py-2.5 ${c.isActive ? '' : 'opacity-60'}`}
+              >
+                <span className="flex items-center gap-2 text-sm font-medium text-slate-800">
+                  {c.name}
+                  <Badge tone="slate">{c.code}</Badge>
+                  {!c.isActive && <Badge tone="amber">Inactive</Badge>}
+                </span>
+                <span className="flex items-center gap-1">
+                  <span className="mr-1 text-xs text-slate-500">
+                    {[
+                      c.requiresApproval && 'approval',
+                      c.requiresEscort && 'escort',
+                      c.requiresInduction && 'induction',
+                    ]
+                      .filter(Boolean)
+                      .join(' · ') || 'no requirements'}
+                  </span>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => {
+                      setEditId(c.id);
+                      setEditName(c.name);
+                      setEditCode(c.code);
+                      setEditFlags({
+                        requiresApproval: c.requiresApproval,
+                        requiresEscort: c.requiresEscort,
+                        requiresInduction: c.requiresInduction,
+                      });
+                    }}
+                  >
+                    <Pencil className="size-3.5" /> Edit
+                  </Button>
+                  <ActiveToggle
+                    isActive={c.isActive}
+                    pending={setActive.isPending}
+                    noun="category"
+                    onToggle={(isActive) => setActive.mutate({ id: c.id, isActive })}
+                  />
+                </span>
+              </li>
+            ),
+          )}
         </ul>
         {total > 0 && (
           <div className="mt-3 border-t border-slate-100 pt-3">
@@ -519,8 +750,11 @@ function DepartmentsSection({ utils }: { utils: Utils }) {
     onSuccess: () => (toast.success('Department updated'), refresh()),
     onError: (e) => toast.error(e.message),
   });
-  const del = trpc.admin.departmentDelete.useMutation({
-    onSuccess: () => (toast.success('Department removed'), refresh()),
+  const setActive = trpc.admin.departmentSetActive.useMutation({
+    onSuccess: (_d, v) => (
+      toast.success(v.isActive ? 'Department restored' : 'Department deactivated'),
+      refresh()
+    ),
     onError: (e) => toast.error(e.message),
   });
 
@@ -635,13 +869,17 @@ function DepartmentsSection({ utils }: { utils: Utils }) {
                 </Button>
               </li>
             ) : (
-              <li key={d.id} className="flex flex-wrap items-center justify-between gap-2 py-2.5">
+              <li
+                key={d.id}
+                className={`flex flex-wrap items-center justify-between gap-2 py-2.5 ${d.isActive ? '' : 'opacity-60'}`}
+              >
                 <span className="flex items-center gap-2 text-sm font-medium text-slate-800">
                   <span className="flex size-7 items-center justify-center rounded-lg bg-slate-100 text-slate-500">
                     <Network className="size-3.5" />
                   </span>
                   {d.name}
                   {d.facilityName && <Badge tone="slate">{d.facilityName}</Badge>}
+                  {!d.isActive && <Badge tone="amber">Inactive</Badge>}
                 </span>
                 <span className="flex items-center gap-1">
                   <Button
@@ -655,15 +893,12 @@ function DepartmentsSection({ utils }: { utils: Utils }) {
                   >
                     <Pencil className="size-3.5" /> Edit
                   </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="text-slate-400 hover:text-red-600"
-                    onClick={() => del.mutate({ id: d.id })}
-                    title="Remove department"
-                  >
-                    <Trash2 className="size-3.5" />
-                  </Button>
+                  <ActiveToggle
+                    isActive={d.isActive}
+                    pending={setActive.isPending}
+                    noun="department"
+                    onToggle={(isActive) => setActive.mutate({ id: d.id, isActive })}
+                  />
                 </span>
               </li>
             ),
@@ -698,8 +933,11 @@ function OfficesSection({ utils }: { utils: Utils }) {
     onSuccess: () => (toast.success('Office updated'), refresh()),
     onError: (e) => toast.error(e.message),
   });
-  const del = trpc.admin.officeDelete.useMutation({
-    onSuccess: () => (toast.success('Office removed'), refresh()),
+  const setActive = trpc.admin.officeSetActive.useMutation({
+    onSuccess: (_d, v) => (
+      toast.success(v.isActive ? 'Office restored' : 'Office deactivated'),
+      refresh()
+    ),
     onError: (e) => toast.error(e.message),
   });
 
@@ -724,10 +962,7 @@ function OfficesSection({ utils }: { utils: Utils }) {
   function onSubmit(e: FormEvent) {
     e.preventDefault();
     if (!departmentId) return toast.error('Choose a department for this office.');
-    create.mutate(
-      { name: name.trim(), departmentId },
-      { onSuccess: () => setName('') },
-    );
+    create.mutate({ name: name.trim(), departmentId }, { onSuccess: () => setName('') });
   }
 
   const noDepartments = departments.data?.length === 0;
@@ -829,7 +1064,7 @@ function OfficesSection({ utils }: { utils: Utils }) {
                 ) : (
                   <li
                     key={o.id}
-                    className="flex flex-wrap items-center justify-between gap-2 py-2.5"
+                    className={`flex flex-wrap items-center justify-between gap-2 py-2.5 ${o.isActive ? '' : 'opacity-60'}`}
                   >
                     <span className="flex items-center gap-2 text-sm font-medium text-slate-800">
                       <span className="flex size-7 items-center justify-center rounded-lg bg-slate-100 text-slate-500">
@@ -837,6 +1072,7 @@ function OfficesSection({ utils }: { utils: Utils }) {
                       </span>
                       {o.name}
                       {o.departmentName && <Badge tone="brand">{o.departmentName}</Badge>}
+                      {!o.isActive && <Badge tone="amber">Inactive</Badge>}
                     </span>
                     <span className="flex items-center gap-1">
                       <Button
@@ -850,15 +1086,12 @@ function OfficesSection({ utils }: { utils: Utils }) {
                       >
                         <Pencil className="size-3.5" /> Edit
                       </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="text-slate-400 hover:text-red-600"
-                        onClick={() => del.mutate({ id: o.id })}
-                        title="Remove office"
-                      >
-                        <Trash2 className="size-3.5" />
-                      </Button>
+                      <ActiveToggle
+                        isActive={o.isActive}
+                        pending={setActive.isPending}
+                        noun="office"
+                        onToggle={(isActive) => setActive.mutate({ id: o.id, isActive })}
+                      />
                     </span>
                   </li>
                 ),
@@ -923,7 +1156,12 @@ function DeptOfficeFields({
 }) {
   const departments = trpc.admin.departmentList.useQuery();
   const offices = trpc.admin.officeList.useQuery();
-  const deptOffices = (offices.data ?? []).filter((o) => o.departmentId === departmentId);
+  // Only offer active departments/offices for new assignments, but keep an already-selected
+  // (possibly since-deactivated) one visible so editing an existing staff member doesn't drop it.
+  const deptOptions = (departments.data ?? []).filter((d) => d.isActive || d.id === departmentId);
+  const deptOffices = (offices.data ?? []).filter(
+    (o) => o.departmentId === departmentId && (o.isActive || o.id === officeId),
+  );
   return (
     <>
       <Field label="Department">
@@ -935,7 +1173,7 @@ function DeptOfficeFields({
           }}
         >
           <option value="">No department</option>
-          {departments.data?.map((d) => (
+          {deptOptions.map((d) => (
             <option key={d.id} value={d.id}>
               {d.name}
             </option>
@@ -1074,7 +1312,8 @@ function UsersSection({ utils }: { utils: Utils }) {
   });
   const setActive = trpc.admin.userSetActive.useMutation({
     onSuccess: (_d, v) => (
-      toast.success(v.isActive ? 'Marked active' : 'Marked inactive'), refresh()
+      toast.success(v.isActive ? 'Marked active' : 'Marked inactive'),
+      refresh()
     ),
     onError: (e) => toast.error(e.message),
   });
@@ -1377,29 +1616,393 @@ function UsersSection({ utils }: { utils: Utils }) {
       </Card>
 
       {editing && (
-        <EditUserModal key={editing.id} user={editing} utils={utils} onClose={() => setEditing(null)} />
+        <EditUserModal
+          key={editing.id}
+          user={editing}
+          utils={utils}
+          onClose={() => setEditing(null)}
+        />
       )}
     </>
   );
 }
 
-function CheckpointsSection({ utils }: { utils: Utils }) {
-  const devices = trpc.admin.devicesList.useQuery();
+type PointRow = {
+  id: string;
+  name: string;
+  kind: PointKind;
+  facilityId: string | null;
+  facilityName: string | null;
+  isActive: boolean;
+  assignedCount: number;
+  deviceCount: number;
+};
+
+function PointsSection({ utils }: { utils: Utils }) {
+  const list = trpc.admin.pointList.useQuery();
   const facility = trpc.admin.facilityList.useQuery();
-  const upsert = trpc.admin.deviceUpsert.useMutation({
-    onSuccess: () => (toast.success('Checkpoint saved'), utils.admin.devicesList.invalidate()),
+  const refresh = () => utils.admin.pointList.invalidate();
+  const create = trpc.admin.pointCreate.useMutation({
+    onSuccess: () => (toast.success('Point added'), refresh()),
     onError: (e) => toast.error(e.message),
   });
-  const del = trpc.admin.deviceDelete.useMutation({
-    onSuccess: () => (toast.success('Checkpoint removed'), utils.admin.devicesList.invalidate()),
+  const update = trpc.admin.pointUpdate.useMutation({
+    onSuccess: () => (toast.success('Point updated'), refresh()),
+    onError: (e) => toast.error(e.message),
+  });
+  const setActive = trpc.admin.pointSetActive.useMutation({
+    onSuccess: (_d, v) => (
+      toast.success(v.isActive ? 'Point restored' : 'Point deactivated'),
+      refresh()
+    ),
+    onError: (e) => toast.error(e.message),
+  });
+
+  const [name, setName] = useState('');
+  const [kind, setKind] = useState<PointKind>('reception');
+  const [facilityId, setFacilityId] = useState('');
+  const [query, setQuery] = useState('');
+  const [editId, setEditId] = useState<string | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editKind, setEditKind] = useState<PointKind>('reception');
+  const [editFacility, setEditFacility] = useState('');
+  const [assigning, setAssigning] = useState<PointRow | null>(null);
+
+  const { pageItems, total, page, pageSize, setPage, setPageSize } = useClientTable(
+    (list.data ?? []) as PointRow[],
+    {
+      query,
+      match: (p, q) =>
+        p.name.toLowerCase().includes(q) || (p.facilityName ?? '').toLowerCase().includes(q),
+      initialPageSize: 10,
+    },
+  );
+  useEffect(() => setPage(1), [query, setPage]);
+
+  function onSubmit(e: FormEvent) {
+    e.preventDefault();
+    create.mutate(
+      { name: name.trim(), kind, facilityId: facilityId || undefined },
+      { onSuccess: () => (setName(''), setFacilityId('')) },
+    );
+  }
+
+  return (
+    <Card>
+      <CardHeader
+        icon={<MapPin />}
+        title="Points"
+        description="Fixed operating locations (a reception desk, a security check-point). Devices are stationed at points, and staff are assigned to the points they may operate."
+        action={
+          <InputWithIcon
+            icon={<Search />}
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search…"
+            wrapperClassName="w-full sm:w-44"
+          />
+        }
+      />
+      <CardContent>
+        <form onSubmit={onSubmit} className="mb-4 flex flex-wrap gap-2">
+          <Input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Point name (e.g. Main Reception)"
+            className="min-w-48 flex-1"
+            required
+          />
+          <Select
+            value={kind}
+            onChange={(e) => setKind(e.target.value as PointKind)}
+            className="w-44"
+          >
+            {POINT_KINDS.map((k) => (
+              <option key={k} value={k}>
+                {POINT_KIND_LABELS[k]}
+              </option>
+            ))}
+          </Select>
+          <Select
+            value={facilityId}
+            onChange={(e) => setFacilityId(e.target.value)}
+            className="w-44"
+          >
+            <option value="">Facility (optional)</option>
+            {facility.data?.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name}
+              </option>
+            ))}
+          </Select>
+          <Button type="submit" loading={create.isPending}>
+            <Plus className="size-4" /> Add
+          </Button>
+        </form>
+        <ul className="divide-y divide-slate-100">
+          {list.isLoading && <li className="py-3 text-sm text-slate-400">Loading…</li>}
+          {!list.isLoading && total === 0 && (
+            <li className="py-3 text-sm text-slate-400">
+              {query ? 'No matches.' : 'No points yet.'}
+            </li>
+          )}
+          {pageItems.map((p) =>
+            editId === p.id ? (
+              <li key={p.id} className="flex flex-wrap items-center gap-2 py-2.5">
+                <Input
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  className="min-w-40 flex-1"
+                />
+                <Select
+                  value={editKind}
+                  onChange={(e) => setEditKind(e.target.value as PointKind)}
+                  className="w-40"
+                >
+                  {POINT_KINDS.map((k) => (
+                    <option key={k} value={k}>
+                      {POINT_KIND_LABELS[k]}
+                    </option>
+                  ))}
+                </Select>
+                <Select
+                  value={editFacility}
+                  onChange={(e) => setEditFacility(e.target.value)}
+                  className="w-40"
+                >
+                  <option value="">No facility</option>
+                  {facility.data?.map((f) => (
+                    <option key={f.id} value={f.id}>
+                      {f.name}
+                    </option>
+                  ))}
+                </Select>
+                <Button
+                  size="sm"
+                  loading={update.isPending}
+                  onClick={() =>
+                    update.mutate(
+                      {
+                        id: p.id,
+                        name: editName.trim(),
+                        kind: editKind,
+                        facilityId: editFacility || null,
+                      },
+                      { onSuccess: () => setEditId(null) },
+                    )
+                  }
+                >
+                  Save
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => setEditId(null)}>
+                  Cancel
+                </Button>
+              </li>
+            ) : (
+              <li
+                key={p.id}
+                className={`flex flex-wrap items-center justify-between gap-2 py-2.5 ${p.isActive ? '' : 'opacity-60'}`}
+              >
+                <span className="flex items-center gap-2 text-sm font-medium text-slate-800">
+                  <span className="flex size-7 items-center justify-center rounded-lg bg-slate-100 text-slate-500">
+                    <MapPin className="size-3.5" />
+                  </span>
+                  {p.name}
+                  <Badge tone="slate">{POINT_KIND_LABELS[p.kind]}</Badge>
+                  {p.facilityName && <Badge tone="brand">{p.facilityName}</Badge>}
+                  {!p.isActive && <Badge tone="amber">Inactive</Badge>}
+                </span>
+                <span className="flex items-center gap-1">
+                  <span className="mr-1 text-xs text-slate-500">
+                    {p.deviceCount} device{p.deviceCount === 1 ? '' : 's'}
+                  </span>
+                  <Button size="sm" variant="ghost" onClick={() => setAssigning(p)}>
+                    <UsersRound className="size-3.5" /> Staff ({p.assignedCount})
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => {
+                      setEditId(p.id);
+                      setEditName(p.name);
+                      setEditKind(p.kind);
+                      setEditFacility(p.facilityId ?? '');
+                    }}
+                  >
+                    <Pencil className="size-3.5" /> Edit
+                  </Button>
+                  <ActiveToggle
+                    isActive={p.isActive}
+                    pending={setActive.isPending}
+                    noun="point"
+                    onToggle={(isActive) => setActive.mutate({ id: p.id, isActive })}
+                  />
+                </span>
+              </li>
+            ),
+          )}
+        </ul>
+        {total > 0 && (
+          <div className="mt-3 border-t border-slate-100 pt-3">
+            <Pagination
+              page={page}
+              pageSize={pageSize}
+              total={total}
+              onPageChange={setPage}
+              onPageSizeChange={setPageSize}
+              label="points"
+            />
+          </div>
+        )}
+      </CardContent>
+      {assigning && (
+        <AssignPointModal
+          key={assigning.id}
+          point={assigning}
+          utils={utils}
+          onClose={() => setAssigning(null)}
+        />
+      )}
+    </Card>
+  );
+}
+
+/** Choose which staff may operate a point (sign a device in there). Replaces the full assigned set. */
+function AssignPointModal({
+  point,
+  utils,
+  onClose,
+}: {
+  point: { id: string; name: string };
+  utils: Utils;
+  onClose: () => void;
+}) {
+  const assignments = trpc.admin.pointAssignmentsGet.useQuery({ pointId: point.id });
+  const users = trpc.admin.userList.useQuery();
+  const save = trpc.admin.pointAssignmentsSet.useMutation({
+    onSuccess: () => (
+      toast.success('Staffing updated'),
+      utils.admin.pointList.invalidate(),
+      onClose()
+    ),
+    onError: (e) => toast.error(e.message),
+  });
+  const [selected, setSelected] = useState<Set<string> | null>(null);
+  const [query, setQuery] = useState('');
+
+  // Seed selection from current assignments once both queries have loaded.
+  useEffect(() => {
+    if (assignments.data && selected === null) {
+      setSelected(new Set(assignments.data.map((a) => a.userId)));
+    }
+  }, [assignments.data, selected]);
+
+  const sel = selected ?? new Set<string>();
+  const staff = (users.data ?? []).filter(
+    (u) =>
+      !u.banned &&
+      (u.name.toLowerCase().includes(query.toLowerCase()) ||
+        u.email.toLowerCase().includes(query.toLowerCase())),
+  );
+
+  function toggle(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev ?? []);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  return (
+    <Modal
+      open
+      onClose={onClose}
+      icon={<UsersRound />}
+      title={`Staff for ${point.name}`}
+      description="Only assigned staff can sign a device in at this point."
+      footer={
+        <>
+          <Button variant="ghost" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button
+            loading={save.isPending}
+            disabled={selected === null}
+            onClick={() => save.mutate({ pointId: point.id, userIds: [...sel] })}
+          >
+            Save ({sel.size})
+          </Button>
+        </>
+      }
+    >
+      <InputWithIcon
+        icon={<Search />}
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        placeholder="Search staff…"
+        wrapperClassName="mb-3"
+      />
+      <div className="max-h-72 overflow-y-auto rounded-lg border border-slate-100">
+        {users.isLoading || assignments.isLoading ? (
+          <p className="p-3 text-sm text-slate-400">Loading…</p>
+        ) : staff.length === 0 ? (
+          <p className="p-3 text-sm text-slate-400">No staff found.</p>
+        ) : (
+          <ul className="divide-y divide-slate-100">
+            {staff.map((u) => (
+              <li key={u.id}>
+                <label className="flex cursor-pointer items-center gap-3 px-3 py-2.5 hover:bg-slate-50">
+                  <input
+                    type="checkbox"
+                    checked={sel.has(u.id)}
+                    onChange={() => toggle(u.id)}
+                    className="size-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+                  />
+                  <span className="min-w-0">
+                    <span className="block truncate text-sm font-medium text-slate-800">
+                      {u.name}
+                    </span>
+                    <span className="block truncate text-xs text-slate-500">
+                      {u.email}
+                      {u.role ? ` · ${roleLabel(u.role)}` : ''}
+                    </span>
+                  </span>
+                </label>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </Modal>
+  );
+}
+
+function CheckpointsSection({ utils }: { utils: Utils }) {
+  const devices = trpc.admin.devicesStatus.useQuery();
+  const points = trpc.admin.pointList.useQuery();
+  const refresh = () => (
+    utils.admin.devicesStatus.invalidate(),
+    utils.admin.pointList.invalidate()
+  );
+  const upsert = trpc.admin.deviceUpsert.useMutation({
+    onSuccess: () => (toast.success('Device saved'), refresh()),
+    onError: (e) => toast.error(e.message),
+  });
+  const setActive = trpc.admin.checkpointSetActive.useMutation({
+    onSuccess: (_d, v) => (
+      toast.success(v.isActive ? 'Device restored' : 'Device deactivated'),
+      refresh()
+    ),
     onError: (e) => toast.error(e.message),
   });
 
   const [deviceId, setDeviceId] = useState('');
   const [label, setLabel] = useState('');
-  const [facilityId, setFacilityId] = useState('');
+  const [pointId, setPointId] = useState('');
   const [credentialMode, setCredentialMode] = useState<DeviceProfile['credentialMode']>('qr');
   const [scannerSource, setScannerSource] = useState<DeviceProfile['scannerSource']>('camera');
+  const [editingDevice, setEditingDevice] = useState<string | null>(null);
   const [logFor, setLogFor] = useState<string | null>(null);
   const [query, setQuery] = useState('');
 
@@ -1408,13 +2011,34 @@ function CheckpointsSection({ utils }: { utils: Utils }) {
     {
       query,
       match: (d, q) =>
-        (d.label ?? '').toLowerCase().includes(q) || d.deviceId.toLowerCase().includes(q),
+        (d.label ?? '').toLowerCase().includes(q) ||
+        d.deviceId.toLowerCase().includes(q) ||
+        (d.pointName ?? '').toLowerCase().includes(q),
       initialPageSize: 10,
     },
   );
   useEffect(() => setPage(1), [query, setPage]);
 
-  const facilityName = (pid: string | null) => facility.data?.find((p) => p.id === pid)?.name ?? null;
+  const activePoints = (points.data ?? []).filter((p) => p.isActive || p.id === pointId);
+
+  function resetForm() {
+    setDeviceId('');
+    setLabel('');
+    setPointId('');
+    setCredentialMode('qr');
+    setScannerSource('camera');
+    setEditingDevice(null);
+  }
+
+  function startEdit(d: (typeof pageItems)[number]) {
+    const profile = d.profile as DeviceProfile;
+    setEditingDevice(d.deviceId);
+    setDeviceId(d.deviceId);
+    setLabel(d.label ?? '');
+    setPointId(d.pointId ?? '');
+    setCredentialMode(profile.credentialMode);
+    setScannerSource(profile.scannerSource);
+  }
 
   function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -1423,10 +2047,16 @@ function CheckpointsSection({ utils }: { utils: Utils }) {
       {
         deviceId: deviceId.trim(),
         label: label || undefined,
-        facilityId: facilityId || undefined,
-        profile: { deviceType: 'generic', scannerSource, printerTarget: 'off', nfcEnabled: false, credentialMode },
+        pointId: pointId || null,
+        profile: {
+          deviceType: 'generic',
+          scannerSource,
+          printerTarget: 'off',
+          nfcEnabled: false,
+          credentialMode,
+        },
       },
-      { onSuccess: () => (setDeviceId(''), setLabel('')) },
+      { onSuccess: resetForm },
     );
   }
 
@@ -1434,8 +2064,8 @@ function CheckpointsSection({ utils }: { utils: Utils }) {
     <Card>
       <CardHeader
         icon={<ScanLine />}
-        title="Checkpoints"
-        description="Devices visitors check in/out (or pass) at. Each is a checkpoint logged on the visitor's trail; its profile sets how check-in behaves on that device."
+        title="Devices"
+        description="Physical tablets stationed at points. Reassign a device's point at any time; if one is faulty, register a replacement and point it at the same place. The status dot shows who is currently signed in."
         action={
           <InputWithIcon
             icon={<Search />}
@@ -1448,55 +2078,96 @@ function CheckpointsSection({ utils }: { utils: Utils }) {
       />
       <div className="p-5">
         <form onSubmit={onSubmit} className="mb-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-          <Input value={deviceId} onChange={(e) => setDeviceId(e.target.value)} placeholder="Device ID (e.g. main-entrance)" />
-          <Input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Checkpoint name (e.g. Main Entrance)" />
-          <Select value={facilityId} onChange={(e) => setFacilityId(e.target.value)}>
-            <option value="">Facility (optional)</option>
-            {facility.data?.map((p) => (
+          <Input
+            value={deviceId}
+            onChange={(e) => setDeviceId(e.target.value)}
+            placeholder="Device ID (e.g. lobby-tablet-1)"
+            disabled={editingDevice !== null}
+          />
+          <Input
+            value={label}
+            onChange={(e) => setLabel(e.target.value)}
+            placeholder="Device name (optional)"
+          />
+          <Select value={pointId} onChange={(e) => setPointId(e.target.value)}>
+            <option value="">Point (unassigned)</option>
+            {activePoints.map((p) => (
               <option key={p.id} value={p.id}>
                 {p.name}
               </option>
             ))}
           </Select>
-          <Select value={credentialMode} onChange={(e) => setCredentialMode(e.target.value as DeviceProfile['credentialMode'])}>
+          <Select
+            value={credentialMode}
+            onChange={(e) => setCredentialMode(e.target.value as DeviceProfile['credentialMode'])}
+          >
             {credentialModeSchema.options.map((o) => (
               <option key={o} value={o}>
                 {CREDENTIAL_MODE_LABELS[o]}
               </option>
             ))}
           </Select>
-          <Select value={scannerSource} onChange={(e) => setScannerSource(e.target.value as DeviceProfile['scannerSource'])}>
+          <Select
+            value={scannerSource}
+            onChange={(e) => setScannerSource(e.target.value as DeviceProfile['scannerSource'])}
+          >
             {scannerSourceSchema.options.map((o) => (
               <option key={o} value={o}>
                 {SCANNER_SOURCE_LABELS[o]}
               </option>
             ))}
           </Select>
-          <Button type="submit" loading={upsert.isPending}>
-            <Plus className="size-4" /> Add / update
-          </Button>
+          <div className="flex gap-2">
+            <Button type="submit" loading={upsert.isPending} className="flex-1">
+              <Plus className="size-4" /> {editingDevice ? 'Save device' : 'Add / update'}
+            </Button>
+            {editingDevice && (
+              <Button type="button" variant="ghost" onClick={resetForm}>
+                Cancel
+              </Button>
+            )}
+          </div>
         </form>
 
         <ul className="divide-y divide-slate-100">
           {total === 0 && (
             <li className="py-3 text-sm text-slate-400">
-              {query ? 'No matches.' : 'No checkpoints yet.'}
+              {query ? 'No matches.' : 'No devices yet.'}
             </li>
           )}
           {pageItems.map((d) => {
             const profile = d.profile as DeviceProfile;
             return (
-              <li key={d.id} className="py-2.5">
-                <div className="flex items-center justify-between gap-2">
+              <li key={d.id} className={`py-2.5 ${d.isActive ? '' : 'opacity-60'}`}>
+                <div className="flex flex-wrap items-center justify-between gap-2">
                   <span className="flex items-center gap-2 text-sm font-medium text-slate-800">
-                    <span className="flex size-7 items-center justify-center rounded-lg bg-slate-100 text-slate-500">
-                      <ScanLine className="size-3.5" />
-                    </span>
+                    <span
+                      className={`flex size-2 rounded-full ${d.session ? 'bg-emerald-500' : 'bg-slate-300'}`}
+                      title={
+                        d.session
+                          ? `Signed in: ${d.session.userName ?? 'someone'}`
+                          : 'No one signed in'
+                      }
+                    />
                     {d.label || d.deviceId}
                     <Badge tone="slate">{d.deviceId}</Badge>
+                    {d.pointName ? (
+                      <Badge tone="brand">{d.pointName}</Badge>
+                    ) : (
+                      <Badge tone="amber">Unassigned</Badge>
+                    )}
+                    {!d.isActive && <Badge tone="amber">Inactive</Badge>}
                   </span>
                   <span className="flex items-center gap-3 text-xs text-slate-500">
-                    {facilityName(d.facilityId) && <span>{facilityName(d.facilityId)}</span>}
+                    <span>
+                      {d.session ? (
+                        <span className="text-emerald-600">
+                          {d.session.userName ?? 'Signed in'}
+                        </span>
+                      ) : (
+                        'Unstaffed'
+                      )}
+                    </span>
                     <span>{CREDENTIAL_MODE_LABELS[profile.credentialMode]}</span>
                     <button
                       type="button"
@@ -1505,14 +2176,15 @@ function CheckpointsSection({ utils }: { utils: Utils }) {
                     >
                       Activity
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => del.mutate({ deviceId: d.deviceId })}
-                      className="text-slate-400 transition-colors hover:text-red-600"
-                      aria-label="Remove checkpoint"
-                    >
-                      <Trash2 className="size-3.5" />
-                    </button>
+                    <Button size="sm" variant="ghost" onClick={() => startEdit(d)}>
+                      <Pencil className="size-3.5" /> Edit
+                    </Button>
+                    <ActiveToggle
+                      isActive={d.isActive}
+                      pending={setActive.isPending}
+                      noun="device"
+                      onToggle={(isActive) => setActive.mutate({ id: d.id, isActive })}
+                    />
                   </span>
                 </div>
                 {logFor === d.deviceId && <CheckpointLog deviceId={d.deviceId} />}
@@ -1528,7 +2200,7 @@ function CheckpointsSection({ utils }: { utils: Utils }) {
               total={total}
               onPageChange={setPage}
               onPageSizeChange={setPageSize}
-              label="checkpoints"
+              label="devices"
             />
           </div>
         )}

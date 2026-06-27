@@ -45,6 +45,7 @@ export const department = pgTable('department', {
   id,
   facilityId: uuid().references(() => facility.id, { onDelete: 'set null' }),
   name: text().notNull(),
+  isActive: boolean().notNull().default(true),
   ...timestamps,
 });
 

@@ -118,3 +118,16 @@ export const checkpointEventKind = pgEnum('checkpoint_event_kind', [
 
 /** Reusable physical visitor tag: a printed number or an NFC card UID, issued + returned at the desk. */
 export const tagKind = pgEnum('tag_kind', ['number', 'nfc']);
+
+/**
+ * A point is a fixed operating location a device is stationed at (e.g. a reception desk or a
+ * security checkpoint). The kind categorises it for oversight; behaviour still comes from the
+ * assigned device's profile.
+ */
+export const pointKind = pgEnum('point_kind', [
+  'reception',
+  'security',
+  'checkpoint',
+  'exit',
+  'other',
+]);

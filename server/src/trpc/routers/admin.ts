@@ -3,18 +3,20 @@ import { eq } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
 import { z } from 'zod';
 import {
+  adminSetActiveSchema,
   categoryCreateSchema,
   categoryUpdateSchema,
   departmentCreateSchema,
-  departmentDeleteSchema,
   departmentUpdateSchema,
   deviceUpsertSchema,
   directoryImportSchema,
   officeCreateSchema,
-  officeDeleteSchema,
   officeUpdateSchema,
   facilityCreateSchema,
   facilityUpdateSchema,
+  pointAssignSchema,
+  pointCreateSchema,
+  pointUpdateSchema,
   schema,
   settingsUpdateSchema,
   userBanSchema,
@@ -28,6 +30,7 @@ import { auth } from '../../auth.ts';
 import { db } from '../../db.ts';
 import { env } from '../../env.ts';
 import * as admin from '../../services/admin.ts';
+import * as points from '../../services/points.ts';
 import { checkpointLog } from '../../services/checkpoints.ts';
 import { actorFrom, authorized } from '../permission.ts';
 import { router } from '../trpc.ts';
@@ -57,6 +60,9 @@ export const adminRouter = router({
   facilityUpdate: authorized({ config: ['manage'] })
     .input(facilityUpdateSchema)
     .mutation(({ input, ctx }) => admin.updateFacility(input, actorFrom(ctx.user))),
+  facilitySetActive: authorized({ config: ['manage'] })
+    .input(adminSetActiveSchema)
+    .mutation(({ input, ctx }) => admin.setFacilityActive(input, actorFrom(ctx.user))),
 
   // ── Visitor categories ──
   categoryList: authorized({ config: ['read'] }).query(() => admin.listCategories()),
@@ -66,6 +72,9 @@ export const adminRouter = router({
   categoryUpdate: authorized({ config: ['manage'] })
     .input(categoryUpdateSchema)
     .mutation(({ input, ctx }) => admin.updateCategory(input, actorFrom(ctx.user))),
+  categorySetActive: authorized({ config: ['manage'] })
+    .input(adminSetActiveSchema)
+    .mutation(({ input, ctx }) => admin.setCategoryActive(input, actorFrom(ctx.user))),
 
   // ── Departments / divisions ──
   departmentList: authorized({ config: ['read'] }).query(() => admin.listDepartments()),
@@ -75,9 +84,9 @@ export const adminRouter = router({
   departmentUpdate: authorized({ config: ['manage'] })
     .input(departmentUpdateSchema)
     .mutation(({ input, ctx }) => admin.updateDepartment(input, actorFrom(ctx.user))),
-  departmentDelete: authorized({ config: ['manage'] })
-    .input(departmentDeleteSchema)
-    .mutation(({ input, ctx }) => admin.deleteDepartment(input.id, actorFrom(ctx.user))),
+  departmentSetActive: authorized({ config: ['manage'] })
+    .input(adminSetActiveSchema)
+    .mutation(({ input, ctx }) => admin.setDepartmentActive(input, actorFrom(ctx.user))),
 
   // ── Offices / rooms ──
   officeList: authorized({ config: ['read'] }).query(() => admin.listOffices()),
@@ -87,9 +96,9 @@ export const adminRouter = router({
   officeUpdate: authorized({ config: ['manage'] })
     .input(officeUpdateSchema)
     .mutation(({ input, ctx }) => admin.updateOffice(input, actorFrom(ctx.user))),
-  officeDelete: authorized({ config: ['manage'] })
-    .input(officeDeleteSchema)
-    .mutation(({ input, ctx }) => admin.deleteOffice(input.id, actorFrom(ctx.user))),
+  officeSetActive: authorized({ config: ['manage'] })
+    .input(adminSetActiveSchema)
+    .mutation(({ input, ctx }) => admin.setOfficeActive(input, actorFrom(ctx.user))),
 
   // ── Settings (retention, org name) ──
   settingsGet: authorized({ config: ['read'] }).query(() => admin.getSettings()),
@@ -97,16 +106,41 @@ export const adminRouter = router({
     .input(settingsUpdateSchema)
     .mutation(({ input, ctx }) => admin.updateSettings(input, actorFrom(ctx.user))),
 
+  // ── Points (operating locations) + staffing ──
+  pointList: authorized({ config: ['read'] }).query(() => points.listPoints()),
+  pointCreate: authorized({ config: ['manage'] })
+    .input(pointCreateSchema)
+    .mutation(({ input, ctx }) => points.createPoint(input, actorFrom(ctx.user))),
+  pointUpdate: authorized({ config: ['manage'] })
+    .input(pointUpdateSchema)
+    .mutation(({ input, ctx }) => points.updatePoint(input, actorFrom(ctx.user))),
+  pointSetActive: authorized({ config: ['manage'] })
+    .input(adminSetActiveSchema)
+    .mutation(({ input, ctx }) => points.setPointActive(input, actorFrom(ctx.user))),
+  pointAssignmentsGet: authorized({ config: ['read'] })
+    .input(z.object({ pointId: z.uuid() }))
+    .query(({ input }) => points.listPointAssignments(input.pointId)),
+  pointAssignmentsSet: authorized({ config: ['manage'] })
+    .input(pointAssignSchema)
+    .mutation(({ input, ctx }) => points.setPointAssignments(input, actorFrom(ctx.user))),
+
   // ── Devices / checkpoints ──
   devicesList: authorized({ config: ['read'] }).query(() => admin.listDeviceProfiles()),
+  /** Devices with their point + who is currently signed in — the staffing oversight view. */
+  devicesStatus: authorized({ config: ['read'] }).query(() => points.devicesStatus()),
   deviceUpsert: authorized({ config: ['manage'] })
     .input(deviceUpsertSchema)
     .mutation(({ input, ctx }) => admin.upsertDeviceProfile(input, actorFrom(ctx.user))),
-  deviceDelete: authorized({ config: ['manage'] })
-    .input(z.object({ deviceId: z.string().max(120) }))
-    .mutation(({ input, ctx }) => admin.deleteDeviceProfile(input.deviceId, actorFrom(ctx.user))),
+  checkpointSetActive: authorized({ config: ['manage'] })
+    .input(adminSetActiveSchema)
+    .mutation(({ input, ctx }) => admin.setCheckpointActive(input, actorFrom(ctx.user))),
   checkpointLog: authorized({ config: ['read'] })
-    .input(z.object({ deviceId: z.string().max(120), limit: z.number().int().min(1).max(200).default(50) }))
+    .input(
+      z.object({
+        deviceId: z.string().max(120),
+        limit: z.number().int().min(1).max(200).default(50),
+      }),
+    )
     .query(({ input }) => checkpointLog(input.deviceId, input.limit)),
 
   // ── Directory/HR host import ──

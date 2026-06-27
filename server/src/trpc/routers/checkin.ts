@@ -1,7 +1,9 @@
+import { TRPCError } from '@trpc/server';
 import { z } from 'zod';
 import {
   checkInSubmitSchema,
   checkoutLookupSchema,
+  deviceLoginSchema,
   tagIssueSchema,
   tagReturnSchema,
   visitIdSchema,
@@ -14,6 +16,12 @@ import {
 } from '../../services/checkin.ts';
 import { checkOutSelf } from '../../services/credentials.ts';
 import { getDeviceProfile, getVoiceSettings } from '../../services/admin.ts';
+import {
+  assertDeviceLogin,
+  closeDeviceSession,
+  openDeviceSession,
+  PointAccessError,
+} from '../../services/points.ts';
 import { issueTag, returnTag, unreturnedTags } from '../../services/tags.ts';
 import { synthesize, isTtsEnabled, isAkanTtsEnabled } from '../../services/ai/tts.ts';
 import { recordAudit } from '../../lib/audit.ts';
@@ -120,33 +128,64 @@ export const checkinRouter = router({
    * scan events (which only fire when a visitor is actually present).
    */
   postSignIn: postProcedure()
-    .input(z.object({ deviceId: z.string().max(120) }))
-    .mutation(({ input, ctx }) =>
-      recordAudit(db, {
-        actorId: actorFrom(ctx.user).id,
-        actorRole: actorFrom(ctx.user).role,
+    .input(deviceLoginSchema)
+    .mutation(async ({ input, ctx }) => {
+      const actor = actorFrom(ctx.user);
+      let resolved: { pointId: string; pointName: string };
+      try {
+        // Gate: the staff member must be assigned to the point this device is stationed at.
+        resolved = await assertDeviceLogin(actor, input.deviceId);
+      } catch (err) {
+        if (err instanceof PointAccessError) {
+          await recordAudit(db, {
+            actorId: actor.id,
+            actorRole: actor.role,
+            action: 'checkin.postSignIn',
+            objectType: 'device',
+            objectId: input.deviceId,
+            result: 'denied',
+            sourceIp: ctx.ip,
+            deviceId: input.deviceId,
+          });
+          throw new TRPCError({ code: 'FORBIDDEN', message: err.message, cause: err });
+        }
+        throw err;
+      }
+      await openDeviceSession({
+        deviceId: input.deviceId,
+        pointId: resolved.pointId,
+        userId: actor.id,
+      });
+      await recordAudit(db, {
+        actorId: actor.id,
+        actorRole: actor.role,
         action: 'checkin.postSignIn',
         objectType: 'device',
         objectId: input.deviceId,
         sourceIp: ctx.ip,
         deviceId: input.deviceId,
-      }).then(() => ({ ok: true as const })),
-    ),
+        metadata: { pointId: resolved.pointId, pointName: resolved.pointName },
+      });
+      return { ok: true as const, pointName: resolved.pointName };
+    }),
 
-  /** Staff signs out of a post — pairs with `postSignIn` to bound the staffed period. */
+  /** Staff signs out of a post — closes the live staffing session opened by `postSignIn`. */
   postSignOut: postProcedure()
-    .input(z.object({ deviceId: z.string().max(120) }))
-    .mutation(({ input, ctx }) =>
-      recordAudit(db, {
-        actorId: actorFrom(ctx.user).id,
-        actorRole: actorFrom(ctx.user).role,
+    .input(deviceLoginSchema)
+    .mutation(async ({ input, ctx }) => {
+      const actor = actorFrom(ctx.user);
+      await closeDeviceSession(input.deviceId, actor.id);
+      await recordAudit(db, {
+        actorId: actor.id,
+        actorRole: actor.role,
         action: 'checkin.postSignOut',
         objectType: 'device',
         objectId: input.deviceId,
         sourceIp: ctx.ip,
         deviceId: input.deviceId,
-      }).then(() => ({ ok: true as const })),
-    ),
+      });
+      return { ok: true as const };
+    }),
 
   /**
    * Voice greeting played on a successful check-in ("Akwaaba" in Twi / "Welcome" in English),

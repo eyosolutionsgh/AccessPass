@@ -70,6 +70,7 @@ export const lookupsRouter = router({
     db
       .select({ id: schema.department.id, name: schema.department.name })
       .from(schema.department)
+      .where(eq(schema.department.isActive, true))
       .orderBy(schema.department.name),
   ),
 
@@ -80,10 +81,7 @@ export const lookupsRouter = router({
         .select({ id: schema.office.id, name: schema.office.name })
         .from(schema.office)
         .where(
-          and(
-            eq(schema.office.departmentId, input.departmentId),
-            eq(schema.office.isActive, true),
-          ),
+          and(eq(schema.office.departmentId, input.departmentId), eq(schema.office.isActive, true)),
         )
         .orderBy(schema.office.name),
     ),
