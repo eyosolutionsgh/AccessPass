@@ -1,9 +1,32 @@
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
+import { readFileSync } from 'node:fs';
 import { defineConfig } from 'vite';
+
+function rootEnvValue(key: string) {
+  if (process.env[key]) return process.env[key];
+  try {
+    const env = readFileSync(new URL('../../.env', import.meta.url), 'utf8');
+    const line = env.split(/\r?\n/).find((entry) => entry.trim().startsWith(`${key}=`));
+    return line
+      ?.split('=')
+      .slice(1)
+      .join('=')
+      .trim()
+      .replace(/^["']|["']$/g, '');
+  } catch {
+    return '';
+  }
+}
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  define: {
+    'import.meta.env.VITE_INTERNAL_WEB_ORIGIN': JSON.stringify(
+      rootEnvValue('VITE_INTERNAL_WEB_ORIGIN'),
+    ),
+    'import.meta.env.VITE_LOCAL_WEB_ORIGIN': JSON.stringify(rootEnvValue('VITE_LOCAL_WEB_ORIGIN')),
+  },
   build: {
     // Never inline the country flag SVGs as data-URIs — keeping them as separate
     // files means the browser only fetches the few flags actually shown (and
