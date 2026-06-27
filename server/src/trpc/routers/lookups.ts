@@ -35,6 +35,28 @@ export const lookupsRouter = router({
       .where(eq(schema.visitorCategory.isActive, true)),
   ),
 
+  /**
+   * The signed-in user's own host record, if they have one — lets an officer book a visit for
+   * themselves without re-picking their department, office and name. Null for staff (e.g. a
+   * receptionist) who aren't set up as a bookable officer.
+   */
+  myHost: protectedProcedure.query(async ({ ctx }) => {
+    const [h] = await db
+      .select({
+        id: schema.host.id,
+        name: schema.host.name,
+        email: schema.host.email,
+        isActive: schema.host.isActive,
+        departmentName: schema.department.name,
+        officeName: schema.office.name,
+      })
+      .from(schema.host)
+      .leftJoin(schema.department, eq(schema.department.id, schema.host.departmentId))
+      .leftJoin(schema.office, eq(schema.office.id, schema.host.officeId))
+      .where(eq(schema.host.userId, ctx.user.id));
+    return h ?? null;
+  }),
+
   hosts: protectedProcedure
     .input(z.object({ q: z.string().max(120).optional() }))
     .query(async ({ input, ctx }) => {
