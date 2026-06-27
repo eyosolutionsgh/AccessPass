@@ -211,6 +211,9 @@ export async function generateManualPdf(): Promise<void> {
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(10.5);
       const markerW = 18;
+      // Keep the marker on the same page as the item's first body line, so a
+      // wrap onto the next page can't strand the bullet at a stale Y.
+      ensure(15);
       const startY = y;
       // Draw the wrapped item body first, indented past the marker.
       drawRuns(inlineRuns(blockInline(item)), {
@@ -234,9 +237,9 @@ export async function generateManualPdf(): Promise<void> {
     const innerInline = inlineRuns(blockInline(token));
     const padX = 12;
     const padY = 9;
+    // Try to keep a short callout on one page so the accent bar stays sound.
+    ensure(padY * 2 + 30);
     const startY = y;
-    // Measure by laying out into a probe? Simpler: draw text, then backfill the
-    // rule using the height consumed.
     y += padY;
     drawRuns(innerInline, {
       x: margin + padX,
@@ -246,9 +249,13 @@ export async function generateManualPdf(): Promise<void> {
       color: [51, 65, 85],
     });
     y += padY;
-    // Accent bar down the left edge of the consumed block.
-    doc.setFillColor(brand[0], brand[1], brand[2]);
-    doc.rect(margin, startY, 3, y - startY, 'F');
+    // Accent bar down the left edge of the consumed block. Skip it when the text
+    // wrapped onto a new page (startY would be on the previous page), since the
+    // height would be meaningless.
+    if (y > startY) {
+      doc.setFillColor(brand[0], brand[1], brand[2]);
+      doc.rect(margin, startY, 3, y - startY, 'F');
+    }
     y += 9;
   };
 
@@ -262,24 +269,28 @@ export async function generateManualPdf(): Promise<void> {
     const size = 9.5;
     const lineH = 13;
 
-    const cellLines = (text: string, w: number) => {
+    const cellLines = (text: string, w: number, bold: boolean) => {
+      doc.setFont('helvetica', bold ? 'bold' : 'normal');
       doc.setFontSize(size);
       return doc.splitTextToSize(sanitize(text), w - padX * 2) as string[];
     };
+    const rowHeight = (cells: string[], bold: boolean) => {
+      const lines = cells.map((c, i) => cellLines(c, widths[i]!, bold).length);
+      return Math.max(...lines, 1) * lineH + padY * 2;
+    };
 
-    const drawRow = (cells: string[], opts: { headerRow?: boolean }) => {
-      doc.setFont('helvetica', opts.headerRow ? 'bold' : 'normal');
-      const linesPerCell = cells.map((c, i) => cellLines(c, widths[i]!));
-      const rowLines = Math.max(...linesPerCell.map((l) => l.length), 1);
-      const rowH = rowLines * lineH + padY * 2;
-      ensure(rowH);
+    const drawRow = (cells: string[], bold: boolean) => {
+      const linesPerCell = cells.map((c, i) => cellLines(c, widths[i]!, bold));
+      const rowH = Math.max(...linesPerCell.map((l) => l.length), 1) * lineH + padY * 2;
       const top = y;
-      if (opts.headerRow) {
+      if (bold) {
         doc.setFillColor(241, 245, 249); // slate-100
         doc.rect(margin, top, contentW, rowH, 'F');
       }
+      doc.setFont('helvetica', bold ? 'bold' : 'normal');
+      doc.setFontSize(size);
       let cx = margin;
-      setColor(opts.headerRow ? ink : [51, 65, 85]);
+      setColor(bold ? ink : [51, 65, 85]);
       linesPerCell.forEach((lines, i) => {
         let ty = top + padY + lineH - 3;
         for (const ln of lines) {
@@ -295,21 +306,28 @@ export async function generateManualPdf(): Promise<void> {
       y = top + rowH;
     };
 
-    ensure(lineH * 2);
+    const headerCells = token.header.map((c) => c.text);
+    const drawHeader = () => {
+      // Top border, then the shaded header row.
+      doc.setDrawColor(226, 232, 240);
+      doc.setLineWidth(0.5);
+      doc.line(margin, y, margin + contentW, y);
+      drawRow(headerCells, true);
+    };
+
+    // Start the table with its header and at least one body row together.
+    ensure(rowHeight(headerCells, true) + lineH + padY * 2 + 4);
     y += 4;
-    // Top border.
-    doc.setDrawColor(226, 232, 240);
-    doc.setLineWidth(0.5);
-    doc.line(margin, y, margin + contentW, y);
-    drawRow(
-      token.header.map((c) => c.text),
-      { headerRow: true },
-    );
+    drawHeader();
     for (const row of token.rows) {
-      drawRow(
-        row.map((c) => c.text),
-        {},
-      );
+      const cells = row.map((c) => c.text);
+      // Place each row whole; repeat the header when it flows onto a new page.
+      if (y + rowHeight(cells, false) > maxY) {
+        newPage();
+        y += 4;
+        drawHeader();
+      }
+      drawRow(cells, false);
     }
     y += 10;
   };
