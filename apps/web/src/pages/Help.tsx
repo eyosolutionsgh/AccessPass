@@ -46,8 +46,11 @@ type Section = { id: string; label: string; icon: typeof BookOpen };
 
 const trimOrigin = (value: string | undefined) => value?.replace(/\/+$/, '');
 const currentOrigin = typeof window === 'undefined' ? undefined : window.location.origin;
+// Prefer the build-time origin, but fall back to the live browser origin when it
+// is unset OR baked in empty (e.g. the deploy build arg was never provided). Use
+// `||` not `??` so an empty string also falls through to window.location.origin.
 const internalWebOrigin =
-  trimOrigin(import.meta.env.VITE_INTERNAL_WEB_ORIGIN) ?? currentOrigin ?? 'your VMS web address';
+  trimOrigin(import.meta.env.VITE_INTERNAL_WEB_ORIGIN) || currentOrigin || 'your VMS web address';
 const stationAddress = (path: string) => `${internalWebOrigin}${path}`;
 
 const SECTIONS: Section[] = [
