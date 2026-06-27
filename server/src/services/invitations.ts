@@ -1,13 +1,13 @@
 import { and, eq, inArray } from 'drizzle-orm';
 import { schema } from '@vms/shared';
-import { invitationPolicy, ORGANIZATION_NAME } from '../config.ts';
+import { invitationPolicy } from '../config.ts';
 import { db } from '../db.ts';
 import { generateInvitationCode, generateToken, hashCode, hashToken } from '../lib/crypto.ts';
 import { qrPng } from '../lib/qr.ts';
 import { recordAudit } from '../lib/audit.ts';
 import { formatDateTime } from '../lib/datetime.ts';
 import { env } from '../env.ts';
-import { getDateDisplay } from './admin.ts';
+import { getDateDisplay, getOrganizationName } from './admin.ts';
 import { notifyContact, type ContactNotification } from './notifications/notify.ts';
 import { renderInvitationEmail } from './email/templates/invitation.ts';
 
@@ -101,6 +101,7 @@ export async function issueInvitation(visitId: string, actor?: Actor): Promise<I
   // (SRS FR-024/074). Notification failure must NOT block issuance (NFR-AVL-02); notifyContact
   // delegates to dispatch(), which never throws.
   const display = await getDateDisplay();
+  const organizationName = await getOrganizationName();
   const visitDateStr = visit.expectedArrival
     ? formatDateTime(visit.expectedArrival, {
         dateFormat: display.dateFormat,
@@ -112,7 +113,7 @@ export async function issueInvitation(visitId: string, actor?: Actor): Promise<I
   if (visitor?.email) {
     const qr = await qrPng(checkInUrl);
     const { subject, html, text } = renderInvitationEmail({
-      organizationName: ORGANIZATION_NAME,
+      organizationName,
       visitorName: visitor.fullName,
       hostName: host?.name ?? 'your host',
       facilityName: facility?.name ?? 'the facility',
@@ -139,7 +140,7 @@ export async function issueInvitation(visitId: string, actor?: Actor): Promise<I
     sms: visitor?.phone
       ? {
           phone: visitor.phone,
-          text: `${ORGANIZATION_NAME}: your visit is confirmed for ${visitDateStr}. Check-in code: ${code}. ${checkInUrl}`,
+          text: `${organizationName}: your visit is confirmed for ${visitDateStr}. Check-in code: ${code}. ${checkInUrl}`,
         }
       : undefined,
   });

@@ -20,6 +20,7 @@ import {
   type facilityUpdateSchema,
 } from '@vms/shared';
 import { type z } from 'zod';
+import { ORGANIZATION_NAME } from '../config.ts';
 import { db } from '../db.ts';
 import { env } from '../env.ts';
 import { recordAudit } from '../lib/audit.ts';
@@ -96,6 +97,16 @@ export function getRetentionDays(): Promise<number> {
 /** Configured default country (ISO-2) — drives "local number" detection for SMS. */
 export function getCountry(): Promise<string> {
   return getSetting(COUNTRY_KEY, DEFAULT_COUNTRY);
+}
+
+/**
+ * The institution name shown to visitors in notifications (invitation, decline, SMS) and as the
+ * email sender name, so recipients recognise who is contacting them. Falls back to a generic label
+ * until an administrator sets it under Admin → Settings.
+ */
+export async function getOrganizationName(): Promise<string> {
+  const v = await getSetting<string | null>(ORG_KEY, null);
+  return v?.trim() || ORGANIZATION_NAME;
 }
 
 /** Date-display preferences for rendering dates in notifications/UI. */
