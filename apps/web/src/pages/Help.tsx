@@ -19,6 +19,7 @@ import {
   ChevronRight,
   ClipboardCheck,
   DoorOpen,
+  Download,
   FileSpreadsheet,
   FileText,
   Footprints,
@@ -43,9 +44,16 @@ import {
 
 type Section = { id: string; label: string; icon: typeof BookOpen };
 
+const trimOrigin = (value: string | undefined) => value?.replace(/\/+$/, '');
+const currentOrigin = typeof window === 'undefined' ? undefined : window.location.origin;
+const internalWebOrigin =
+  trimOrigin(import.meta.env.VITE_INTERNAL_WEB_ORIGIN) ?? currentOrigin ?? 'your VMS web address';
+const stationAddress = (path: string) => `${internalWebOrigin}${path}`;
+
 const SECTIONS: Section[] = [
   { id: 'overview', label: 'Overview', icon: BookOpen },
   { id: 'getting-started', label: 'Getting started', icon: QrCode },
+  { id: 'point-setup', label: 'Point setup', icon: Sliders },
   { id: 'quick-start', label: 'Quick start by role', icon: ClipboardCheck },
   { id: 'roles', label: 'Roles & who can book', icon: Users },
   { id: 'booking', label: 'Booking an appointment', icon: CalendarPlus },
@@ -207,7 +215,9 @@ function DefinitionTable({
               <td className="block break-words px-4 pb-1 pt-3 font-semibold text-slate-900 sm:table-cell sm:w-48 sm:py-3">
                 {row.term}
               </td>
-              <td className="block px-4 py-1 text-slate-600 sm:table-cell sm:py-3">{row.detail}</td>
+              <td className="block break-words px-4 py-1 text-slate-600 [overflow-wrap:anywhere] sm:table-cell sm:py-3">
+                {row.detail}
+              </td>
               {row.flag && (
                 <td className="block px-4 pb-3 pt-1 text-left sm:table-cell sm:w-24 sm:py-3 sm:text-right">
                   {row.flag}
@@ -660,6 +670,126 @@ const ACCESS_GUIDE = [
   },
 ];
 
+const POINT_SETUP_URLS = [
+  {
+    term: 'Reception desk',
+    detail: (
+      <>
+        Use <code>{stationAddress('/reception')}</code> on the front-desk computer. This is where
+        reception searches expected visitors, completes assisted check-in, issues badges, monitors
+        who is on-site and checks people out.
+      </>
+    ),
+    flag: <Chip tone="green">staff</Chip>,
+  },
+  {
+    term: 'Arrival check-in point',
+    detail: (
+      <>
+        Use <code>{stationAddress('/check-in')}</code> on the reception tablet or kiosk. A staff
+        member unlocks the post, then scans the visitor appointment QR code or enters the invitation
+        code.
+      </>
+    ),
+    flag: <Chip tone="green">post</Chip>,
+  },
+  {
+    term: 'Exit check-out point',
+    detail: (
+      <>
+        Use <code>{stationAddress('/check-out')}</code> on the exit tablet or desk device. Scan the
+        visitor QR code, badge or reusable tag, confirm the visitor has left, then collect the
+        temporary credential.
+      </>
+    ),
+    flag: <Chip tone="green">post</Chip>,
+  },
+  {
+    term: 'Security checkpoint',
+    detail: (
+      <>
+        Use <code>{stationAddress('/checkpoint')}</code> at a guard post such as Main Gate or East
+        Wing. The guard signs in, selects the configured checkpoint, scans the visitor credential
+        and records passage.
+      </>
+    ),
+    flag: <Chip tone="green">post</Chip>,
+  },
+  {
+    term: 'Detailed security scan',
+    detail: (
+      <>
+        Use <code>{stationAddress('/security/scan')}</code> where guards need fuller verification
+        details before allowing passage, including host, purpose, department, time window and
+        watchlist warnings.
+      </>
+    ),
+    flag: <Chip tone="slate">staff</Chip>,
+  },
+  {
+    term: 'Security console',
+    detail: (
+      <>
+        Use <code>{stationAddress('/security')}</code> on the security office computer for
+        incidents, overstays, denied entries, watchlist review and overall checkpoint monitoring.
+      </>
+    ),
+    flag: <Chip tone="slate">staff</Chip>,
+  },
+];
+
+const DEVICE_SETUP = [
+  {
+    term: 'Tablet or kiosk',
+    detail: (
+      <>
+        Open the correct station address on the device browser, sign in with the assigned staff or
+        station account, and label the device clearly. Keep it charged, connected to the internal
+        network and placed where staff can supervise it.
+      </>
+    ),
+  },
+  {
+    term: 'Camera or QR scanner',
+    detail: (
+      <>
+        In Administration, open Checkpoints & devices and choose the scanner source for that point:
+        built-in camera, USB scanner, NFC/tag reader or manual code entry. If the browser asks for
+        camera access, allow it for VMS, then test with a real invitation QR code.
+      </>
+    ),
+  },
+  {
+    term: 'Badge printer',
+    detail: (
+      <>
+        Select the badge printer for the reception or exit point, choose the badge template and run
+        a test print. Keep blank badges or labels near the printer and record a manual badge process
+        for printer downtime.
+      </>
+    ),
+  },
+  {
+    term: 'Reusable tags or NFC',
+    detail: (
+      <>
+        If the site uses reusable credentials, enable the tag mode for that point, assign the tag at
+        check-in and require staff to collect or deactivate it at check-out.
+      </>
+    ),
+  },
+  {
+    term: 'Point permissions',
+    detail: (
+      <>
+        Give each device or staff role only the actions needed at that point. Reception should not
+        use a security checkpoint profile, and a checkpoint device should not be used for reports or
+        administration.
+      </>
+    ),
+  },
+];
+
 const BOOKING_STEPS = [
   'A host, secretary or receptionist opens New appointment and enters the visitor’s name plus an email or phone number.',
   'They pick the department, office and officer being visited, the purpose, date and time. The system blocks double-booking the officer, room or visitor.',
@@ -756,6 +886,15 @@ const EXCEPTIONS = [
 export function Help() {
   const [active, setActive] = useState('overview');
 
+  const exportPdf = () => {
+    const originalTitle = document.title;
+    document.title = 'VMS User Manual';
+    window.print();
+    window.setTimeout(() => {
+      document.title = originalTitle;
+    }, 1000);
+  };
+
   // Scroll to a deep-linked section (e.g. /help#analytics) once the page has mounted.
   useEffect(() => {
     const id = window.location.hash.slice(1);
@@ -798,6 +937,13 @@ export function Help() {
               className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm text-slate-500 hover:bg-slate-100 hover:text-slate-700"
             >
               <Printer className="size-4" /> <span className="hidden sm:inline">Print</span>
+            </button>
+            <button
+              type="button"
+              onClick={exportPdf}
+              className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm text-slate-500 hover:bg-slate-100 hover:text-slate-700"
+            >
+              <Download className="size-4" /> <span className="hidden sm:inline">Export PDF</span>
             </button>
             <a
               href="/"
@@ -924,6 +1070,44 @@ export function Help() {
               Administration, then label the device clearly, such as Reception check-in, Exit
               check-out or East Gate checkpoint. Staff should use the labelled device instead of
               typing addresses manually.
+            </Callout>
+          </Section>
+
+          <Section
+            id="point-setup"
+            icon={Sliders}
+            title="Point and device setup"
+            lead="Use this section when preparing the reception desk, check-in tablet, check-out point or security checkpoint devices. These addresses are for setup staff and fixed devices, not for ordinary visitors."
+          >
+            <p>
+              First decide what the device is responsible for: reception desk work, arrival
+              check-in, exit check-out, checkpoint scanning or security monitoring. Then open the
+              matching address on that device and configure the device profile in Administration so
+              the scanner, camera, printer and credential behavior match the hardware at that point.
+            </p>
+            <DefinitionTable rows={POINT_SETUP_URLS} />
+            <h3 className="pt-4 text-base font-semibold text-slate-900">
+              How to configure a staffed point
+            </h3>
+            <Procedure
+              steps={[
+                'Sign in as an administrator and open Administration from the sidebar.',
+                'Open Checkpoints & devices, then add or edit the point you are preparing.',
+                'Give the point a clear name, such as Reception desk, Exit desk, Main Gate or East Wing checkpoint.',
+                'Choose what the point does: check-in, check-out, security checkpoint, reception desk or security scan.',
+                'Select the scanner source, camera behavior, printer target and credential type used at that point.',
+                'Open the matching station address on the physical tablet, kiosk or desk computer and sign in with the assigned staff or station account.',
+                'Test the full flow with a real or test appointment: scan the QR code, print or assign the badge if used, then check the visitor out.',
+              ]}
+            />
+            <h3 className="pt-4 text-base font-semibold text-slate-900">
+              Device settings to confirm
+            </h3>
+            <DefinitionTable rows={DEVICE_SETUP} />
+            <Callout>
+              If a point does not use a camera, badge printer or reusable tag, leave that option
+              disabled for that device profile. The staff screen should only show the tools that are
+              actually available at the desk or checkpoint.
             </Callout>
           </Section>
 
