@@ -1307,7 +1307,7 @@ export function Help() {
               <strong>Administration → Checkpoints</strong> (Points &amp; devices).
             </p>
             <Shot
-              src="/help/points-devices.png"
+              src="/screenshots/points-devices.png"
               url="VMS · Points & devices"
               alt="Admin Points and devices screen showing a Main Reception point and three devices, with the Lobby device signed in by Demo Receptionist."
               caption="Points & devices: each point lists its devices and assigned staff; each device shows its point and a status dot for who is currently signed in."
@@ -1342,7 +1342,7 @@ export function Help() {
               always open any post for setup and inspection.
             </p>
             <Shot
-              src="/help/staff-modal.png"
+              src="/screenshots/staff-modal.png"
               url="VMS · Points & devices"
               alt="The Staff for Main Reception dialog with Demo Receptionist selected."
               caption="Assigning staff to a point — only the people ticked here can sign a device in at that point."
@@ -1533,13 +1533,13 @@ export function Help() {
             </p>
             <div className="grid gap-4 sm:grid-cols-2">
               <Shot
-                src="/help/checkpoint-denied.png"
+                src="/screenshots/checkpoint-denied.png"
                 url="VMS · Checkpoint"
                 alt="A checkpoint post showing 'Not assigned to this post' for a guard who is not assigned to Main Reception."
                 caption="Not assigned: a staff member who isn’t assigned to the device’s point is turned away."
               />
               <Shot
-                src="/help/checkin-granted.png"
+                src="/screenshots/checkin-granted.png"
                 url="VMS · Check in"
                 alt="A check-in post open for Demo Receptionist at Main Reception."
                 caption="Assigned: the post opens, showing the staff member and the point they are operating."
