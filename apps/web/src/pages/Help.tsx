@@ -5,6 +5,7 @@
  * deep-link to the relevant help (e.g. /help#booking) and the browser scrolls there on load.
  */
 import { useEffect, useState, type ReactNode } from 'react';
+import { toast } from 'sonner';
 import {
   AlertTriangle,
   ArrowLeft,
@@ -20,6 +21,7 @@ import {
   ClipboardCheck,
   DoorOpen,
   Download,
+  Loader2,
   FileSpreadsheet,
   FileText,
   Footprints,
@@ -1035,14 +1037,179 @@ const EXCEPTIONS = [
 
 export function Help() {
   const [active, setActive] = useState('overview');
+  const [exporting, setExporting] = useState(false);
 
-  const exportPdf = () => {
-    const originalTitle = document.title;
-    document.title = 'VMS User Manual';
-    window.print();
-    window.setTimeout(() => {
-      document.title = originalTitle;
-    }, 1000);
+  // Build and download a real PDF file (rather than opening the browser's print
+  // dialog). Each manual section is rasterised with html2canvas-pro — the design
+  // system uses oklch colours, which the classic html2canvas chokes on — and the
+  // slices are flowed onto A4 pages with jsPDF. Both libraries are imported lazily
+  // so they only load when a user actually exports, keeping the page bundle small.
+  const exportPdf = async () => {
+    if (exporting) return;
+    setExporting(true);
+    const toastId = toast.loading('Generating PDF…');
+    try {
+      const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
+        import('html2canvas-pro'),
+        import('jspdf'),
+      ]);
+
+      const pdf = new jsPDF({ unit: 'pt', format: 'a4', compress: true });
+      const pageW = pdf.internal.pageSize.getWidth();
+      const pageH = pdf.internal.pageSize.getHeight();
+      const margin = 40;
+      const footer = 28; // reserved strip for the page-number line
+      const contentW = pageW - margin * 2;
+      let cursorY = margin;
+
+      // Cover heading on the first page.
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(22);
+      pdf.setTextColor(15, 23, 42);
+      pdf.text('Visitor Management System', margin, cursorY + 26);
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(13);
+      pdf.setTextColor(71, 85, 105);
+      pdf.text('User manual', margin, cursorY + 48);
+      pdf.setFontSize(9);
+      pdf.setTextColor(148, 163, 184);
+      pdf.text(`Generated ${new Date().toLocaleDateString()}`, margin, cursorY + 66);
+      cursorY += 96;
+
+      const scale = 2;
+      const pageContentH = pageH - margin - footer;
+
+      // Draw a rendered canvas at `ratio` (pt per canvas pixel) onto the document,
+      // adding pages as needed. Only blocks taller than a whole page get sliced —
+      // and never across an element boundary, because callers hand us one atomic
+      // block at a time (see the section loop below).
+      const flow = (canvas: HTMLCanvasElement, ratio: number) => {
+        const drawW = canvas.width * ratio;
+        let srcY = 0; // integer canvas pixels consumed so far
+        while (srcY < canvas.height - 1) {
+          const avail = pageH - footer - cursorY;
+          if (avail < 80) {
+            pdf.addPage();
+            cursorY = margin;
+            continue;
+          }
+          // At least one pixel row per page so the loop always makes progress, even
+          // if a degenerate ratio would otherwise floor the available height to zero.
+          const sliceCanvasH = Math.max(
+            1,
+            Math.min(Math.floor(avail / ratio), canvas.height - srcY),
+          );
+          const slice = document.createElement('canvas');
+          slice.width = canvas.width;
+          slice.height = sliceCanvasH;
+          const ctx = slice.getContext('2d')!;
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(0, 0, slice.width, slice.height);
+          ctx.drawImage(
+            canvas,
+            0,
+            srcY,
+            canvas.width,
+            sliceCanvasH,
+            0,
+            0,
+            canvas.width,
+            sliceCanvasH,
+          );
+          pdf.addImage(
+            slice.toDataURL('image/jpeg', 0.92),
+            'JPEG',
+            margin,
+            cursorY,
+            drawW,
+            sliceCanvasH * ratio,
+          );
+          cursorY += sliceCanvasH * ratio;
+          srcY += sliceCanvasH;
+          if (srcY < canvas.height - 1) {
+            pdf.addPage();
+            cursorY = margin;
+          }
+        }
+      };
+
+      // Rasterise a single block and place it whole, pushing it to a fresh page
+      // rather than splitting it when it fits on a page but not in the gap left.
+      const placeBlock = async (
+        el: HTMLElement,
+        ratio: number,
+        opts: { gap?: number; minSpace?: number } = {},
+      ) => {
+        const canvas = await html2canvas(el, {
+          scale,
+          backgroundColor: '#ffffff',
+          useCORS: true,
+          logging: false,
+        });
+        const blockH = canvas.height * ratio;
+        const avail = pageH - footer - cursorY;
+        const fitsGap = blockH <= pageContentH && blockH > avail; // whole, but not here
+        const needsRoom = opts.minSpace != null && avail < opts.minSpace; // keep-with-next
+        if (cursorY > margin && (fitsGap || needsRoom)) {
+          pdf.addPage();
+          cursorY = margin;
+        }
+        flow(canvas, ratio);
+        cursorY += opts.gap ?? 12;
+      };
+
+      for (const s of SECTIONS) {
+        const section = document.getElementById(s.id);
+        if (!section) continue;
+        const parts = [...section.children] as HTMLElement[];
+
+        // A consistent scale for the whole section so headings, lead text and body
+        // blocks keep their relative sizes (each block is captured at its own width).
+        const refPx = section.getBoundingClientRect().width || contentW;
+        const ratio = contentW / (refPx * scale);
+
+        if (parts.length < 2) {
+          // Degenerate section — just place it as one block.
+          await placeBlock(section, ratio, { gap: 14, minSpace: 170 });
+          continue;
+        }
+
+        // Section markup is: [header, lead?, content]. Capture the header/lead and
+        // each direct child of the content wrapper as its own atomic block.
+        const contentDiv = parts[parts.length - 1];
+        if (!contentDiv) continue;
+        const blocks = [
+          ...parts.slice(0, parts.length - 1),
+          ...contentDiv.children,
+        ] as HTMLElement[];
+
+        let firstOfSection = true;
+        for (const el of blocks) {
+          // Don't strand a section heading at the bottom of a page.
+          await placeBlock(el, ratio, { gap: 10, minSpace: firstOfSection ? 170 : undefined });
+          firstOfSection = false;
+        }
+        cursorY += 14; // breathing room before the next section
+      }
+
+      // Stamp every page with a footer once the page count is final.
+      const total = pdf.getNumberOfPages();
+      for (let i = 1; i <= total; i++) {
+        pdf.setPage(i);
+        pdf.setFontSize(8);
+        pdf.setTextColor(148, 163, 184);
+        pdf.text('VMS User manual', margin, pageH - 14);
+        pdf.text(`${i} / ${total}`, pageW - margin, pageH - 14, { align: 'right' });
+      }
+
+      pdf.save('VMS-User-Manual.pdf');
+      toast.success('PDF downloaded', { id: toastId });
+    } catch (err) {
+      console.error('Help PDF export failed', err);
+      toast.error('Could not generate the PDF. Please try again.', { id: toastId });
+    } finally {
+      setExporting(false);
+    }
   };
 
   // Scroll to a deep-linked section (e.g. /help#analytics) once the page has mounted.
@@ -1091,9 +1258,15 @@ export function Help() {
             <button
               type="button"
               onClick={exportPdf}
-              className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm text-slate-500 hover:bg-slate-100 hover:text-slate-700"
+              disabled={exporting}
+              className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm text-slate-500 hover:bg-slate-100 hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              <Download className="size-4" /> <span className="hidden sm:inline">Export PDF</span>
+              {exporting ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <Download className="size-4" />
+              )}{' '}
+              <span className="hidden sm:inline">{exporting ? 'Exporting…' : 'Export PDF'}</span>
             </button>
             <a
               href="/"
