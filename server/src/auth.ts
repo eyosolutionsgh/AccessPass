@@ -4,6 +4,7 @@ import { admin, bearer, jwt, organization } from 'better-auth/plugins';
 import { ROLES, ac, roles, schema } from '@vms/shared';
 import { db } from './db.ts';
 import { env } from './env.ts';
+import { getOrganizationName } from './services/admin.ts';
 import { sendPasswordSetupEmail } from './services/email/auth-emails.ts';
 
 /** How long a "set your password" / reset link stays valid (24h — friendly for invites). */
@@ -45,12 +46,13 @@ export const auth = betterAuth({
     // New accounts have no admin-set password — the user sets their own via this emailed link.
     // The same flow backs "forgot password" / resend-invite.
     resetPasswordTokenExpiresIn: RESET_TOKEN_TTL_SECONDS,
-    sendResetPassword: ({ user, url }) =>
+    sendResetPassword: async ({ user, url }) =>
       sendPasswordSetupEmail({
         to: user.email,
         name: user.name,
         url,
         expiresInHours: RESET_TOKEN_TTL_SECONDS / 3600,
+        orgName: await getOrganizationName(),
       }),
   },
   session: {

@@ -4,7 +4,7 @@
  * receives a link to set one (better-auth reset flow, see auth.ts `sendResetPassword`). The same
  * email backs the "forgot / resend" path, so the copy works for both first-time setup and reset.
  */
-import { sendMail } from './mailer.ts';
+import { fromWithName, sendMail } from './mailer.ts';
 import { logger } from '../../logger.ts';
 
 function escape(s: string): string {
@@ -21,18 +21,20 @@ export type PasswordSetupEmail = {
   url: string;
   /** Token lifetime in hours, shown to the user so they know to act promptly. */
   expiresInHours: number;
+  /** Institution name for the subject, body and sender — so staff recognise who invited them. */
+  orgName: string;
 };
 
 /** Render + send the "set your password" email. Errors are logged, not thrown (better-auth
  * dispatches this in the background), so a flaky relay never breaks user creation. */
 export async function sendPasswordSetupEmail(input: PasswordSetupEmail): Promise<void> {
   const greeting = input.name?.trim() ? `Hi ${input.name.trim()},` : 'Hello,';
-  const subject = 'Set your Visitor Management password';
+  const subject = `Set your ${input.orgName} password`;
 
   const text = [
     greeting,
     '',
-    'An administrator has created a Visitor Management staff account for you.',
+    `An administrator has created a ${input.orgName} staff account for you.`,
     'Use the link below to set your password and sign in:',
     '',
     input.url,
@@ -48,12 +50,12 @@ export async function sendPasswordSetupEmail(input: PasswordSetupEmail): Promise
         <table role="presentation" width="600" cellpadding="0" cellspacing="0"
                style="background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #e2e8f0;">
           <tr><td style="background:#2563eb;padding:20px 28px;color:#ffffff;font-size:18px;font-weight:bold;">
-            Visitor Management
+            ${escape(input.orgName)}
           </td></tr>
           <tr><td style="padding:28px;">
             <p style="margin:0 0 8px;font-size:16px;">${escape(greeting)}</p>
             <p style="margin:0 0 20px;line-height:1.5;">
-              An administrator has created a <strong>Visitor Management</strong> staff account for you.
+              An administrator has created a <strong>${escape(input.orgName)}</strong> staff account for you.
               Set your password to activate the account and sign in.
             </p>
 
@@ -83,7 +85,7 @@ export async function sendPasswordSetupEmail(input: PasswordSetupEmail): Promise
 </html>`;
 
   try {
-    await sendMail({ to: input.to, subject, html, text });
+    await sendMail({ to: input.to, subject, html, text, from: fromWithName(input.orgName) });
   } catch (err) {
     logger.error({ err, to: input.to }, 'failed to send password-setup email');
   }

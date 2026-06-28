@@ -22,9 +22,11 @@ import { type ReactNode, useEffect, useState } from 'react';
 import { Link, useLocation } from 'wouter';
 import { anyRoleHasPermission, type PermissionRequest } from '@vms/shared';
 import { signOut } from '../lib/auth.ts';
+import { useOrgName } from '../lib/branding.ts';
 import { cn } from '../lib/utils.ts';
 import { Avatar } from './ui/avatar.tsx';
 import { Button } from './ui/button.tsx';
+import { Logo } from './Logo.tsx';
 
 type NavLeaf = {
   href: string;
@@ -205,13 +207,12 @@ function prettyRole(role?: string | null) {
 }
 
 function Brand() {
+  const orgName = useOrgName();
   return (
     <Link href="/appointments" className="flex items-center gap-2.5">
-      <span className="flex size-8 items-center justify-center rounded-lg bg-brand-600 text-white">
-        <ShieldCheck className="size-5" />
-      </span>
-      <span className="text-[15px] font-semibold tracking-tight text-white">
-        Visitor Management
+      <Logo className="size-8 rounded-lg" />
+      <span className="text-[15px] font-semibold leading-tight tracking-tight text-white">
+        {orgName}
       </span>
     </Link>
   );
@@ -307,6 +308,7 @@ export function Layout({
 }) {
   const [location] = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const orgName = useOrgName();
   const items = NAV.filter((item) => anyRoleHasPermission(role ?? null, item.perm)).map((item) =>
     item.children
       ? {
@@ -319,6 +321,10 @@ export function Layout({
 
   // Close the mobile drawer on route change.
   useEffect(() => setMobileOpen(false), [location]);
+  // Reflect the institution name in the browser tab.
+  useEffect(() => {
+    document.title = orgName;
+  }, [orgName]);
 
   return (
     <div className="min-h-screen bg-slate-100">
@@ -374,10 +380,8 @@ export function Layout({
             <Menu className="size-5" />
           </button>
           <span className="flex items-center gap-2">
-            <span className="flex size-7 items-center justify-center rounded-lg bg-brand-600 text-white">
-              <ShieldCheck className="size-4" />
-            </span>
-            <span className="text-sm font-semibold text-slate-900">Visitor Management</span>
+            <Logo className="size-7 rounded-lg" />
+            <span className="text-sm font-semibold text-slate-900">{orgName}</span>
           </span>
         </header>
 

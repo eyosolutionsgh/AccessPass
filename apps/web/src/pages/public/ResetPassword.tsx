@@ -1,8 +1,10 @@
-import { CheckCircle2, Lock, ShieldCheck, TriangleAlert } from 'lucide-react';
+import { CheckCircle2, Lock, TriangleAlert } from 'lucide-react';
 import { useMemo, useState, type FormEvent } from 'react';
 import { useLocation } from 'wouter';
 import { toast } from 'sonner';
 import { resetPassword } from '../../lib/auth.ts';
+import { useOrgName } from '../../lib/branding.ts';
+import { Logo } from '../../components/Logo.tsx';
 import { Button } from '../../components/ui/button.tsx';
 import { InputWithIcon } from '../../components/ui/input.tsx';
 
@@ -22,6 +24,7 @@ export function ResetPassword() {
   const [confirm, setConfirm] = useState('');
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
+  const orgName = useOrgName();
 
   const invalid = !token || !!linkError;
 
@@ -42,9 +45,7 @@ export function ResetPassword() {
     <div className="flex min-h-screen items-center justify-center bg-slate-100 bg-grid px-4 py-12">
       <div className="w-full max-w-sm animate-rise">
         <div className="mb-8 flex justify-center">
-          <span className="flex size-12 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-500 to-brand-700 text-white shadow-[var(--shadow-brand)]">
-            <ShieldCheck className="size-6" />
-          </span>
+          <Logo className="size-12 rounded-2xl shadow-[var(--shadow-brand)]" />
         </div>
 
         {done ? (
@@ -73,7 +74,7 @@ export function ResetPassword() {
           <>
             <div className="mb-7 text-center">
               <p className="text-xs font-semibold uppercase tracking-wider text-brand-600">
-                Visitor Management
+                {orgName}
               </p>
               <h1 className="mt-1 text-2xl font-bold tracking-tight text-slate-900">
                 Set your password

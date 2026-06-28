@@ -6,8 +6,8 @@ import {
   type UpdateVisitInput,
 } from '@vms/shared';
 import { db } from '../db.ts';
-import { ORGANIZATION_NAME } from '../config.ts';
 import { recordAudit } from '../lib/audit.ts';
+import { getOrganizationName } from './admin.ts';
 import { currentCheckpoint, currentLocations } from './checkpoints.ts';
 import { issueInvitation, revokeInvitation } from './invitations.ts';
 import { notifyContact } from './notifications/notify.ts';
@@ -51,7 +51,9 @@ export async function createVisit(input: CreateVisitInput, actor: Actor) {
   const officeId = hostRow?.officeId ?? null;
   const facilityId = input.facilityId ?? hostRow?.facilityId ?? null;
   if (!facilityId) {
-    throw new Error('Selected officer has no facility assigned. Set their facility in admin first.');
+    throw new Error(
+      'Selected officer has no facility assigned. Set their facility in admin first.',
+    );
   }
 
   const visitorId = await resolveVisitorId(input);
@@ -185,6 +187,7 @@ export async function denyVisit(visitId: string, reason: string, actor: Actor) {
     })
     .from(schema.visitor)
     .where(eq(schema.visitor.id, updated.visitorId));
+  const organizationName = await getOrganizationName();
   await notifyContact({
     visitId,
     template: 'visit_declined',
@@ -192,8 +195,8 @@ export async function denyVisit(visitId: string, reason: string, actor: Actor) {
       ? {
           address: visitor.email,
           subject: 'Update on your visit request',
-          html: `<p>Dear ${visitor.fullName},</p><p>Unfortunately your scheduled visit could not be confirmed at this time. Please contact your host for further details.</p><p>${ORGANIZATION_NAME}</p>`,
-          text: `Dear ${visitor.fullName},\n\nUnfortunately your scheduled visit could not be confirmed at this time. Please contact your host for further details.\n\n${ORGANIZATION_NAME}`,
+          html: `<p>Dear ${visitor.fullName},</p><p>Unfortunately your scheduled visit could not be confirmed at this time. Please contact your host for further details.</p><p>${organizationName}</p>`,
+          text: `Dear ${visitor.fullName},\n\nUnfortunately your scheduled visit could not be confirmed at this time. Please contact your host for further details.\n\n${organizationName}`,
         }
       : undefined,
     sms: visitor?.phone
