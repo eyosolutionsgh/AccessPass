@@ -9,6 +9,7 @@ import { db } from '../db.ts';
 import { recordAudit } from '../lib/audit.ts';
 import { getOrganizationName } from './admin.ts';
 import { getEmailLogo } from './email/brandLogo.ts';
+import { institutionLabel } from './email/mailer.ts';
 import { currentCheckpoint, currentLocations } from './checkpoints.ts';
 import { issueInvitation, revokeInvitation } from './invitations.ts';
 import { notifyContact } from './notifications/notify.ts';
@@ -197,8 +198,8 @@ export async function denyVisit(visitId: string, reason: string, actor: Actor) {
       ? {
           address: visitor.email,
           subject: 'Update on your visit request',
-          html: `<div style="text-align:center;margin-bottom:16px;"><img src="cid:${logo.cid}" width="96" height="80" alt="${organizationName} logo" style="display:inline-block;border:0;" /><div style="margin-top:8px;font-weight:bold;color:#0f172a;">${organizationName}</div></div><p>Dear ${visitor.fullName},</p><p>Unfortunately your scheduled visit could not be confirmed at this time. Please contact your host for further details.</p><p>${organizationName}</p>`,
-          text: `Dear ${visitor.fullName},\n\nUnfortunately your scheduled visit could not be confirmed at this time. Please contact your host for further details.\n\n${organizationName}`,
+          html: `<div style="text-align:center;margin-bottom:16px;"><img src="cid:${logo.cid}" width="96" height="80" alt="${organizationName} logo" style="display:inline-block;border:0;" /><div style="margin-top:8px;font-weight:bold;color:#0f172a;">${institutionLabel(organizationName)}</div></div><p>Dear ${visitor.fullName},</p><p>Unfortunately your scheduled visit could not be confirmed at this time. Please contact your host for further details.</p><p>${institutionLabel(organizationName)}</p>`,
+          text: `Dear ${visitor.fullName},\n\nUnfortunately your scheduled visit could not be confirmed at this time. Please contact your host for further details.\n\n${institutionLabel(organizationName)}`,
           attachments: [{ filename: logo.filename, content: logo.content, cid: logo.cid }],
         }
       : undefined,

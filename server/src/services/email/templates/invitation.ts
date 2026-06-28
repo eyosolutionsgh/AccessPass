@@ -5,6 +5,8 @@
  */
 export type InvitationEmailData = {
   organizationName: string;
+  /** Branding/signature label, "Institution Name (Platform Name)", for the header caption. */
+  brandLabel: string;
   /** content-id of the attached institution logo (coat of arms). */
   logoCid: string;
   visitorName: string;
@@ -57,7 +59,7 @@ export function renderInvitationEmail(d: InvitationEmailData): {
             <img src="cid:${d.logoCid}" width="120" height="100" alt="${escape(d.organizationName)} logo"
                  style="display:block;margin:0 auto;border:0;" />
             <div style="margin-top:12px;font-size:20px;font-weight:bold;color:#0f172a;">
-              ${escape(d.organizationName)}
+              ${escape(d.brandLabel)}
             </div>
           </td></tr>
           <tr><td style="padding:16px 28px 28px;">

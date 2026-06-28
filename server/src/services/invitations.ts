@@ -8,6 +8,7 @@ import { recordAudit } from '../lib/audit.ts';
 import { formatDateTime } from '../lib/datetime.ts';
 import { env } from '../env.ts';
 import { getDateDisplay, getOrganizationName } from './admin.ts';
+import { institutionLabel } from './email/mailer.ts';
 import { notifyContact, type ContactNotification } from './notifications/notify.ts';
 import { renderInvitationEmail } from './email/templates/invitation.ts';
 import { getEmailLogo } from './email/brandLogo.ts';
@@ -116,6 +117,7 @@ export async function issueInvitation(visitId: string, actor?: Actor): Promise<I
     const logo = await getEmailLogo();
     const { subject, html, text } = renderInvitationEmail({
       organizationName,
+      brandLabel: institutionLabel(organizationName),
       logoCid: logo.cid,
       visitorName: visitor.fullName,
       hostName: host?.name ?? 'your host',
