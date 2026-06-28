@@ -48,13 +48,21 @@ export function fromWithName(displayName: string): string {
 }
 
 /**
- * Sender display in the form `Institution Name (Platform Name)` — e.g. `Jubilee House (Visitor
- * Management System)` — so recipients see both who invited them and the product. Falls back to the
- * platform name alone when no institution name is configured.
+ * Plain branding label in the form `Institution Name (Platform Name)` — e.g. `Jubilee House
+ * (Visitor Management System)` — for use in email subjects, body captions and footer signatures.
+ * Falls back to the platform name alone when no institution name is configured.
+ */
+export function institutionLabel(orgName: string): string {
+  const inst = orgName?.trim();
+  return inst ? `${inst} (${env.PLATFORM_NAME})` : env.PLATFORM_NAME;
+}
+
+/**
+ * Sender display using {@link institutionLabel}, so recipients see both who invited them and the
+ * product. Keeps the configured SMTP_FROM address (DKIM/SPF intact).
  */
 export function institutionFrom(orgName: string): string {
-  const inst = orgName?.trim();
-  return fromWithName(inst ? `${inst} (${env.PLATFORM_NAME})` : env.PLATFORM_NAME);
+  return fromWithName(institutionLabel(orgName));
 }
 
 /** Send an email; notification failures are surfaced to the caller (SRS FR-074, NFR-AVL-02). */
