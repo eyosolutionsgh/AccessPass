@@ -45,7 +45,7 @@ export function ResetPassword() {
     <div className="flex min-h-screen items-center justify-center bg-slate-100 bg-grid px-4 py-12">
       <div className="w-full max-w-sm animate-rise">
         <div className="mb-8 flex justify-center">
-          <Logo className="size-12 rounded-2xl shadow-[var(--shadow-brand)]" />
+          <Logo className="size-20 rounded-3xl shadow-[var(--shadow-brand)]" />
         </div>
 
         {done ? (
