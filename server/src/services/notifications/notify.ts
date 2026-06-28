@@ -7,7 +7,8 @@
  * notification row, retry, and status tracking.
  */
 import { dispatch, isChannelAvailable, type NotificationAttachment } from './dispatcher.ts';
-import { getCountry } from '../admin.ts';
+import { getCountry, getOrganizationName } from '../admin.ts';
+import { institutionFrom } from '../email/mailer.ts';
 import { isLocalNumber } from '../../lib/phone.ts';
 
 export type ContactNotification = {
@@ -37,6 +38,8 @@ export async function notifyContact(input: ContactNotification): Promise<void> {
         html: email.html,
         text: email.text,
         attachments: email.attachments,
+        // Brand the sender as "Institution Name (Platform Name)" so visitors/hosts recognise it.
+        from: institutionFrom(await getOrganizationName()),
       },
     });
   }

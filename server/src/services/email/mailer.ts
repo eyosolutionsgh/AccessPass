@@ -47,6 +47,16 @@ export function fromWithName(displayName: string): string {
   return safe ? `"${safe}" <${address}>` : env.SMTP_FROM;
 }
 
+/**
+ * Sender display in the form `Institution Name (Platform Name)` — e.g. `Jubilee House (Visitor
+ * Management System)` — so recipients see both who invited them and the product. Falls back to the
+ * platform name alone when no institution name is configured.
+ */
+export function institutionFrom(orgName: string): string {
+  const inst = orgName?.trim();
+  return fromWithName(inst ? `${inst} (${env.PLATFORM_NAME})` : env.PLATFORM_NAME);
+}
+
 /** Send an email; notification failures are surfaced to the caller (SRS FR-074, NFR-AVL-02). */
 export async function sendMail(input: SendMailInput): Promise<string> {
   const { from, ...rest } = input;
