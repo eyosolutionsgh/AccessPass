@@ -1344,10 +1344,14 @@ type StaffUser = {
   email: string;
   role: string | null;
   banned: boolean;
+  passwordSet: boolean;
   departmentId?: string | null;
+  departmentName?: string | null;
   officeId?: string | null;
+  officeName?: string | null;
   isActive?: boolean;
   availabilityNote?: string | null;
+  createdAt?: string | null;
 };
 
 /** Department + dependent Office selects, shared by the invite form and the edit modal.
@@ -1511,10 +1515,7 @@ function UsersSection({ utils }: { utils: Utils }) {
     onSuccess: refresh,
     onError: (e) => toast.error(e.message),
   });
-  const resend = trpc.admin.userResend.useMutation({
-    onSuccess: () => toast.success('Password reset link sent'),
-    onError: (e) => toast.error(e.message),
-  });
+  const resend = trpc.admin.userResend.useMutation();
   const ban = trpc.admin.userBan.useMutation({
     onSuccess: () => (toast.success('Updated'), refresh()),
     onError: (e) => toast.error(e.message),
@@ -1534,6 +1535,11 @@ function UsersSection({ utils }: { utils: Utils }) {
   const [officeId, setOfficeId] = useState('');
   const [query, setQuery] = useState('');
   const [editing, setEditing] = useState<StaffUser | null>(null);
+  const [resendNotice, setResendNotice] = useState<{
+    email: string;
+    state: 'sending' | 'sent' | 'error';
+    message: string;
+  } | null>(null);
 
   function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -1552,6 +1558,27 @@ function UsersSection({ utils }: { utils: Utils }) {
           setName('');
           setEmail('');
           setOfficeId('');
+        },
+      },
+    );
+  }
+
+  function resendAccessEmail(user: StaffUser) {
+    const sending = user.passwordSet ? 'Sending reset link…' : 'Resending invite…';
+    const sent = user.passwordSet ? 'Reset link sent' : 'Invite resent';
+    const failed = user.passwordSet ? "Couldn't send reset link" : "Couldn't resend invite";
+
+    setResendNotice({ email: user.email, state: 'sending', message: sending });
+    resend.mutate(
+      { email: user.email },
+      {
+        onSuccess: () => {
+          setResendNotice({ email: user.email, state: 'sent', message: sent });
+          toast.success(`${sent} to ${user.email}`);
+        },
+        onError: (e) => {
+          setResendNotice({ email: user.email, state: 'error', message: failed });
+          toast.error(e.message);
         },
       },
     );
@@ -1725,6 +1752,18 @@ function UsersSection({ utils }: { utils: Utils }) {
                             {[u.departmentName, u.officeName].filter(Boolean).join(' · ')}
                           </p>
                         )}
+                        {resendNotice?.email === u.email && (
+                          <p
+                            className={cn(
+                              'mt-1 text-xs font-medium',
+                              resendNotice.state === 'sent' && 'text-emerald-600',
+                              resendNotice.state === 'error' && 'text-red-600',
+                              resendNotice.state === 'sending' && 'text-slate-500',
+                            )}
+                          >
+                            {resendNotice.message}
+                          </p>
+                        )}
                       </div>
                     </div>
                   </td>
@@ -1760,7 +1799,9 @@ function UsersSection({ utils }: { utils: Utils }) {
                           {
                             label: u.passwordSet ? 'Send reset link' : 'Resend invite',
                             icon: <Mail />,
-                            onClick: () => resend.mutate({ email: u.email }),
+                            disabled:
+                              resendNotice?.email === u.email && resendNotice.state === 'sending',
+                            onClick: () => resendAccessEmail(u),
                           },
                           {
                             label: 'Edit',
