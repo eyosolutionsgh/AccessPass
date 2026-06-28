@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { cn } from '../../lib/utils.ts';
 import { DISMISS_POPOVERS_EVENT } from './combobox.tsx';
+import { Tooltip } from './tooltip.tsx';
 
 /**
  * Lightweight, dependency-free modal. Renders into <body> via a portal, traps scroll, and closes
@@ -54,7 +55,10 @@ export function Modal({
 
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 animate-fade-in bg-slate-950/50 backdrop-blur-sm" onClick={onClose} />
+      <div
+        className="absolute inset-0 animate-fade-in bg-slate-950/50 backdrop-blur-sm"
+        onClick={onClose}
+      />
       <div
         ref={dialogRef}
         role="dialog"
@@ -77,14 +81,16 @@ export function Modal({
               {description && <p className="mt-0.5 text-xs text-slate-500">{description}</p>}
             </div>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close"
-            className="flex size-8 shrink-0 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
-          >
-            <X className="size-4" />
-          </button>
+          <Tooltip content="Close this dialog">
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Close"
+              className="flex size-8 shrink-0 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
+            >
+              <X className="size-4" />
+            </button>
+          </Tooltip>
         </div>
 
         <div className="p-5">{children}</div>

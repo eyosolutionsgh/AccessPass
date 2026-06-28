@@ -27,6 +27,7 @@ import { cn } from '../lib/utils.ts';
 import { Avatar } from './ui/avatar.tsx';
 import { Button } from './ui/button.tsx';
 import { Logo } from './Logo.tsx';
+import { Tooltip } from './ui/tooltip.tsx';
 
 type NavLeaf = {
   href: string;
@@ -140,26 +141,28 @@ function NavLink({
 }) {
   const Icon = item.icon;
   return (
-    <Link
-      href={item.href}
-      onClick={onNavigate}
-      className={cn(
-        'group flex items-center gap-3 rounded-lg py-2.5 text-sm transition-colors',
-        nested ? 'pl-11 pr-3' : 'px-3',
-        active
-          ? 'bg-brand-500/15 font-semibold text-brand-100'
-          : 'text-slate-400 hover:bg-white/[0.05] hover:text-slate-100',
-      )}
-    >
-      <Icon
+    <Tooltip content={`Open ${item.label}`} side="right" className="block">
+      <Link
+        href={item.href}
+        onClick={onNavigate}
         className={cn(
-          'shrink-0',
-          nested ? 'size-4' : 'size-[18px]',
-          active ? 'text-brand-300' : 'text-slate-500 group-hover:text-slate-300',
+          'group flex items-center gap-3 rounded-lg py-2.5 text-sm transition-colors',
+          nested ? 'pl-11 pr-3' : 'px-3',
+          active
+            ? 'bg-brand-500/15 font-semibold text-brand-100'
+            : 'text-slate-400 hover:bg-white/[0.05] hover:text-slate-100',
         )}
-      />
-      {item.label}
-    </Link>
+      >
+        <Icon
+          className={cn(
+            'shrink-0',
+            nested ? 'size-4' : 'size-[18px]',
+            active ? 'text-brand-300' : 'text-slate-500 group-hover:text-slate-300',
+          )}
+        />
+        {item.label}
+      </Link>
+    </Tooltip>
   );
 }
 
@@ -183,31 +186,37 @@ function NavGroup({
   const Icon = item.icon;
   return (
     <div>
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        aria-expanded={open}
-        className={cn(
-          'group flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors',
-          sectionActive
-            ? 'font-semibold text-white'
-            : 'text-slate-400 hover:bg-white/[0.05] hover:text-slate-100',
-        )}
+      <Tooltip
+        content={`${open ? 'Collapse' : 'Expand'} ${item.label}`}
+        side="right"
+        className="block"
       >
-        <Icon
+        <button
+          type="button"
+          onClick={() => setOpen((o) => !o)}
+          aria-expanded={open}
           className={cn(
-            'size-[18px] shrink-0',
-            sectionActive ? 'text-white' : 'text-slate-500 group-hover:text-slate-300',
+            'group flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors',
+            sectionActive
+              ? 'font-semibold text-white'
+              : 'text-slate-400 hover:bg-white/[0.05] hover:text-slate-100',
           )}
-        />
-        <span className="flex-1 text-left">{item.label}</span>
-        <ChevronDown
-          className={cn(
-            'size-4 shrink-0 text-slate-500 transition-transform',
-            open && 'rotate-180',
-          )}
-        />
-      </button>
+        >
+          <Icon
+            className={cn(
+              'size-[18px] shrink-0',
+              sectionActive ? 'text-white' : 'text-slate-500 group-hover:text-slate-300',
+            )}
+          />
+          <span className="flex-1 text-left">{item.label}</span>
+          <ChevronDown
+            className={cn(
+              'size-4 shrink-0 text-slate-500 transition-transform',
+              open && 'rotate-180',
+            )}
+          />
+        </button>
+      </Tooltip>
       {open && (
         <div className="mt-0.5 flex flex-col gap-0.5">
           {item.children!.map((child) => (
@@ -234,12 +243,14 @@ function prettyRole(role?: string | null) {
 function Brand() {
   const orgName = useOrgName();
   return (
-    <Link href="/appointments" className="flex flex-col items-center gap-2.5 text-center">
-      <Logo className="size-14 rounded-2xl" />
-      <span className="text-[15px] font-semibold leading-snug tracking-tight text-white">
-        {orgName}
-      </span>
-    </Link>
+    <Tooltip content="Go to the appointments dashboard" side="right" className="block">
+      <Link href="/appointments" className="flex flex-col items-center gap-2.5 text-center">
+        <Logo className="size-14 rounded-2xl" />
+        <span className="text-[15px] font-semibold leading-snug tracking-tight text-white">
+          {orgName}
+        </span>
+      </Link>
+    </Tooltip>
   );
 }
 
@@ -272,28 +283,30 @@ function UserCard({
 
   return (
     <div ref={ref} className="relative">
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        aria-haspopup="menu"
-        aria-expanded={open}
-        className={cn(
-          'flex w-full items-center gap-2.5 rounded-xl border border-white/10 bg-white/[0.03] p-2 text-left transition-colors hover:bg-white/[0.06]',
-          open && 'bg-white/[0.06]',
-        )}
-      >
-        <Avatar name={name} className="size-9 rounded-lg" />
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-semibold text-white">{name}</p>
-          <p className="truncate text-xs text-slate-400">{prettyRole(role)}</p>
-        </div>
-        <ChevronDown
+      <Tooltip content="Open account options" side="right" className="block">
+        <button
+          type="button"
+          onClick={() => setOpen((o) => !o)}
+          aria-haspopup="menu"
+          aria-expanded={open}
           className={cn(
-            'size-4 shrink-0 text-slate-500 transition-transform',
-            open && 'rotate-180',
+            'flex w-full items-center gap-2.5 rounded-xl border border-white/10 bg-white/[0.03] p-2 text-left transition-colors hover:bg-white/[0.06]',
+            open && 'bg-white/[0.06]',
           )}
-        />
-      </button>
+        >
+          <Avatar name={name} className="size-9 rounded-lg" />
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-semibold text-white">{name}</p>
+            <p className="truncate text-xs text-slate-400">{prettyRole(role)}</p>
+          </div>
+          <ChevronDown
+            className={cn(
+              'size-4 shrink-0 text-slate-500 transition-transform',
+              open && 'rotate-180',
+            )}
+          />
+        </button>
+      </Tooltip>
 
       {open && (
         <div
@@ -450,13 +463,16 @@ export function Layout({
             onClick={() => setMobileOpen(false)}
           />
           <aside className="absolute inset-y-0 left-0 w-64 bg-sidebar shadow-2xl">
-            <button
-              type="button"
-              onClick={() => setMobileOpen(false)}
-              className="absolute right-3 top-4 flex size-8 items-center justify-center rounded-lg text-slate-400 hover:bg-white/10 hover:text-white"
-            >
-              <X className="size-5" />
-            </button>
+            <Tooltip content="Close menu" className="absolute right-3 top-4">
+              <button
+                type="button"
+                onClick={() => setMobileOpen(false)}
+                className="flex size-8 items-center justify-center rounded-lg text-slate-400 hover:bg-white/10 hover:text-white"
+                aria-label="Close menu"
+              >
+                <X className="size-5" />
+              </button>
+            </Tooltip>
             <SidebarContent
               sections={sections}
               location={location}
@@ -473,14 +489,16 @@ export function Layout({
       <div className="lg:pl-60">
         {/* Mobile top bar — only the menu toggle and wordmark, nothing decorative. */}
         <header className="sticky top-0 z-20 flex h-14 items-center gap-3 border-b border-slate-200 bg-white/90 px-4 backdrop-blur lg:hidden">
-          <button
-            type="button"
-            onClick={() => setMobileOpen(true)}
-            className="flex size-9 items-center justify-center rounded-lg text-slate-600 hover:bg-slate-100"
-            aria-label="Open menu"
-          >
-            <Menu className="size-5" />
-          </button>
+          <Tooltip content="Open navigation menu" side="bottom">
+            <button
+              type="button"
+              onClick={() => setMobileOpen(true)}
+              className="flex size-9 items-center justify-center rounded-lg text-slate-600 hover:bg-slate-100"
+              aria-label="Open menu"
+            >
+              <Menu className="size-5" />
+            </button>
+          </Tooltip>
           <span className="flex items-center gap-2">
             <Logo className="size-9 rounded-lg" />
             <span className="text-sm font-semibold text-slate-900">{orgName}</span>

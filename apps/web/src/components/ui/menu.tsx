@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { MoreHorizontal } from 'lucide-react';
 import { cn } from '../../lib/utils.ts';
+import { Tooltip } from './tooltip.tsx';
 
 export type MenuItem = {
   label: string;
@@ -65,21 +66,23 @@ export function ActionMenu({
 
   return (
     <>
-      <button
-        ref={btnRef}
-        type="button"
-        aria-label={ariaLabel}
-        aria-haspopup="menu"
-        aria-expanded={open}
-        onClick={toggle}
-        className={cn(
-          'flex size-8 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700',
-          open && 'bg-slate-100 text-slate-700',
-          className,
-        )}
-      >
-        <MoreHorizontal className="size-4" />
-      </button>
+      <Tooltip content={ariaLabel}>
+        <button
+          ref={btnRef}
+          type="button"
+          aria-label={ariaLabel}
+          aria-haspopup="menu"
+          aria-expanded={open}
+          onClick={toggle}
+          className={cn(
+            'flex size-8 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700',
+            open && 'bg-slate-100 text-slate-700',
+            className,
+          )}
+        >
+          <MoreHorizontal className="size-4" />
+        </button>
+      </Tooltip>
 
       {open &&
         pos &&

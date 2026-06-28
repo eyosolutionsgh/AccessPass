@@ -1,6 +1,7 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '../../lib/utils.ts';
 import { NativeSelect } from './select.tsx';
+import { Tooltip } from './tooltip.tsx';
 
 const DEFAULT_PAGE_SIZES = [10, 25, 50, 100];
 
@@ -76,15 +77,17 @@ export function Pagination({
 
       {pageCount > 1 && (
         <nav className="flex items-center gap-1" aria-label="Pagination">
-          <button
-            type="button"
-            onClick={() => onPageChange(page - 1)}
-            disabled={page <= 1}
-            className="inline-flex h-8 items-center gap-1 rounded-lg border border-slate-200 bg-white pl-1.5 pr-2.5 text-xs font-medium text-slate-600 shadow-xs transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
-            aria-label="Previous page"
-          >
-            <ChevronLeft className="size-4" /> Prev
-          </button>
+          <Tooltip content="Go to the previous page">
+            <button
+              type="button"
+              onClick={() => onPageChange(page - 1)}
+              disabled={page <= 1}
+              className="inline-flex h-8 items-center gap-1 rounded-lg border border-slate-200 bg-white pl-1.5 pr-2.5 text-xs font-medium text-slate-600 shadow-xs transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+              aria-label="Previous page"
+            >
+              <ChevronLeft className="size-4" /> Prev
+            </button>
+          </Tooltip>
 
           {pageList(page, pageCount).map((p, i) =>
             p === '…' ? (
@@ -92,32 +95,35 @@ export function Pagination({
                 …
               </span>
             ) : (
-              <button
-                key={p}
-                type="button"
-                onClick={() => onPageChange(p)}
-                aria-current={p === page ? 'page' : undefined}
-                className={cn(
-                  'inline-flex size-8 items-center justify-center rounded-lg text-xs font-semibold transition-colors nums',
-                  p === page
-                    ? 'bg-brand-600 text-white shadow-sm'
-                    : 'border border-slate-200 bg-white text-slate-600 shadow-xs hover:bg-slate-50',
-                )}
-              >
-                {p}
-              </button>
+              <Tooltip key={p} content={`Go to page ${p}`}>
+                <button
+                  type="button"
+                  onClick={() => onPageChange(p)}
+                  aria-current={p === page ? 'page' : undefined}
+                  className={cn(
+                    'inline-flex size-8 items-center justify-center rounded-lg text-xs font-semibold transition-colors nums',
+                    p === page
+                      ? 'bg-brand-600 text-white shadow-sm'
+                      : 'border border-slate-200 bg-white text-slate-600 shadow-xs hover:bg-slate-50',
+                  )}
+                >
+                  {p}
+                </button>
+              </Tooltip>
             ),
           )}
 
-          <button
-            type="button"
-            onClick={() => onPageChange(page + 1)}
-            disabled={page >= pageCount}
-            className="inline-flex h-8 items-center gap-1 rounded-lg border border-slate-200 bg-white pl-2.5 pr-1.5 text-xs font-medium text-slate-600 shadow-xs transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
-            aria-label="Next page"
-          >
-            Next <ChevronRight className="size-4" />
-          </button>
+          <Tooltip content="Go to the next page">
+            <button
+              type="button"
+              onClick={() => onPageChange(page + 1)}
+              disabled={page >= pageCount}
+              className="inline-flex h-8 items-center gap-1 rounded-lg border border-slate-200 bg-white pl-2.5 pr-1.5 text-xs font-medium text-slate-600 shadow-xs transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+              aria-label="Next page"
+            >
+              Next <ChevronRight className="size-4" />
+            </button>
+          </Tooltip>
         </nav>
       )}
     </div>
