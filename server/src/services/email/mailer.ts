@@ -6,12 +6,22 @@ import { logger } from '../../logger.ts';
 /**
  * SMTP transport pointed at the corporate relay (SRS §10.2, on-prem). Auth is omitted when
  * SMTP_USER is blank (e.g. the local Mailpit dev sink).
+ *
+ * The relay is reached on the submission port (587, `SMTP_SECURE=false`): the connection starts
+ * plaintext and upgrades via STARTTLS. We force STARTTLS whenever credentials are configured so the
+ * login is never sent in the clear — but only then, since the dev Mailpit sink offers no TLS.
+ * (Implicit-TLS port 465 is firewall-blocked outbound on the Hetzner host, so 587 is the only path.)
+ * Timeouts keep a wedged relay from hanging the request that triggered the send.
  */
 export const mailer = nodemailer.createTransport({
   host: env.SMTP_HOST,
   port: env.SMTP_PORT,
   secure: env.SMTP_SECURE,
+  requireTLS: env.SMTP_USER ? !env.SMTP_SECURE : false,
   auth: env.SMTP_USER ? { user: env.SMTP_USER, pass: env.SMTP_PASS } : undefined,
+  connectionTimeout: 15_000,
+  greetingTimeout: 15_000,
+  socketTimeout: 30_000,
 });
 
 export type SendMailInput = {

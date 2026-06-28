@@ -53,6 +53,10 @@ const envSchema = z.object({
   SMTP_PASS: z.string().optional(),
   SMTP_FROM: z.string().default('Visitor Management <no-reply@vms.local>'),
 
+  // Product/portal name shown in transactional emails (e.g. "Set your <PLATFORM_NAME> password").
+  // Distinct from the per-institution organisation name (admin-configurable, e.g. "Jubilee House").
+  PLATFORM_NAME: z.string().default('Visitor Management System'),
+
   // SMS (SRS §10.2). Provider-based; `nalo` matches the Nalo Solutions gateway used across
   // projects. Unset SMS_PROVIDER (or missing credentials) = SMS channel disabled.
   // Blank string (a present-but-empty .env line) must read as "disabled", not a validation error

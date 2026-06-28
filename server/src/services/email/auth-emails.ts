@@ -7,6 +7,9 @@
 import { fromWithName, sendMail } from './mailer.ts';
 import { getEmailLogo } from './brandLogo.ts';
 import { logger } from '../../logger.ts';
+import { env } from '../../env.ts';
+
+const PLATFORM_NAME = env.PLATFORM_NAME;
 
 function escape(s: string): string {
   return s
@@ -26,18 +29,18 @@ export type PasswordSetupEmail = {
   orgName: string;
 };
 
-/** Render + send the "set your password" email. Errors are logged, not thrown (better-auth
- * dispatches this in the background), so a flaky relay never breaks user creation. */
+/** Render + send the "set your password" email. Errors are logged and rethrown so admins get
+ * honest resend/invite feedback instead of a false success when SMTP is unreachable. */
 export async function sendPasswordSetupEmail(input: PasswordSetupEmail): Promise<void> {
   const greeting = input.name?.trim() ? `Hi ${input.name.trim()},` : 'Hello,';
-  const subject = `Set your ${input.orgName} password`;
+  const subject = `Set your ${PLATFORM_NAME} password for ${input.orgName}`;
   const logo = await getEmailLogo();
 
   const text = [
     greeting,
     '',
-    `An administrator has created a ${input.orgName} staff account for you.`,
-    'Use the link below to set your password and sign in:',
+    `An administrator has created a staff account for you on the ${PLATFORM_NAME} portal for ${input.orgName}.`,
+    'Use the link below to set your password, activate your portal access and sign in:',
     '',
     input.url,
     '',
@@ -61,8 +64,10 @@ export async function sendPasswordSetupEmail(input: PasswordSetupEmail): Promise
           <tr><td style="padding:16px 28px 28px;">
             <p style="margin:0 0 8px;font-size:16px;">${escape(greeting)}</p>
             <p style="margin:0 0 20px;line-height:1.5;">
-              An administrator has created a <strong>${escape(input.orgName)}</strong> staff account for you.
-              Set your password to activate the account and sign in.
+              An administrator has created a staff account for you on the
+              <strong>${escape(PLATFORM_NAME)}</strong> portal for
+              <strong>${escape(input.orgName)}</strong>.
+              Set your password to activate your portal access and sign in.
             </p>
 
             <div style="text-align:center;margin:28px 0;">
@@ -101,5 +106,6 @@ export async function sendPasswordSetupEmail(input: PasswordSetupEmail): Promise
     });
   } catch (err) {
     logger.error({ err, to: input.to }, 'failed to send password-setup email');
+    throw err;
   }
 }
