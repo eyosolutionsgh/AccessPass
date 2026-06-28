@@ -2,6 +2,7 @@ import { Check, ChevronsUpDown, Search } from 'lucide-react';
 import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { cn } from '../../lib/utils.ts';
+import { Tooltip } from './tooltip.tsx';
 
 /**
  * Broadcast on `document` by overlays (e.g. Modal) when they open, so any open Combobox popover
@@ -36,6 +37,8 @@ export function Combobox({
   disabled,
   id,
   onOpen,
+  tooltip,
+  ariaLabel,
 }: {
   value: string;
   onChange: (value: string) => void;
@@ -46,6 +49,8 @@ export function Combobox({
   className?: string;
   disabled?: boolean;
   id?: string;
+  ariaLabel?: string;
+  tooltip?: ReactNode;
   /** Fired when the menu opens — use it to lazily fetch heavy option lists (e.g. hosts). */
   onOpen?: () => void;
 }) {
@@ -163,86 +168,89 @@ export function Combobox({
   }
 
   return (
-    <div className={cn('relative', className)}>
-      <button
-        ref={triggerRef}
-        type="button"
-        id={id}
-        disabled={disabled}
-        onClick={() => (open ? setOpen(false) : openMenu())}
-        aria-haspopup="listbox"
-        aria-expanded={open}
-        className="flex h-10 w-full items-center gap-2 rounded-lg border border-slate-300 bg-white pl-3 pr-2.5 text-left text-sm text-slate-900 shadow-xs transition-colors hover:border-slate-400 focus-visible:border-brand-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/30 disabled:cursor-not-allowed disabled:opacity-50"
-      >
-        <span className="flex min-w-0 flex-1 items-center gap-2 truncate">
-          {selected ? (
-            <>
-              {selected.leading}
-              <span className="truncate">{selected.label}</span>
-              {selected.trailing}
-            </>
-          ) : (
-            <span className="text-slate-400">{placeholder}</span>
-          )}
-        </span>
-        <ChevronsUpDown className="size-4 shrink-0 text-slate-400" />
-      </button>
+    <Tooltip content={tooltip ?? placeholder} className={cn('w-full', className)}>
+      <div className="relative w-full">
+        <button
+          ref={triggerRef}
+          type="button"
+          id={id}
+          disabled={disabled}
+          onClick={() => (open ? setOpen(false) : openMenu())}
+          aria-label={ariaLabel}
+          aria-haspopup="listbox"
+          aria-expanded={open}
+          className="flex h-10 w-full items-center gap-2 rounded-lg border border-slate-300 bg-white pl-3 pr-2.5 text-left text-sm text-slate-900 shadow-xs transition-colors hover:border-slate-400 focus-visible:border-brand-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/30 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          <span className="flex min-w-0 flex-1 items-center gap-2 truncate">
+            {selected ? (
+              <>
+                {selected.leading}
+                <span className="truncate">{selected.label}</span>
+                {selected.trailing}
+              </>
+            ) : (
+              <span className="text-slate-400">{placeholder}</span>
+            )}
+          </span>
+          <ChevronsUpDown className="size-4 shrink-0 text-slate-400" />
+        </button>
 
-      {open &&
-        coords &&
-        createPortal(
-          <div
-            ref={panelRef}
-            style={{
-              position: 'fixed',
-              left: coords.left,
-              width: coords.width,
-              ...(coords.top != null ? { top: coords.top } : { bottom: coords.bottom }),
-            }}
-            className="z-[60] overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg ring-1 ring-slate-900/5 animate-scale-in"
-          >
-            <div className="flex items-center gap-2 border-b border-slate-100 px-3">
-              <Search className="size-4 shrink-0 text-slate-400" />
-              <input
-                ref={inputRef}
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                onKeyDown={onKeyDown}
-                placeholder={searchPlaceholder}
-                className="h-10 w-full bg-transparent text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none"
-              />
-            </div>
-            <ul ref={listRef} role="listbox" className="max-h-64 overflow-auto p-1">
-              {filtered.length === 0 && (
-                <li className="px-3 py-6 text-center text-sm text-slate-400">{emptyText}</li>
-              )}
-              {filtered.map((it, idx) => {
-                const isSelected = it.value === value;
-                const isActive = idx === active;
-                return (
-                  <li
-                    key={it.value}
-                    role="option"
-                    aria-selected={isSelected}
-                    data-active={isActive}
-                    onMouseEnter={() => setActive(idx)}
-                    onClick={() => choose(it.value)}
-                    className={cn(
-                      'flex cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm',
-                      isActive ? 'bg-brand-50 text-brand-900' : 'text-slate-700',
-                    )}
-                  >
-                    {it.leading}
-                    <span className="flex-1 truncate">{it.label}</span>
-                    {it.trailing}
-                    {isSelected && <Check className="size-4 shrink-0 text-brand-600" />}
-                  </li>
-                );
-              })}
-            </ul>
-          </div>,
-          document.body,
-        )}
-    </div>
+        {open &&
+          coords &&
+          createPortal(
+            <div
+              ref={panelRef}
+              style={{
+                position: 'fixed',
+                left: coords.left,
+                width: coords.width,
+                ...(coords.top != null ? { top: coords.top } : { bottom: coords.bottom }),
+              }}
+              className="z-[60] overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg ring-1 ring-slate-900/5 animate-scale-in"
+            >
+              <div className="flex items-center gap-2 border-b border-slate-100 px-3">
+                <Search className="size-4 shrink-0 text-slate-400" />
+                <input
+                  ref={inputRef}
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  onKeyDown={onKeyDown}
+                  placeholder={searchPlaceholder}
+                  className="h-10 w-full bg-transparent text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none"
+                />
+              </div>
+              <ul ref={listRef} role="listbox" className="max-h-64 overflow-auto p-1">
+                {filtered.length === 0 && (
+                  <li className="px-3 py-6 text-center text-sm text-slate-400">{emptyText}</li>
+                )}
+                {filtered.map((it, idx) => {
+                  const isSelected = it.value === value;
+                  const isActive = idx === active;
+                  return (
+                    <li
+                      key={it.value}
+                      role="option"
+                      aria-selected={isSelected}
+                      data-active={isActive}
+                      onMouseEnter={() => setActive(idx)}
+                      onClick={() => choose(it.value)}
+                      className={cn(
+                        'flex cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm',
+                        isActive ? 'bg-brand-50 text-brand-900' : 'text-slate-700',
+                      )}
+                    >
+                      {it.leading}
+                      <span className="flex-1 truncate">{it.label}</span>
+                      {it.trailing}
+                      {isSelected && <Check className="size-4 shrink-0 text-brand-600" />}
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>,
+            document.body,
+          )}
+      </div>
+    </Tooltip>
   );
 }
