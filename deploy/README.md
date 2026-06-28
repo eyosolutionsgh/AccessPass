@@ -6,15 +6,15 @@ self-hosted on one box — no managed cloud services.
 
 ## Stack
 
-| Service        | Image                     | Exposed        | Purpose                                   |
-| -------------- | ------------------------- | -------------- | ----------------------------------------- |
-| `caddy`        | caddy:2                   | 80, 443        | Reverse proxy + automatic TLS             |
-| `web`          | built (`web.Dockerfile`)  | internal       | React/Vite SPA served by nginx            |
-| `server`       | built (`server.Dockerfile`)| internal      | Express + tRPC + better-auth + BullMQ     |
-| `postgres`     | pgvector/pgvector:pg16    | internal       | Primary database                          |
-| `redis`        | redis:7-alpine            | internal       | Cache, rate-limit store, BullMQ queue     |
-| `minio`        | minio/minio               | internal       | S3-compatible object storage (documents)  |
-| `mailpit`      | axllent/mailpit           | internal       | Outbound-mail sink (swap for real SMTP)   |
+| Service    | Image                       | Exposed  | Purpose                                  |
+| ---------- | --------------------------- | -------- | ---------------------------------------- |
+| `caddy`    | caddy:2                     | 80, 443  | Reverse proxy + automatic TLS            |
+| `web`      | built (`web.Dockerfile`)    | internal | React/Vite SPA served by nginx           |
+| `server`   | built (`server.Dockerfile`) | internal | Express + tRPC + better-auth + BullMQ    |
+| `postgres` | pgvector/pgvector:pg16      | internal | Primary database                         |
+| `redis`    | redis:7-alpine              | internal | Cache, rate-limit store, BullMQ queue    |
+| `minio`    | minio/minio                 | internal | S3-compatible object storage (documents) |
+| `mailpit`  | axllent/mailpit             | internal | Outbound-mail sink (swap for real SMTP)  |
 
 Two hostnames, both pointed at this server:
 
@@ -100,8 +100,14 @@ real, set in `deploy/.env` and recreate the `server`:
 
 ```
 SMTP_HOST=mail.3dt.com.gh
-SMTP_PORT=465
-SMTP_SECURE=true
+SMTP_PORT=587          # submission port + STARTTLS — port 465 is firewall-blocked outbound here
+SMTP_SECURE=false
 SMTP_USER=vms@3dt.com.gh
 SMTP_PASS=<relay-password>
 ```
+
+> **Use port 587, not 465.** Hetzner blocks outbound implicit-TLS (465); on 587 nodemailer starts
+> plaintext and upgrades via STARTTLS (the server forces it whenever `SMTP_USER` is set).
+>
+> **Don't test with `@mailinator.com`.** This relay's IP is on Mailinator's blocklist, so those
+> messages are accepted by the relay (`250 OK`) but never delivered. Verify with a real mailbox.

@@ -26,8 +26,8 @@ export type PasswordSetupEmail = {
   orgName: string;
 };
 
-/** Render + send the "set your password" email. Errors are logged, not thrown (better-auth
- * dispatches this in the background), so a flaky relay never breaks user creation. */
+/** Render + send the "set your password" email. Errors are logged and rethrown so admins get
+ * honest resend/invite feedback instead of a false success when SMTP is unreachable. */
 export async function sendPasswordSetupEmail(input: PasswordSetupEmail): Promise<void> {
   const greeting = input.name?.trim() ? `Hi ${input.name.trim()},` : 'Hello,';
   const subject = `Set your ${input.orgName} password`;
@@ -101,5 +101,6 @@ export async function sendPasswordSetupEmail(input: PasswordSetupEmail): Promise
     });
   } catch (err) {
     logger.error({ err, to: input.to }, 'failed to send password-setup email');
+    throw err;
   }
 }
