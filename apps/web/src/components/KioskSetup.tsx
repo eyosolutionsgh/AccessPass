@@ -1,158 +1,114 @@
-import { type ReactNode, useState } from 'react';
-import {
-  CREDENTIAL_MODE_LABELS,
-  DEVICE_TYPE_LABELS,
-  PRINTER_TARGET_LABELS,
-  SCANNER_SOURCE_LABELS,
-  credentialModeSchema,
-  deviceTypeSchema,
-  printerTargetSchema,
-  scannerSourceSchema,
-  type DeviceProfile,
-} from '@vms/shared';
-import {
-  getLocalDeviceId,
-  getLocalProfileOverride,
-  setLocalDeviceId,
-  setLocalProfileOverride,
-} from '../lib/deviceProfile.ts';
+import { type FormEvent, useState } from 'react';
+import { CheckCircle2, KeyRound, RefreshCw } from 'lucide-react';
+import { toast } from 'sonner';
+import { getKiosk } from '../lib/kiosk.ts';
+import { getLocalDeviceId, setLocalDeviceId } from '../lib/deviceProfile.ts';
+import { trpc } from '../lib/trpc.ts';
 import { CameraSetup } from './CameraSetup.tsx';
 import { Button } from './ui/button.tsx';
 import { Input } from './ui/input.tsx';
-import { Select } from './ui/select.tsx';
 
 /**
- * Kiosk setup (superset of Camera setup) — sets this device's identity (`deviceId`, which keys its
- * server-side checkpoint/profile) plus a local profile override (device type, scanner source,
- * credential mode, printer, NFC) and the camera. Persisted per kiosk in localStorage.
+ * Kiosk provisioning — the ONLY device config done on the tablet itself. A device's profile (scanner,
+ * printer, credential mode, NFC) and its point assignment are managed by an admin server-side; here a
+ * tablet is bound to its `deviceId` by redeeming a one-time pairing code an admin issued (Admin →
+ * Devices → Pair), plus the camera (which can only be chosen on-device). After pairing, the assigned
+ * staff member just signs in to operate the post.
  */
 export function KioskSetup({ onClose }: { onClose: () => void }) {
   const [showCamera, setShowCamera] = useState(false);
-  const ov = getLocalProfileOverride() ?? {};
-  const [deviceId, setDeviceId] = useState(getLocalDeviceId() ?? '');
-  const [deviceType, setDeviceType] = useState<DeviceProfile['deviceType']>(ov.deviceType ?? 'generic');
-  const [scannerSource, setScannerSource] = useState<DeviceProfile['scannerSource']>(
-    ov.scannerSource ?? 'camera',
-  );
-  const [credentialMode, setCredentialMode] = useState<DeviceProfile['credentialMode']>(
-    ov.credentialMode ?? 'qr',
-  );
-  const [printerTarget, setPrinterTarget] = useState<DeviceProfile['printerTarget']>(
-    ov.printerTarget ?? 'off',
-  );
-  const [nfcEnabled, setNfcEnabled] = useState<boolean>(ov.nfcEnabled ?? false);
-  const [saved, setSaved] = useState(false);
+  const [code, setCode] = useState('');
+  // Native kiosk shells provide the deviceId from their app config — no pairing needed there.
+  const nativeDeviceId = getKiosk()?.config.deviceId;
+  const [boundId, setBoundId] = useState(getLocalDeviceId() ?? '');
+
+  const pair = trpc.checkin.pairDevice.useMutation({
+    onSuccess: (res) => {
+      setLocalDeviceId(res.deviceId);
+      setBoundId(res.deviceId);
+      setCode('');
+      toast.success(`Paired to ${res.label ?? res.deviceId}`);
+    },
+    onError: (e) => toast.error(e.message),
+  });
 
   if (showCamera) return <CameraSetup onClose={() => setShowCamera(false)} />;
 
-  function save() {
-    setLocalDeviceId(deviceId.trim() || undefined);
-    setLocalProfileOverride({ deviceType, scannerSource, credentialMode, printerTarget, nfcEnabled });
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+  function onSubmit(e: FormEvent) {
+    e.preventDefault();
+    if (code.trim().length < 4) return toast.error('Enter the pairing code from the admin.');
+    pair.mutate({ code });
   }
 
   return (
-    <div className="text-left">
-      <h1 className="text-center text-2xl font-bold tracking-tight text-slate-900">Kiosk setup</h1>
-      <p className="mt-1.5 text-center text-sm text-slate-600">Configure this device / checkpoint.</p>
+    <div className="text-center">
+      <div className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-slate-100 text-slate-500">
+        <KeyRound className="size-7" />
+      </div>
+      <h1 className="mt-4 text-2xl font-bold tracking-tight text-slate-900">Kiosk setup</h1>
 
-      <label className="mt-5 block text-xs font-semibold uppercase tracking-wide text-slate-500">
-        Device / checkpoint ID
-      </label>
-      <Input
-        value={deviceId}
-        onChange={(e) => setDeviceId(e.target.value)}
-        placeholder="e.g. main-entrance"
-        className="mt-1.5"
-      />
-      <p className="mt-1 text-xs text-slate-400">
-        Matches a checkpoint registered in Admin → Checkpoints (loads its profile).
-      </p>
+      {nativeDeviceId ? (
+        <p className="mt-2 text-sm text-slate-600">
+          This device is provisioned by its kiosk app (
+          <span className="font-medium">{nativeDeviceId}</span>
+          ). No pairing needed — staff can sign in to operate it.
+        </p>
+      ) : (
+        <>
+          {boundId && (
+            <div className="mt-4 flex items-center justify-center gap-2 rounded-xl bg-emerald-50 px-3 py-2 text-sm text-emerald-700 ring-1 ring-emerald-200">
+              <CheckCircle2 className="size-4 shrink-0" /> Paired to{' '}
+              <span className="font-semibold">{boundId}</span>
+            </div>
+          )}
+          <p className="mt-2 text-sm text-slate-600">
+            Enter the pairing code from <span className="font-medium">Admin → Devices → Pair</span>{' '}
+            to
+            {boundId ? ' re-pair' : ' link'} this tablet to its checkpoint.
+          </p>
 
-      <Button variant="outline" className="mt-4 w-full" onClick={() => setShowCamera(true)}>
+          <form onSubmit={onSubmit} className="mt-5 space-y-3 text-left">
+            <Input
+              value={code}
+              onChange={(e) => setCode(e.target.value)}
+              placeholder="Pairing code"
+              autoFocus
+              autoCapitalize="characters"
+              autoComplete="off"
+              autoCorrect="off"
+              spellCheck={false}
+              className="h-14 text-center text-2xl font-bold uppercase tracking-[0.25em]"
+            />
+            <Button
+              type="submit"
+              size="lg"
+              className="h-14 w-full text-base"
+              loading={pair.isPending}
+            >
+              {boundId ? (
+                <>
+                  <RefreshCw className="size-4" /> Re-pair device
+                </>
+              ) : (
+                'Pair device'
+              )}
+            </Button>
+          </form>
+        </>
+      )}
+
+      <Button
+        variant="outline"
+        size="lg"
+        className="mt-3 h-12 w-full"
+        onClick={() => setShowCamera(true)}
+      >
         Configure camera…
       </Button>
 
-      <div className="mt-4 grid grid-cols-2 gap-3">
-        <Field label="Device type">
-          <Select
-            value={deviceType}
-            onChange={(e) => setDeviceType(e.target.value as DeviceProfile['deviceType'])}
-          >
-            {deviceTypeSchema.options.map((o) => (
-              <option key={o} value={o}>
-                {DEVICE_TYPE_LABELS[o]}
-              </option>
-            ))}
-          </Select>
-        </Field>
-        <Field label="Scanner">
-          <Select
-            value={scannerSource}
-            onChange={(e) => setScannerSource(e.target.value as DeviceProfile['scannerSource'])}
-          >
-            {scannerSourceSchema.options.map((o) => (
-              <option key={o} value={o}>
-                {SCANNER_SOURCE_LABELS[o]}
-              </option>
-            ))}
-          </Select>
-        </Field>
-        <Field label="Credential">
-          <Select
-            value={credentialMode}
-            onChange={(e) => setCredentialMode(e.target.value as DeviceProfile['credentialMode'])}
-          >
-            {credentialModeSchema.options.map((o) => (
-              <option key={o} value={o}>
-                {CREDENTIAL_MODE_LABELS[o]}
-              </option>
-            ))}
-          </Select>
-        </Field>
-        <Field label="Printer">
-          <Select
-            value={printerTarget}
-            onChange={(e) => setPrinterTarget(e.target.value as DeviceProfile['printerTarget'])}
-          >
-            {printerTargetSchema.options.map((o) => (
-              <option key={o} value={o}>
-                {PRINTER_TARGET_LABELS[o]}
-              </option>
-            ))}
-          </Select>
-        </Field>
-      </div>
-      <label className="mt-3 flex items-center gap-2 text-sm text-slate-700">
-        <input
-          type="checkbox"
-          checked={nfcEnabled}
-          onChange={(e) => setNfcEnabled(e.target.checked)}
-          className="size-4 rounded border-slate-300"
-        />
-        Enable NFC (tap card / tag)
-      </label>
-
-      <div className="mt-6 flex gap-3">
-        <Button variant="outline" size="lg" className="flex-1" onClick={onClose}>
-          Close
-        </Button>
-        <Button size="lg" className="flex-1" onClick={save}>
-          {saved ? 'Saved ✓' : 'Save'}
-        </Button>
-      </div>
-    </div>
-  );
-}
-
-function Field({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <div>
-      <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
-        {label}
-      </label>
-      {children}
+      <Button variant="ghost" size="lg" className="mt-3 w-full" onClick={onClose}>
+        Close
+      </Button>
     </div>
   );
 }

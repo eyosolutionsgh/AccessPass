@@ -18,7 +18,7 @@ import {
   UsersRound,
   X,
 } from 'lucide-react';
-import { type ReactNode, useEffect, useState } from 'react';
+import { type ReactNode, useEffect, useRef, useState } from 'react';
 import { Link, useLocation } from 'wouter';
 import { anyRoleHasPermission, type PermissionRequest } from '@vms/shared';
 import { signOut } from '../lib/auth.ts';
@@ -35,65 +35,92 @@ type NavLeaf = {
   perm: PermissionRequest;
 };
 type NavItem = NavLeaf & { children?: NavLeaf[] };
+/** A labelled group of nav items rendered under an uppercase section header. */
+type NavSection = { label: string; items: NavItem[] };
 
-const NAV: NavItem[] = [
+const NAV: NavSection[] = [
   {
-    href: '/appointments',
-    label: 'Appointments',
-    icon: CalendarCheck,
-    perm: { appointment: ['read'] },
-  },
-  {
-    href: '/reception',
-    label: 'Reception',
-    icon: DoorOpen,
-    perm: { dashboard: ['reception'] },
-  },
-  { href: '/security', label: 'Security', icon: ShieldCheck, perm: { dashboard: ['security'] } },
-  { href: '/reports', label: 'Reports', icon: BarChart3, perm: { report: ['read'] } },
-  { href: '/audit', label: 'Audit log', icon: ScrollText, perm: { audit: ['read'] } },
-  {
-    href: '/admin',
-    label: 'Administration',
-    icon: Sliders,
-    perm: { config: ['manage'] },
-    children: [
+    label: 'Workspace',
+    items: [
       {
-        href: '/admin/settings',
-        label: 'System settings',
+        href: '/appointments',
+        label: 'Appointments',
+        icon: CalendarCheck,
+        perm: { appointment: ['read'] },
+      },
+      {
+        href: '/reception',
+        label: 'Reception',
+        icon: DoorOpen,
+        perm: { dashboard: ['reception'] },
+      },
+      {
+        href: '/security',
+        label: 'Security',
+        icon: ShieldCheck,
+        perm: { dashboard: ['security'] },
+      },
+    ],
+  },
+  {
+    label: 'Insights',
+    items: [
+      { href: '/reports', label: 'Reports', icon: BarChart3, perm: { report: ['read'] } },
+      { href: '/audit', label: 'Audit log', icon: ScrollText, perm: { audit: ['read'] } },
+    ],
+  },
+  {
+    label: 'System',
+    items: [
+      {
+        href: '/admin',
+        label: 'Administration',
         icon: Sliders,
         perm: { config: ['manage'] },
-      },
-      {
-        href: '/admin/users',
-        label: 'User management',
-        icon: UsersRound,
-        perm: { user: ['read'] },
-      },
-      {
-        href: '/admin/checkpoints',
-        label: 'Checkpoints',
-        icon: ScanLine,
-        perm: { config: ['manage'] },
-      },
-      {
-        href: '/admin/facilities',
-        label: 'Facilities',
-        icon: Building2,
-        perm: { config: ['manage'] },
-      },
-      {
-        href: '/admin/departments',
-        label: 'Departments',
-        icon: Network,
-        perm: { config: ['manage'] },
-      },
-      { href: '/admin/offices', label: 'Offices', icon: DoorClosed, perm: { config: ['manage'] } },
-      {
-        href: '/admin/categories',
-        label: 'Visitor categories',
-        icon: Tags,
-        perm: { config: ['manage'] },
+        children: [
+          {
+            href: '/admin/settings',
+            label: 'System settings',
+            icon: Sliders,
+            perm: { config: ['manage'] },
+          },
+          {
+            href: '/admin/users',
+            label: 'User management',
+            icon: UsersRound,
+            perm: { user: ['read'] },
+          },
+          {
+            href: '/admin/checkpoints',
+            label: 'Checkpoints',
+            icon: ScanLine,
+            perm: { config: ['manage'] },
+          },
+          {
+            href: '/admin/facilities',
+            label: 'Facilities',
+            icon: Building2,
+            perm: { config: ['manage'] },
+          },
+          {
+            href: '/admin/departments',
+            label: 'Departments',
+            icon: Network,
+            perm: { config: ['manage'] },
+          },
+          {
+            href: '/admin/offices',
+            label: 'Offices',
+            icon: DoorClosed,
+            perm: { config: ['manage'] },
+          },
+          {
+            href: '/admin/categories',
+            label: 'Visitor categories',
+            icon: Tags,
+            perm: { config: ['manage'] },
+          },
+        ],
       },
     ],
   },
@@ -117,21 +144,18 @@ function NavLink({
       href={item.href}
       onClick={onNavigate}
       className={cn(
-        'group relative flex items-center gap-3 rounded-lg py-2 text-sm transition-colors',
+        'group flex items-center gap-3 rounded-lg py-2.5 text-sm transition-colors',
         nested ? 'pl-11 pr-3' : 'px-3',
         active
-          ? 'bg-white/[0.07] font-medium text-white'
-          : 'text-slate-400 hover:bg-white/[0.04] hover:text-slate-200',
+          ? 'bg-brand-500/15 font-semibold text-brand-100'
+          : 'text-slate-400 hover:bg-white/[0.05] hover:text-slate-100',
       )}
     >
-      {active && (
-        <span className="absolute left-0 top-1/2 h-5 w-0.5 -translate-y-1/2 rounded-full bg-brand-400" />
-      )}
       <Icon
         className={cn(
           'shrink-0',
           nested ? 'size-4' : 'size-[18px]',
-          active ? 'text-white' : 'text-slate-500 group-hover:text-slate-300',
+          active ? 'text-brand-300' : 'text-slate-500 group-hover:text-slate-300',
         )}
       />
       {item.label}
@@ -164,10 +188,10 @@ function NavGroup({
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
         className={cn(
-          'group flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors',
+          'group flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors',
           sectionActive
-            ? 'font-medium text-white'
-            : 'text-slate-400 hover:bg-white/[0.04] hover:text-slate-200',
+            ? 'font-semibold text-white'
+            : 'text-slate-400 hover:bg-white/[0.05] hover:text-slate-100',
         )}
       >
         <Icon
@@ -206,11 +230,12 @@ function prettyRole(role?: string | null) {
   return role.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
+/** Brand lockup: logo stacked above the institution name, as the sidebar header. */
 function Brand() {
   const orgName = useOrgName();
   return (
     <Link href="/appointments" className="flex flex-col items-center gap-2.5 text-center">
-      <Logo className="size-16 rounded-2xl" />
+      <Logo className="size-14 rounded-2xl" />
       <span className="text-[15px] font-semibold leading-snug tracking-tight text-white">
         {orgName}
       </span>
@@ -218,8 +243,95 @@ function Brand() {
   );
 }
 
+/** Profile card with a chevron dropdown (sign out) — mirrors the reference layout. */
+function UserCard({
+  name,
+  role,
+  onNavigate,
+}: {
+  name: string;
+  role?: string | null;
+  onNavigate?: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onClick = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false);
+    document.addEventListener('mousedown', onClick);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onClick);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [open]);
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        className={cn(
+          'flex w-full items-center gap-2.5 rounded-xl border border-white/10 bg-white/[0.03] p-2 text-left transition-colors hover:bg-white/[0.06]',
+          open && 'bg-white/[0.06]',
+        )}
+      >
+        <Avatar name={name} className="size-9 rounded-lg" />
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-semibold text-white">{name}</p>
+          <p className="truncate text-xs text-slate-400">{prettyRole(role)}</p>
+        </div>
+        <ChevronDown
+          className={cn(
+            'size-4 shrink-0 text-slate-500 transition-transform',
+            open && 'rotate-180',
+          )}
+        />
+      </button>
+
+      {open && (
+        <div
+          role="menu"
+          className="absolute inset-x-0 top-full z-10 mt-1.5 animate-scale-in rounded-xl border border-white/10 bg-slate-900 p-1 shadow-lg"
+        >
+          <a
+            href="/help"
+            target="_blank"
+            rel="noopener noreferrer"
+            role="menuitem"
+            onClick={() => {
+              setOpen(false);
+              onNavigate?.();
+            }}
+            className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-slate-300 transition-colors hover:bg-white/10 hover:text-white"
+          >
+            <HelpCircle className="size-4" /> Help &amp; docs
+          </a>
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => {
+              setOpen(false);
+              signOut();
+            }}
+            className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm font-medium text-slate-300 transition-colors hover:bg-white/10 hover:text-white"
+          >
+            <LogOut className="size-4" /> Sign out
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function SidebarContent({
-  items,
+  sections,
   location,
   name,
   email,
@@ -227,7 +339,7 @@ function SidebarContent({
   canCreate,
   onNavigate,
 }: {
-  items: NavItem[];
+  sections: NavSection[];
   location: string;
   name?: string | null;
   email?: string;
@@ -238,59 +350,43 @@ function SidebarContent({
   const displayName = name?.trim() || email?.split('@')[0] || 'Staff';
   return (
     <div className="flex h-full flex-col px-3 py-4">
-      <div className="px-2 pb-5 pt-1">
+      <div className="border-b border-white/10 px-2 pb-4 pt-1">
         <Brand />
       </div>
 
+      <div className="pt-4">
+        <UserCard name={displayName} role={role} onNavigate={onNavigate} />
+      </div>
+
       {canCreate && (
-        <Link href="/appointments/new" onClick={onNavigate} className="mb-4">
+        <Link href="/appointments/new" onClick={onNavigate} className="mt-4">
           <Button className="w-full justify-center">
             <Plus className="size-4" /> New appointment
           </Button>
         </Link>
       )}
 
-      <nav className="flex flex-1 flex-col gap-0.5">
-        {items.map((item) =>
-          item.children && item.children.length > 0 ? (
-            <NavGroup key={item.href} item={item} location={location} onNavigate={onNavigate} />
-          ) : (
-            <NavLink
-              key={item.href}
-              item={item}
-              active={location.startsWith(item.href)}
-              onNavigate={onNavigate}
-            />
-          ),
-        )}
+      <nav className="mt-4 flex flex-1 flex-col gap-0.5 overflow-y-auto">
+        {sections.map((section) => (
+          <div key={section.label} className="mb-1">
+            <p className="px-3 pb-1 pt-3 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+              {section.label}
+            </p>
+            {section.items.map((item) =>
+              item.children && item.children.length > 0 ? (
+                <NavGroup key={item.href} item={item} location={location} onNavigate={onNavigate} />
+              ) : (
+                <NavLink
+                  key={item.href}
+                  item={item}
+                  active={location.startsWith(item.href)}
+                  onNavigate={onNavigate}
+                />
+              ),
+            )}
+          </div>
+        ))}
       </nav>
-
-      {/* Help & docs — opens the user manual in a new tab, just above the user. */}
-      <a
-        href="/help"
-        target="_blank"
-        rel="noopener noreferrer"
-        onClick={onNavigate}
-        className="mt-2 flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-slate-400 transition-colors hover:bg-white/10 hover:text-white"
-      >
-        <HelpCircle className="size-[18px]" /> Help &amp; docs
-      </a>
-
-      <div className="mt-2 flex items-center gap-2.5 border-t border-white/10 px-1 pt-3">
-        <Avatar name={displayName} className="size-8 rounded-lg" />
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-medium text-white">{displayName}</p>
-          <p className="truncate text-xs text-slate-500">{prettyRole(role)}</p>
-        </div>
-        <button
-          type="button"
-          onClick={() => signOut()}
-          title="Sign out"
-          className="flex size-8 shrink-0 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-white/10 hover:text-white"
-        >
-          <LogOut className="size-4" />
-        </button>
-      </div>
     </div>
   );
 }
@@ -309,14 +405,20 @@ export function Layout({
   const [location] = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
   const orgName = useOrgName();
-  const items = NAV.filter((item) => anyRoleHasPermission(role ?? null, item.perm)).map((item) =>
-    item.children
-      ? {
-          ...item,
-          children: item.children.filter((c) => anyRoleHasPermission(role ?? null, c.perm)),
-        }
-      : item,
-  );
+  // Filter each section's items (and group children) by permission, then drop empty sections.
+  const sections = NAV.map((section) => ({
+    label: section.label,
+    items: section.items
+      .filter((item) => anyRoleHasPermission(role ?? null, item.perm))
+      .map((item) =>
+        item.children
+          ? {
+              ...item,
+              children: item.children.filter((c) => anyRoleHasPermission(role ?? null, c.perm)),
+            }
+          : item,
+      ),
+  })).filter((section) => section.items.length > 0);
   const canCreate = anyRoleHasPermission(role ?? null, { appointment: ['create'] });
 
   // Close the mobile drawer on route change.
@@ -329,9 +431,9 @@ export function Layout({
   return (
     <div className="min-h-screen bg-slate-100">
       {/* Desktop sidebar */}
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-60 bg-slate-950 lg:block">
+      <aside className="fixed inset-y-0 left-0 z-30 hidden w-60 bg-sidebar lg:block">
         <SidebarContent
-          items={items}
+          sections={sections}
           location={location}
           name={name}
           email={email}
@@ -347,7 +449,7 @@ export function Layout({
             className="absolute inset-0 bg-slate-950/50 backdrop-blur-sm"
             onClick={() => setMobileOpen(false)}
           />
-          <aside className="absolute inset-y-0 left-0 w-64 bg-slate-950 shadow-2xl">
+          <aside className="absolute inset-y-0 left-0 w-64 bg-sidebar shadow-2xl">
             <button
               type="button"
               onClick={() => setMobileOpen(false)}
@@ -356,7 +458,7 @@ export function Layout({
               <X className="size-5" />
             </button>
             <SidebarContent
-              items={items}
+              sections={sections}
               location={location}
               name={name}
               email={email}

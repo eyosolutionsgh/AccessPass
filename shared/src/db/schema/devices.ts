@@ -39,6 +39,10 @@ export const deviceProfile = pgTable('device_profile', {
   profile: jsonb().$type<Record<string, unknown>>().notNull(),
   /** Soft-delete flag — a deactivated device drops out of the active admin list. */
   isActive: boolean().notNull().default(true),
+  /** HMAC of the current one-time pairing code an admin issued to bind a tablet (null once redeemed). */
+  pairingCodeHash: text(),
+  /** When the active pairing code expires; redeeming after this is rejected. */
+  pairingExpiresAt: timestamp({ withTimezone: true }),
   ...timestamps,
 });
 

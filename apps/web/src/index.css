@@ -30,6 +30,10 @@
   --color-accent-500: oklch(0.7 0.135 196);
   --color-accent-600: oklch(0.62 0.12 197);
 
+  /* Sidebar surface — neutral near-black by default; re-tinted to the brand hue at runtime when an
+     administrator sets a brand colour (see lib/theme.ts). Generates the `bg-sidebar` utility. */
+  --color-sidebar: var(--color-slate-950);
+
   /* Elevation — soft, layered shadows for a premium feel. */
   --shadow-xs: 0 1px 2px 0 oklch(0.2 0.04 270 / 0.05);
   --shadow-sm: 0 1px 3px 0 oklch(0.2 0.04 270 / 0.07), 0 1px 2px -1px oklch(0.2 0.04 270 / 0.06);

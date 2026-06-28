@@ -151,10 +151,7 @@ export function Checkpoint() {
             </Suspense>
           ) : (
             <div className="text-center">
-              <div className="mx-auto flex size-16 items-center justify-center rounded-2xl bg-gradient-to-br from-slate-700 to-slate-900 text-white shadow-lg">
-                <MapPin className="size-8" />
-              </div>
-              <h1 className="mt-4 text-3xl font-bold tracking-tight text-slate-900">Checkpoint</h1>
+              <h1 className="text-3xl font-bold tracking-tight text-slate-900">Checkpoint</h1>
               <p className="mt-1.5 text-slate-600">
                 Scan or enter the visitor&apos;s code to pass this checkpoint.
               </p>
@@ -182,6 +179,10 @@ export function Checkpoint() {
                   onChange={(e) => setCode(e.target.value)}
                   placeholder="e.g. VX7K9Q"
                   autoFocus
+                  autoCapitalize="characters"
+                  autoComplete="off"
+                  autoCorrect="off"
+                  spellCheck={false}
                   className="h-16 text-center text-3xl font-bold uppercase tracking-[0.3em]"
                 />
                 <Button

@@ -9,11 +9,13 @@ import {
   departmentCreateSchema,
   departmentUpdateSchema,
   deviceUpsertSchema,
+  devicePairSchema,
   directoryImportSchema,
   officeCreateSchema,
   officeUpdateSchema,
   facilityCreateSchema,
   facilityUpdateSchema,
+  logoUploadSchema,
   pointAssignSchema,
   pointCreateSchema,
   pointUpdateSchema,
@@ -106,6 +108,14 @@ export const adminRouter = router({
     .input(settingsUpdateSchema)
     .mutation(({ input, ctx }) => admin.updateSettings(input, actorFrom(ctx.user))),
 
+  // ── Institution logo (overrides the bundled default everywhere it's shown) ──
+  logoSet: authorized({ config: ['manage'] })
+    .input(logoUploadSchema)
+    .mutation(({ input, ctx }) => admin.setLogo(input.dataUrl, actorFrom(ctx.user))),
+  logoClear: authorized({ config: ['manage'] }).mutation(({ ctx }) =>
+    admin.clearLogo(actorFrom(ctx.user)),
+  ),
+
   // ── Points (operating locations) + staffing ──
   pointList: authorized({ config: ['read'] }).query(() => points.listPoints()),
   pointCreate: authorized({ config: ['manage'] })
@@ -131,6 +141,10 @@ export const adminRouter = router({
   deviceUpsert: authorized({ config: ['manage'] })
     .input(deviceUpsertSchema)
     .mutation(({ input, ctx }) => admin.upsertDeviceProfile(input, actorFrom(ctx.user))),
+  /** Mint a one-time code an operator types on the tablet to bind it to this device. */
+  devicePair: authorized({ config: ['manage'] })
+    .input(devicePairSchema)
+    .mutation(({ input, ctx }) => points.createDevicePairing(input.deviceId, actorFrom(ctx.user))),
   checkpointSetActive: authorized({ config: ['manage'] })
     .input(adminSetActiveSchema)
     .mutation(({ input, ctx }) => admin.setCheckpointActive(input, actorFrom(ctx.user))),

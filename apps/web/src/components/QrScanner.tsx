@@ -42,7 +42,9 @@ export function QrScanner({
         if (done) c.stop();
       })
       .catch(() =>
-        setError('Camera unavailable — grant camera access (HTTPS required) or enter your code below.'),
+        setError(
+          'Camera unavailable — grant camera access (HTTPS required) or enter your code below.',
+        ),
       );
     return () => {
       done = true;
@@ -53,15 +55,22 @@ export function QrScanner({
   return (
     <div className="text-center">
       <h1 className="text-2xl font-bold tracking-tight text-slate-900">Scan your QR code</h1>
-      <div className="relative mx-auto mt-6 aspect-square w-full max-w-xs overflow-hidden rounded-2xl bg-slate-900 ring-1 ring-slate-200">
+      <div className="relative mx-auto mt-6 aspect-square w-full max-w-sm overflow-hidden rounded-3xl bg-slate-900 ring-1 ring-slate-200">
         <video ref={videoRef} className="size-full object-cover" muted playsInline />
-        <div className="pointer-events-none absolute inset-6 rounded-xl border-2 border-white/70" />
+        {/* Viewfinder: dimmed surround + bright corner brackets so visitors know where to aim. */}
+        <div className="pointer-events-none absolute inset-0">
+          <div className="absolute inset-8 rounded-2xl shadow-[0_0_0_100vmax_rgba(15,23,42,0.45)]" />
+          <div className="absolute left-8 top-8 size-9 rounded-tl-2xl border-l-4 border-t-4 border-white/90" />
+          <div className="absolute right-8 top-8 size-9 rounded-tr-2xl border-r-4 border-t-4 border-white/90" />
+          <div className="absolute bottom-8 left-8 size-9 rounded-bl-2xl border-b-4 border-l-4 border-white/90" />
+          <div className="absolute bottom-8 right-8 size-9 rounded-br-2xl border-b-4 border-r-4 border-white/90" />
+        </div>
       </div>
-      <p className="mt-4 text-sm text-slate-600">
+      <p className="mt-5 text-base text-slate-600">
         {error ?? 'Hold your invitation QR code up to the camera.'}
       </p>
-      <Button variant="outline" size="lg" className="mt-6" onClick={onCancel}>
-        <X className="size-4" /> Cancel
+      <Button variant="outline" size="lg" className="mt-6 h-14 w-full text-base" onClick={onCancel}>
+        <X className="size-5" /> Cancel
       </Button>
     </div>
   );

@@ -4,6 +4,7 @@ import {
   checkInSubmitSchema,
   checkoutLookupSchema,
   deviceLoginSchema,
+  devicePairRedeemSchema,
   tagIssueSchema,
   tagReturnSchema,
   visitIdSchema,
@@ -21,6 +22,7 @@ import {
   closeDeviceSession,
   openDeviceSession,
   PointAccessError,
+  redeemDevicePairing,
 } from '../../services/points.ts';
 import { issueTag, returnTag, unreturnedTags } from '../../services/tags.ts';
 import { synthesize, isTtsEnabled, isAkanTtsEnabled } from '../../services/ai/tts.ts';
@@ -97,6 +99,11 @@ export const checkinRouter = router({
   deviceProfile: rateLimited(60, 60)
     .input(z.object({ deviceId: z.string().max(120) }))
     .query(({ input }) => getDeviceProfile(input.deviceId)),
+
+  /** Redeem an admin-issued pairing code to bind this tablet to its device id (public, throttled). */
+  pairDevice: rateLimited(20, 60)
+    .input(devicePairRedeemSchema)
+    .mutation(({ input }) => redeemDevicePairing(input.code)),
 
   /**
    * Guard-operated checkpoint scan (staff, e.g. security_guard/security_manager): returns full

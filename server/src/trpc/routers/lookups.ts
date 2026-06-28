@@ -2,7 +2,7 @@ import { and, eq, ilike, or } from 'drizzle-orm';
 import { z } from 'zod';
 import { schema } from '@vms/shared';
 import { db } from '../../db.ts';
-import { getSettings } from '../../services/admin.ts';
+import { getLogoVersion, getSettings } from '../../services/admin.ts';
 import { actorOfficeId, isSecretaryOnly } from '../../services/scope.ts';
 import { protectedProcedure, publicProcedure, router } from '../trpc.ts';
 
@@ -14,7 +14,14 @@ export const lookupsRouter = router({
    */
   publicConfig: publicProcedure.query(async () => {
     const s = await getSettings();
-    return { country: s.country, dateFormat: s.dateFormat, organizationName: s.organizationName };
+    return {
+      country: s.country,
+      dateFormat: s.dateFormat,
+      organizationName: s.organizationName,
+      brandColor: s.brandColor,
+      // Version stamp only — the actual image bytes come from GET /api/v1/branding/logo.
+      logoVersion: await getLogoVersion(),
+    };
   }),
 
   facilities: protectedProcedure.query(() =>
