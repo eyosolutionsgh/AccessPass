@@ -6,6 +6,7 @@ import { db } from '../db.ts';
 import { env } from '../env.ts';
 import { recordAudit } from '../lib/audit.ts';
 import { asyncHandler } from '../lib/http-errors.ts';
+import { getLogo } from '../services/admin.ts';
 import { openapiDocument } from './openapi.ts';
 
 /**
@@ -22,6 +23,31 @@ restRouter.get('/health', (_req, res) => {
 restRouter.get('/openapi.json', (_req, res) => {
   res.json(openapiDocument());
 });
+
+/**
+ * Public institution logo — the uploaded emblem shown on the sign-in, sidebar and kiosk screens.
+ * Open (no API key): it's branding rendered before any visitor signs in. The URL carries a `?v=`
+ * version stamp from `publicConfig`, so the bytes are immutable-cacheable and a new upload busts it.
+ * 404 when none is set; the web app then falls back to the bundled default asset.
+ */
+restRouter.get(
+  '/branding/logo',
+  asyncHandler(async (_req, res) => {
+    const logo = await getLogo();
+    if (!logo) {
+      res.status(404).json({ error: 'no logo set' });
+      return;
+    }
+    res.setHeader('Content-Type', logo.mime);
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    // Allow the <img> to load when the API is on a different subdomain than the web app, and
+    // lock the response down (an SVG opened directly can't run scripts / fetch anything).
+    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+    res.setHeader('Content-Security-Policy', "default-src 'none'; sandbox");
+    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+    res.send(Buffer.from(logo.data, 'base64'));
+  }),
+);
 
 // API-key gate for the data endpoints.
 function apiKeyAuth(req: Request, res: Response, next: NextFunction) {

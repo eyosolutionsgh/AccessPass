@@ -3,9 +3,11 @@
  * staffing sessions. A staff member may only sign a device in at a point they're assigned to;
  * admins (config:manage) bypass as break-glass so initial setup is never locked out.
  */
-import { and, desc, eq, isNull, sql } from 'drizzle-orm';
+import { TRPCError } from '@trpc/server';
+import { and, desc, eq, gt, isNull, sql } from 'drizzle-orm';
 import {
   anyRoleHasPermission,
+  PAIRING_CODE_TTL_MINUTES,
   schema,
   type PointAssignInput,
   type pointCreateSchema,
@@ -15,6 +17,7 @@ import {
 import { type z } from 'zod';
 import { db } from '../db.ts';
 import { recordAudit } from '../lib/audit.ts';
+import { generatePairingCode, hashPairingCode } from '../lib/crypto.ts';
 
 type Actor = { id: string; role?: string | null };
 
@@ -183,6 +186,78 @@ export async function assertDeviceLogin(
     );
   }
   return { pointId: d.pointId, pointName: pt.name };
+}
+
+// ── Device pairing (admin issues a one-time code; a kiosk redeems it to bind its deviceId) ──────
+/** Mint a short-lived one-time pairing code for an already-registered device (config is admin-side). */
+export async function createDevicePairing(deviceId: string, actor: Actor) {
+  const [device] = await db
+    .select({
+      id: schema.deviceProfile.id,
+      label: schema.deviceProfile.label,
+      isActive: schema.deviceProfile.isActive,
+    })
+    .from(schema.deviceProfile)
+    .where(eq(schema.deviceProfile.deviceId, deviceId));
+  if (!device) {
+    throw new TRPCError({ code: 'NOT_FOUND', message: 'Register the device before pairing it.' });
+  }
+  if (!device.isActive) {
+    throw new TRPCError({ code: 'BAD_REQUEST', message: 'This device has been deactivated.' });
+  }
+  const code = generatePairingCode();
+  const expiresAt = new Date(Date.now() + PAIRING_CODE_TTL_MINUTES * 60_000);
+  await db
+    .update(schema.deviceProfile)
+    .set({
+      pairingCodeHash: hashPairingCode(code),
+      pairingExpiresAt: expiresAt,
+      updatedAt: new Date(),
+    })
+    .where(eq(schema.deviceProfile.deviceId, deviceId));
+  await recordAudit(db, {
+    actorId: actor.id,
+    actorRole: actor.role,
+    action: 'device.pairCode',
+    objectType: 'device_profile',
+    objectId: device.id,
+    metadata: { deviceId },
+  });
+  return { code, expiresAt, deviceId, label: device.label };
+}
+
+/**
+ * Redeem a pairing code from a kiosk → returns the deviceId to bind locally. One-time (the code is
+ * cleared on success) and expiry-checked. Public + rate-limited; reveals only the device id/label,
+ * and a bound device still can't operate a post without an assigned staff member signing in.
+ */
+export async function redeemDevicePairing(code: string) {
+  const hash = hashPairingCode(code);
+  const [device] = await db
+    .select({
+      id: schema.deviceProfile.id,
+      deviceId: schema.deviceProfile.deviceId,
+      label: schema.deviceProfile.label,
+    })
+    .from(schema.deviceProfile)
+    .where(
+      and(
+        eq(schema.deviceProfile.pairingCodeHash, hash),
+        gt(schema.deviceProfile.pairingExpiresAt, new Date()),
+        eq(schema.deviceProfile.isActive, true),
+      ),
+    );
+  if (!device) {
+    throw new TRPCError({
+      code: 'NOT_FOUND',
+      message: 'That pairing code is invalid or has expired.',
+    });
+  }
+  await db
+    .update(schema.deviceProfile)
+    .set({ pairingCodeHash: null, pairingExpiresAt: null, updatedAt: new Date() })
+    .where(eq(schema.deviceProfile.id, device.id));
+  return { deviceId: device.deviceId, label: device.label };
 }
 
 /** Open a staffing session for a device, superseding any stale open session on the same device. */

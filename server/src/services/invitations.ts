@@ -10,7 +10,7 @@ import { env } from '../env.ts';
 import { getDateDisplay, getOrganizationName } from './admin.ts';
 import { notifyContact, type ContactNotification } from './notifications/notify.ts';
 import { renderInvitationEmail } from './email/templates/invitation.ts';
-import { COAT_OF_ARMS_CID, coatOfArmsPng } from './email/logo.ts';
+import { getEmailLogo } from './email/brandLogo.ts';
 
 type Actor = { id: string; role?: string | null };
 
@@ -113,9 +113,10 @@ export async function issueInvitation(visitId: string, actor?: Actor): Promise<I
   let emailPart: ContactNotification['email'];
   if (visitor?.email) {
     const qr = await qrPng(checkInUrl);
+    const logo = await getEmailLogo();
     const { subject, html, text } = renderInvitationEmail({
       organizationName,
-      logoCid: COAT_OF_ARMS_CID,
+      logoCid: logo.cid,
       visitorName: visitor.fullName,
       hostName: host?.name ?? 'your host',
       facilityName: facility?.name ?? 'the facility',
@@ -133,7 +134,7 @@ export async function issueInvitation(visitId: string, actor?: Actor): Promise<I
       text,
       attachments: [
         { filename: 'check-in-qr.png', content: qr, cid: 'vms-qr' },
-        { filename: 'logo.png', content: coatOfArmsPng, cid: COAT_OF_ARMS_CID },
+        { filename: logo.filename, content: logo.content, cid: logo.cid },
       ],
     };
   }

@@ -1,4 +1,4 @@
-import { Camera, CheckCircle2, MapPin, QrCode, UserRound, XCircle } from 'lucide-react';
+import { Camera, CheckCircle2, MapPin, UserRound, XCircle } from 'lucide-react';
 import { type FormEvent, lazy, Suspense, useCallback, useEffect, useState } from 'react';
 import { useSearch } from 'wouter';
 import { type CheckInLookup, invitationCodeSchema } from '@vms/shared';
@@ -224,10 +224,7 @@ export function CheckIn() {
             </Suspense>
           ) : (
             <div className="text-center">
-              <div className="mx-auto flex size-16 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-500 to-brand-700 text-white shadow-lg shadow-[var(--shadow-brand)]">
-                <QrCode className="size-8" />
-              </div>
-              <h1 className="mt-4 text-3xl font-bold tracking-tight text-slate-900">Check in</h1>
+              <h1 className="text-3xl font-bold tracking-tight text-slate-900">Check in</h1>
               <p className="mt-1.5 text-slate-600">
                 Scan your QR code, or enter your invitation code below.
               </p>
@@ -255,6 +252,10 @@ export function CheckIn() {
                   onChange={(e) => setCode(e.target.value)}
                   placeholder="e.g. VX7K9Q"
                   autoFocus
+                  autoCapitalize="characters"
+                  autoComplete="off"
+                  autoCorrect="off"
+                  spellCheck={false}
                   className="h-16 text-center text-3xl font-bold uppercase tracking-[0.3em]"
                 />
                 <Button
@@ -308,8 +309,19 @@ function TagIssue({
     <div className="mt-6 rounded-2xl bg-slate-50 p-4 text-left ring-1 ring-slate-200">
       <p className="mb-2 text-center text-sm font-semibold text-slate-700">Issue a visitor tag</p>
       <div className="flex gap-2">
-        <Input value={tagId} onChange={(e) => setTagId(e.target.value)} placeholder="Tag number" />
+        <Input
+          value={tagId}
+          onChange={(e) => setTagId(e.target.value)}
+          placeholder="Tag number"
+          autoCapitalize="characters"
+          autoComplete="off"
+          autoCorrect="off"
+          spellCheck={false}
+          className="h-14 text-base"
+        />
         <Button
+          size="lg"
+          className="h-14 px-6"
           loading={issue.isPending}
           disabled={!tagId.trim()}
           onClick={() => {
@@ -321,7 +333,12 @@ function TagIssue({
         </Button>
       </div>
       {nfc && bridge?.readNfc && (
-        <Button variant="outline" className="mt-2 w-full" onClick={scanNfc}>
+        <Button
+          variant="outline"
+          size="lg"
+          className="mt-2 h-14 w-full text-base"
+          onClick={scanNfc}
+        >
           Tap NFC tag
         </Button>
       )}

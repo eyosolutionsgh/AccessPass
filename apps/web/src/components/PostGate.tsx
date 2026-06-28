@@ -110,6 +110,7 @@ export function PostGate({ deviceId, permission, postLabel, children }: Props) {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             autoComplete="username"
+            className="h-14 text-base"
             required
           />
           <InputWithIcon
@@ -119,9 +120,10 @@ export function PostGate({ deviceId, permission, postLabel, children }: Props) {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             autoComplete="current-password"
+            className="h-14 text-base"
             required
           />
-          <Button type="submit" className="w-full" size="lg" loading={loading}>
+          <Button type="submit" className="h-14 w-full text-base" size="lg" loading={loading}>
             {loading ? 'Signing in…' : 'Sign in'}
           </Button>
         </form>
@@ -159,7 +161,7 @@ export function PostGate({ deviceId, permission, postLabel, children }: Props) {
 
   return (
     <>
-      <div className="fixed right-4 top-4 z-10 flex items-center gap-2 rounded-full bg-white/95 py-1.5 pl-3 pr-1.5 text-xs font-medium text-slate-600 shadow-lg ring-1 ring-slate-900/5 backdrop-blur">
+      <div className="fixed right-[max(1rem,env(safe-area-inset-right))] top-[max(1rem,env(safe-area-inset-top))] z-10 flex items-center gap-2 rounded-full bg-white/95 py-1.5 pl-3 pr-1.5 text-xs font-medium text-slate-600 shadow-lg ring-1 ring-slate-900/5 backdrop-blur">
         <span className="size-1.5 rounded-full bg-emerald-500" />
         {name ?? 'Signed in'}
         {post.pointName && <span className="text-slate-400">· {post.pointName}</span>}
@@ -167,9 +169,10 @@ export function PostGate({ deviceId, permission, postLabel, children }: Props) {
           type="button"
           onClick={onLogout}
           disabled={loggingOut}
-          className="flex items-center gap-1 rounded-full px-2 py-1 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 disabled:opacity-50"
+          aria-label="Sign out"
+          className="flex size-7 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 disabled:opacity-50"
         >
-          <LogOut className="size-3.5" />
+          <LogOut className="size-4" />
         </button>
       </div>
       {children}

@@ -1,6 +1,9 @@
+import { TRPCError } from '@trpc/server';
 import { desc, eq, sql } from 'drizzle-orm';
 import {
   DEFAULT_DEVICE_PROFILE,
+  LOGO_ALLOWED_MIME,
+  LOGO_MAX_BYTES,
   schema,
   type AdminSetActiveInput,
   type DateFormat,
@@ -36,6 +39,10 @@ const TIME_ZONE_KEY = 'time_zone';
 const VOICE_LANGUAGE_KEY = 'voice_language';
 const VOICE_NAME_KEY = 'voice_name';
 const VOICE_SPEED_KEY = 'voice_speed';
+const BRAND_COLOR_KEY = 'brand_color';
+const LOGO_KEY = 'logo';
+
+type StoredLogo = { mime: string; data: string };
 
 /** Defaults reflect the primary deployment locale; all are admin-overridable without a deploy. */
 const DEFAULT_COUNTRY = 'GH';
@@ -64,6 +71,7 @@ export async function getSettings() {
     country: await getSetting(COUNTRY_KEY, DEFAULT_COUNTRY),
     dateFormat: await getSetting<DateFormat>(DATE_FORMAT_KEY, DEFAULT_DATE_FORMAT),
     timeZone: await getSetting(TIME_ZONE_KEY, DEFAULT_TIME_ZONE),
+    brandColor: await getSetting<string | null>(BRAND_COLOR_KEY, null),
     voiceLanguage: await getSetting<VoiceLanguage>(VOICE_LANGUAGE_KEY, DEFAULT_VOICE_LANGUAGE),
     voiceName: await getSetting<VoiceName>(VOICE_NAME_KEY, DEFAULT_VOICE_NAME),
     voiceSpeed: await getSetting(VOICE_SPEED_KEY, DEFAULT_VOICE_SPEED),
@@ -76,6 +84,7 @@ export async function updateSettings(input: SettingsUpdateInput, actor: Actor) {
   if (input.country !== undefined) await setSetting(COUNTRY_KEY, input.country);
   if (input.dateFormat !== undefined) await setSetting(DATE_FORMAT_KEY, input.dateFormat);
   if (input.timeZone !== undefined) await setSetting(TIME_ZONE_KEY, input.timeZone);
+  if (input.brandColor !== undefined) await setSetting(BRAND_COLOR_KEY, input.brandColor);
   if (input.voiceLanguage !== undefined) await setSetting(VOICE_LANGUAGE_KEY, input.voiceLanguage);
   if (input.voiceName !== undefined) await setSetting(VOICE_NAME_KEY, input.voiceName);
   if (input.voiceSpeed !== undefined) await setSetting(VOICE_SPEED_KEY, input.voiceSpeed);
@@ -107,6 +116,67 @@ export function getCountry(): Promise<string> {
 export async function getOrganizationName(): Promise<string> {
   const v = await getSetting<string | null>(ORG_KEY, null);
   return v?.trim() || ORGANIZATION_NAME;
+}
+
+// ── Institution logo ─────────────────────────────────────────────────────────
+// Stored as base64 in the key/value `setting` table (lives in the DB volume — no extra storage to
+// provision, air-gap safe). Served as bytes by the public REST endpoint; `publicConfig` only
+// exposes a lightweight version stamp so the heavy blob never rides along with config reads.
+
+/** Cache-busting version of the current logo (its row's `updatedAt`, ms), or null if none uploaded. */
+export async function getLogoVersion(): Promise<number | null> {
+  const [row] = await db
+    .select({ updatedAt: schema.setting.updatedAt })
+    .from(schema.setting)
+    .where(eq(schema.setting.key, LOGO_KEY));
+  return row ? row.updatedAt.getTime() : null;
+}
+
+/** The raw uploaded logo (mime + base64 data) for the public branding endpoint, or null. */
+export async function getLogo(): Promise<StoredLogo | null> {
+  const [row] = await db
+    .select({ value: schema.setting.value })
+    .from(schema.setting)
+    .where(eq(schema.setting.key, LOGO_KEY));
+  const v = row?.value as Partial<StoredLogo> | null | undefined;
+  return v?.mime && v.data ? { mime: v.mime, data: v.data } : null;
+}
+
+/** Validate + store a base64 `data:` URL as the institution logo (overrides the bundled default). */
+export async function setLogo(dataUrl: string, actor: Actor) {
+  const m = /^data:([^;]+);base64,(.*)$/s.exec(dataUrl);
+  const mime = m?.[1]?.toLowerCase();
+  const data = m?.[2];
+  if (!m || !mime || !data || !(LOGO_ALLOWED_MIME as readonly string[]).includes(mime)) {
+    throw new TRPCError({ code: 'BAD_REQUEST', message: 'Use a PNG, JPG, WebP or SVG image.' });
+  }
+  const bytes = Buffer.from(data, 'base64');
+  if (bytes.length === 0)
+    throw new TRPCError({ code: 'BAD_REQUEST', message: 'The image is empty.' });
+  if (bytes.length > LOGO_MAX_BYTES) {
+    throw new TRPCError({ code: 'BAD_REQUEST', message: 'The image must be 1 MB or smaller.' });
+  }
+  await setSetting(LOGO_KEY, { mime, data } satisfies StoredLogo);
+  await recordAudit(db, {
+    actorId: actor.id,
+    actorRole: actor.role,
+    action: 'settings.logoSet',
+    objectType: 'setting',
+    metadata: { mime, bytes: bytes.length },
+  });
+  return { version: await getLogoVersion() };
+}
+
+/** Remove the uploaded logo so the bundled default takes over again. */
+export async function clearLogo(actor: Actor) {
+  await db.delete(schema.setting).where(eq(schema.setting.key, LOGO_KEY));
+  await recordAudit(db, {
+    actorId: actor.id,
+    actorRole: actor.role,
+    action: 'settings.logoClear',
+    objectType: 'setting',
+  });
+  return { version: null };
 }
 
 /** Date-display preferences for rendering dates in notifications/UI. */

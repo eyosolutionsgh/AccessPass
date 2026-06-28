@@ -1,11 +1,14 @@
+import { useLogoSrc } from '../lib/branding.ts';
 import { cn } from '../lib/utils.ts';
 
 /**
- * App logo — the institution emblem (Ghana coat of arms) on a white chip so it stays legible on
- * both the dark sidebar and the light auth screens. Pass sizing + rounding via `className`
- * (e.g. "size-8 rounded-lg"). The SVG is served same-origin from /public (air-gap safe).
+ * App logo — the institution emblem on a white chip so it stays legible on both the dark sidebar
+ * and the light auth/kiosk screens. Pass sizing + rounding via `className` (e.g. "size-8 rounded-lg").
+ * The source resolves to the admin-uploaded logo when one exists, else the bundled default
+ * (Ghana coat of arms); both are served same-origin (air-gap safe).
  */
 export function Logo({ className }: { className?: string }) {
+  const src = useLogoSrc();
   return (
     <span
       className={cn(
@@ -14,7 +17,7 @@ export function Logo({ className }: { className?: string }) {
       )}
     >
       <img
-        src="/brand/ghana-coat-of-arms.svg"
+        src={src}
         alt=""
         aria-hidden="true"
         draggable={false}

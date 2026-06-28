@@ -5,7 +5,7 @@
  * email backs the "forgot / resend" path, so the copy works for both first-time setup and reset.
  */
 import { fromWithName, sendMail } from './mailer.ts';
-import { COAT_OF_ARMS_CID, coatOfArmsPng } from './logo.ts';
+import { getEmailLogo } from './brandLogo.ts';
 import { logger } from '../../logger.ts';
 
 function escape(s: string): string {
@@ -31,6 +31,7 @@ export type PasswordSetupEmail = {
 export async function sendPasswordSetupEmail(input: PasswordSetupEmail): Promise<void> {
   const greeting = input.name?.trim() ? `Hi ${input.name.trim()},` : 'Hello,';
   const subject = `Set your ${input.orgName} password`;
+  const logo = await getEmailLogo();
 
   const text = [
     greeting,
@@ -51,7 +52,7 @@ export async function sendPasswordSetupEmail(input: PasswordSetupEmail): Promise
         <table role="presentation" width="600" cellpadding="0" cellspacing="0"
                style="background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #e2e8f0;">
           <tr><td align="center" style="padding:28px 28px 6px;">
-            <img src="cid:${COAT_OF_ARMS_CID}" width="120" height="100" alt="${escape(input.orgName)} logo"
+            <img src="cid:${logo.cid}" width="120" height="100" alt="${escape(input.orgName)} logo"
                  style="display:block;margin:0 auto;border:0;" />
             <div style="margin-top:12px;font-size:20px;font-weight:bold;color:#0f172a;">
               ${escape(input.orgName)}
@@ -96,7 +97,7 @@ export async function sendPasswordSetupEmail(input: PasswordSetupEmail): Promise
       html,
       text,
       from: fromWithName(input.orgName),
-      attachments: [{ filename: 'logo.png', content: coatOfArmsPng, cid: COAT_OF_ARMS_CID }],
+      attachments: [{ filename: logo.filename, content: logo.content, cid: logo.cid }],
     });
   } catch (err) {
     logger.error({ err, to: input.to }, 'failed to send password-setup email');

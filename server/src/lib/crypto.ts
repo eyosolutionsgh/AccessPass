@@ -27,6 +27,17 @@ export function generateToken(bytes = 32): string {
   return randomBytes(bytes).toString('base64url');
 }
 
+/** Short, confusable-free, one-time code an admin reads out to pair a kiosk to its device id. */
+export function generatePairingCode(size = 8): string {
+  return customAlphabet(INVITATION_CODE_ALPHABET, size)();
+}
+
+/** HMAC of a pairing code, normalised the same way the redeem schema is (upper, no spaces/hyphens). */
+export function hashPairingCode(code: string): string {
+  const norm = code.trim().toUpperCase().replace(/[\s-]/g, '');
+  return createHmac('sha256', env.QR_TOKEN_SECRET).update(norm).digest('hex');
+}
+
 /** HMAC-SHA256 of a normalised invitation code (case-insensitive, space/hyphen-insensitive). */
 export function hashCode(code: string): string {
   return createHmac('sha256', env.QR_TOKEN_SECRET)

@@ -331,12 +331,35 @@ export const settingsUpdateSchema = z.object({
   dateFormat: dateFormatSchema.optional(),
   /** IANA timezone (e.g. Africa/Accra) used as the default for date display. */
   timeZone: z.string().max(64).optional(),
+  /** Brand seed colour (hex, e.g. #4f46e5) the UI derives its palette from. null = built-in default. */
+  brandColor: z
+    .string()
+    .regex(/^#[0-9a-fA-F]{6}$/, 'Expected a hex colour like #4f46e5')
+    .nullable()
+    .optional(),
   /** AI read-aloud language + voice + speaking rate (TTS). Speed 0.5 = half, 2 = double. */
   voiceLanguage: voiceLanguageSchema.optional(),
   voiceName: voiceNameSchema.optional(),
   voiceSpeed: z.coerce.number().min(0.5).max(2).optional(),
 });
 export type SettingsUpdateInput = z.infer<typeof settingsUpdateSchema>;
+
+/** Institution logo upload — accepted image types and the max decoded size (enforced server-side). */
+export const LOGO_ALLOWED_MIME = [
+  'image/png',
+  'image/jpeg',
+  'image/webp',
+  'image/svg+xml',
+] as const;
+export const LOGO_MAX_BYTES = 1_000_000; // 1 MB
+export const logoUploadSchema = z.object({
+  /** A base64 `data:` URL (e.g. "data:image/png;base64,…"); decoded size is checked server-side. */
+  dataUrl: z
+    .string()
+    .regex(/^data:image\/(png|jpeg|webp|svg\+xml);base64,/, 'Use a PNG, JPG, WebP or SVG image')
+    .max(2_000_000, 'Image is too large'),
+});
+export type LogoUploadInput = z.infer<typeof logoUploadSchema>;
 
 // ── Device profiles / checkpoints ────────────────────────────────────────────
 /** A registered device is also a checkpoint; its profile drives how check-in behaves on it. */
@@ -369,6 +392,21 @@ export const deviceUpsertSchema = z.object({
   profile: deviceProfileSchema,
 });
 export type DeviceUpsertInput = z.infer<typeof deviceUpsertSchema>;
+
+/** How long an issued device-pairing code stays valid before it must be re-generated. */
+export const PAIRING_CODE_TTL_MINUTES = 15;
+/** Admin asks to mint a one-time pairing code for an already-registered device. */
+export const devicePairSchema = z.object({ deviceId: z.string().min(1).max(120) });
+/** A kiosk redeems a pairing code to learn (and bind) its deviceId. */
+export const devicePairRedeemSchema = z.object({
+  code: z
+    .string()
+    .trim()
+    .min(4)
+    .max(24)
+    .transform((c) => c.toUpperCase().replace(/[\s-]/g, '')),
+});
+export type DevicePairRedeemInput = z.infer<typeof devicePairRedeemSchema>;
 
 // ── Points (operating locations) + staffing assignments ──────────────────────
 /** A point's category — mirrors the `point_kind` enum; behaviour comes from the device profile. */

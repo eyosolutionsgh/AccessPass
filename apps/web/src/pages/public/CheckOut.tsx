@@ -1,4 +1,4 @@
-import { Camera, CheckCircle2, LogOut, XCircle } from 'lucide-react';
+import { Camera, CheckCircle2, XCircle } from 'lucide-react';
 import { type FormEvent, lazy, Suspense, useCallback, useEffect, useState } from 'react';
 import { type CheckInLookup, invitationCodeSchema } from '@vms/shared';
 import { Button } from '../../components/ui/button.tsx';
@@ -155,10 +155,7 @@ export function CheckOut() {
             </Suspense>
           ) : (
             <div className="text-center">
-              <div className="mx-auto flex size-16 items-center justify-center rounded-2xl bg-gradient-to-br from-slate-700 to-slate-900 text-white shadow-lg">
-                <LogOut className="size-8" />
-              </div>
-              <h1 className="mt-4 text-3xl font-bold tracking-tight text-slate-900">
+              <h1 className="text-3xl font-bold tracking-tight text-slate-900">
                 {tagMode ? 'Return tag' : 'Check out'}
               </h1>
               <p className="mt-1.5 text-slate-600">
@@ -190,6 +187,10 @@ export function CheckOut() {
                   onChange={(e) => setCode(e.target.value)}
                   placeholder={tagMode ? 'Tag number' : 'e.g. VX7K9Q'}
                   autoFocus
+                  autoCapitalize="characters"
+                  autoComplete="off"
+                  autoCorrect="off"
+                  spellCheck={false}
                   className="h-16 text-center text-3xl font-bold uppercase tracking-[0.3em]"
                 />
                 <Button type="submit" size="lg" className="h-16 w-full text-lg" loading={busy}>

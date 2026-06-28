@@ -3,6 +3,7 @@ import {
   Building2,
   Clock,
   DoorClosed,
+  KeyRound,
   Mail,
   MapPin,
   Network,
@@ -15,24 +16,33 @@ import {
   Send,
   ShieldCheck,
   Sliders,
+  Sparkles,
   Tags,
   UserCheck,
   UserMinus,
   UserPlus,
   UsersRound,
+  Upload,
 } from 'lucide-react';
-import { type FormEvent, useEffect, useState } from 'react';
+import { type ChangeEvent, type FormEvent, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import {
   CREDENTIAL_MODE_LABELS,
+  DEVICE_TYPE_LABELS,
+  LOGO_ALLOWED_MIME,
+  LOGO_MAX_BYTES,
+  PAIRING_CODE_TTL_MINUTES,
   POINT_KIND_LABELS,
   POINT_KINDS,
+  PRINTER_TARGET_LABELS,
   ROLE_VALUES,
   SCANNER_SOURCE_LABELS,
   VOICE_LABELS,
   VOICE_LANGUAGE_LABELS,
   credentialModeSchema,
   dateFormatSchema,
+  deviceTypeSchema,
+  printerTargetSchema,
   scannerSourceSchema,
   voiceLanguageSchema,
   voiceNameSchema,
@@ -57,8 +67,11 @@ import { StatCard } from '../components/ui/stat-card.tsx';
 import { Table, TBody, Th, THead, StateRow, SkeletonRows } from '../components/ui/table.tsx';
 import { TimezoneCombobox } from '../components/ui/timezone-combobox.tsx';
 import { Avatar } from '../components/ui/avatar.tsx';
-import { Field } from '../components/ui/misc.tsx';
+import { Field, Label } from '../components/ui/misc.tsx';
+import { useLogoSrc } from '../lib/branding.ts';
 import { useClientTable } from '../lib/hooks.ts';
+import { applyBrandTheme, extractLogoColor } from '../lib/theme.ts';
+import { cn } from '../lib/utils.ts';
 import { trpc } from '../lib/trpc.ts';
 
 /**
@@ -174,6 +187,184 @@ export function AdminOffices() {
 
 type Utils = ReturnType<typeof trpc.useUtils>;
 
+/** Institution logo upload — modern preview + upload/remove. Saves immediately (it's a binary,
+ * kept out of the main "Save changes" payload) and overrides the default logo app-wide. */
+function LogoUpload({ utils }: { utils: Utils }) {
+  const cfg = trpc.lookups.publicConfig.useQuery();
+  const hasCustom = cfg.data?.logoVersion != null;
+  const src = useLogoSrc();
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const refresh = () => utils.lookups.publicConfig.invalidate();
+  const set = trpc.admin.logoSet.useMutation({
+    onSuccess: () => (toast.success('Logo updated'), refresh()),
+    onError: (e) => toast.error(e.message),
+  });
+  const clear = trpc.admin.logoClear.useMutation({
+    onSuccess: () => (toast.success('Logo reset to default'), refresh()),
+    onError: (e) => toast.error(e.message),
+  });
+  const busy = set.isPending || clear.isPending;
+
+  function onPick(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = ''; // allow re-picking the same file
+    if (!file) return;
+    if (!(LOGO_ALLOWED_MIME as readonly string[]).includes(file.type)) {
+      return toast.error('Use a PNG, JPG, WebP or SVG image.');
+    }
+    if (file.size > LOGO_MAX_BYTES) {
+      return toast.error(`Image must be ${Math.round(LOGO_MAX_BYTES / 1000)} KB or smaller.`);
+    }
+    const reader = new FileReader();
+    reader.onerror = () => toast.error('Could not read that file.');
+    reader.onload = () => set.mutate({ dataUrl: String(reader.result) });
+    reader.readAsDataURL(file);
+  }
+
+  return (
+    <div className="sm:col-span-2">
+      <Label>Institution logo</Label>
+      <div className="mt-1.5 flex flex-wrap items-center gap-4 rounded-xl border border-slate-200 bg-slate-50/60 p-4">
+        <span className="flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-white ring-1 ring-black/5">
+          <img src={src} alt="Current logo" className="size-[82%] object-contain" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-medium text-slate-700">
+            {hasCustom ? 'Custom logo in use' : 'Using the default emblem'}
+          </p>
+          <p className="mt-0.5 text-xs text-slate-400">
+            PNG, JPG, WebP or SVG · max {Math.round(LOGO_MAX_BYTES / 1000)} KB. Appears app-wide —
+            sign-in, sidebar and every check-in, check-out &amp; checkpoint screen. A PNG or JPG is
+            also embedded in visitor &amp; staff emails (SVG/WebP use the default there).
+          </p>
+        </div>
+        <div className="flex shrink-0 gap-2">
+          <input
+            ref={fileRef}
+            type="file"
+            accept={LOGO_ALLOWED_MIME.join(',')}
+            className="hidden"
+            onChange={onPick}
+          />
+          <Button
+            variant="outline"
+            loading={set.isPending}
+            disabled={busy}
+            onClick={() => fileRef.current?.click()}
+          >
+            <Upload className="size-4" /> {hasCustom ? 'Replace' : 'Upload logo'}
+          </Button>
+          {hasCustom && (
+            <Button
+              variant="ghost"
+              loading={clear.isPending}
+              disabled={busy}
+              onClick={() => clear.mutate()}
+            >
+              Remove
+            </Button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** A few sensible brand starting points (Tailwind-ish 600s) alongside the picker + auto-detect. */
+const BRAND_PRESETS = [
+  '#4f46e5',
+  '#0d9488',
+  '#0284c7',
+  '#16a34a',
+  '#ca8a04',
+  '#ea580c',
+  '#dc2626',
+  '#db2777',
+  '#7c3aed',
+  '#0f172a',
+];
+
+/** Brand colour picker + presets + "Detect from logo". Previews live; parent persists on Save. */
+function BrandColorField({ value, onChange }: { value: string; onChange: (hex: string) => void }) {
+  const logoSrc = useLogoSrc();
+  const [detecting, setDetecting] = useState(false);
+  const swatch = /^#[0-9a-fA-F]{6}$/.test(value) ? value : '#4f46e5';
+
+  async function detect() {
+    setDetecting(true);
+    try {
+      const hex = await extractLogoColor(logoSrc);
+      if (hex) {
+        onChange(hex);
+        toast.success('Brand colour detected from the logo');
+      } else {
+        toast.error("Couldn't detect a colour from the logo — pick one below.");
+      }
+    } finally {
+      setDetecting(false);
+    }
+  }
+
+  return (
+    <div className="sm:col-span-2">
+      <Label>Color scheme</Label>
+      <div className="mt-1.5 rounded-xl border border-slate-200 bg-slate-50/60 p-4">
+        <div className="flex flex-wrap items-center gap-3">
+          <label
+            className="relative size-11 shrink-0 cursor-pointer rounded-xl ring-1 ring-black/10"
+            style={{ backgroundColor: swatch }}
+            title="Pick a colour"
+          >
+            <input
+              type="color"
+              value={swatch}
+              onChange={(e) => onChange(e.target.value)}
+              className="absolute inset-0 size-full cursor-pointer opacity-0"
+            />
+          </label>
+          <Input
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            placeholder="#4f46e5"
+            className="w-32 font-mono uppercase"
+            aria-label="Brand colour hex"
+          />
+          <Button variant="outline" onClick={detect} loading={detecting}>
+            <Sparkles className="size-4" /> Detect from logo
+          </Button>
+          {value && (
+            <Button variant="ghost" onClick={() => onChange('')}>
+              Reset
+            </Button>
+          )}
+        </div>
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          {BRAND_PRESETS.map((p) => (
+            <button
+              key={p}
+              type="button"
+              onClick={() => onChange(p)}
+              title={p}
+              aria-label={`Use ${p}`}
+              className={cn(
+                'size-7 rounded-full ring-1 ring-black/10 transition-transform hover:scale-110',
+                value.toLowerCase() === p && 'ring-2 ring-slate-900 ring-offset-2',
+              )}
+              style={{ backgroundColor: p }}
+            />
+          ))}
+        </div>
+        <p className="mt-3 text-xs text-slate-400">
+          Drives buttons, links, highlights and active states across the whole app. Changes preview
+          live — click <span className="font-medium text-slate-500">Save changes</span> to apply for
+          everyone. Leave empty for the built-in indigo.
+        </p>
+      </div>
+    </div>
+  );
+}
+
 function SettingsSection({ utils }: { utils: Utils }) {
   const settings = trpc.admin.settingsGet.useQuery();
   const [days, setDays] = useState('');
@@ -181,6 +372,7 @@ function SettingsSection({ utils }: { utils: Utils }) {
   const [country, setCountry] = useState('');
   const [dateFormat, setDateFormat] = useState<DateFormat>('DD/MM/YYYY');
   const [timeZone, setTimeZone] = useState('');
+  const [brandColor, setBrandColor] = useState('');
   const [voiceLanguage, setVoiceLanguage] = useState<VoiceLanguage>('en');
   const [voiceName, setVoiceName] = useState<VoiceName>('nova');
   const [voiceSpeed, setVoiceSpeed] = useState('1');
@@ -191,14 +383,28 @@ function SettingsSection({ utils }: { utils: Utils }) {
       setCountry(settings.data.country);
       setDateFormat(settings.data.dateFormat);
       setTimeZone(settings.data.timeZone);
+      setBrandColor(settings.data.brandColor ?? '');
       setVoiceLanguage(settings.data.voiceLanguage);
       setVoiceName(settings.data.voiceName);
       setVoiceSpeed(String(settings.data.voiceSpeed));
     }
   }, [settings.data]);
 
+  const validHex = /^#[0-9a-fA-F]{6}$/.test(brandColor);
+  // Live-preview the brand colour as it changes (valid hex → apply, empty → revert to default).
+  function changeBrandColor(v: string) {
+    setBrandColor(v);
+    if (v === '') applyBrandTheme(null);
+    else if (/^#[0-9a-fA-F]{6}$/.test(v)) applyBrandTheme(v);
+  }
+
   const update = trpc.admin.settingsUpdate.useMutation({
-    onSuccess: () => (toast.success('Settings saved'), utils.admin.settingsGet.invalidate()),
+    // Invalidate publicConfig too so the saved theme propagates everywhere (and to other tabs/users).
+    onSuccess: () => (
+      toast.success('Settings saved'),
+      utils.admin.settingsGet.invalidate(),
+      utils.lookups.publicConfig.invalidate()
+    ),
     onError: (e) => toast.error(e.message),
   });
 
@@ -210,6 +416,8 @@ function SettingsSection({ utils }: { utils: Utils }) {
         description="Organization-wide defaults. Country drives local-number detection for SMS; date format and timezone control how dates are displayed. Visitor records are anonymized once all their visits are closed and older than the retention period."
       />
       <div className="grid gap-4 p-5 sm:grid-cols-2">
+        <LogoUpload utils={utils} />
+        <BrandColorField value={brandColor} onChange={changeBrandColor} />
         <Field label="Organization name">
           <Input
             value={orgName}
@@ -284,6 +492,7 @@ function SettingsSection({ utils }: { utils: Utils }) {
               country,
               dateFormat,
               timeZone,
+              brandColor: validHex ? brandColor : null,
               voiceLanguage,
               voiceName,
               voiceSpeed: Number(voiceSpeed),
@@ -1996,12 +2205,27 @@ function CheckpointsSection({ utils }: { utils: Utils }) {
     ),
     onError: (e) => toast.error(e.message),
   });
+  const [pairResult, setPairResult] = useState<{
+    code: string;
+    deviceId: string;
+    label: string | null;
+  } | null>(null);
+  const [pairingId, setPairingId] = useState<string | null>(null);
+  const pair = trpc.admin.devicePair.useMutation({
+    onSuccess: (res) => setPairResult({ code: res.code, deviceId: res.deviceId, label: res.label }),
+    onError: (e) => toast.error(e.message),
+    onSettled: () => setPairingId(null),
+  });
 
   const [deviceId, setDeviceId] = useState('');
   const [label, setLabel] = useState('');
   const [pointId, setPointId] = useState('');
   const [credentialMode, setCredentialMode] = useState<DeviceProfile['credentialMode']>('qr');
   const [scannerSource, setScannerSource] = useState<DeviceProfile['scannerSource']>('camera');
+  const [deviceType, setDeviceType] = useState<DeviceProfile['deviceType']>('generic');
+  const [printerTarget, setPrinterTarget] = useState<DeviceProfile['printerTarget']>('off');
+  const [nfcEnabled, setNfcEnabled] = useState(false);
+  const [networkPrinterUrl, setNetworkPrinterUrl] = useState('');
   const [editingDevice, setEditingDevice] = useState<string | null>(null);
   const [logFor, setLogFor] = useState<string | null>(null);
   const [query, setQuery] = useState('');
@@ -2027,6 +2251,10 @@ function CheckpointsSection({ utils }: { utils: Utils }) {
     setPointId('');
     setCredentialMode('qr');
     setScannerSource('camera');
+    setDeviceType('generic');
+    setPrinterTarget('off');
+    setNfcEnabled(false);
+    setNetworkPrinterUrl('');
     setEditingDevice(null);
   }
 
@@ -2038,6 +2266,10 @@ function CheckpointsSection({ utils }: { utils: Utils }) {
     setPointId(d.pointId ?? '');
     setCredentialMode(profile.credentialMode);
     setScannerSource(profile.scannerSource);
+    setDeviceType(profile.deviceType);
+    setPrinterTarget(profile.printerTarget);
+    setNfcEnabled(profile.nfcEnabled);
+    setNetworkPrinterUrl(profile.networkPrinterUrl ?? '');
   }
 
   function onSubmit(e: FormEvent) {
@@ -2049,10 +2281,14 @@ function CheckpointsSection({ utils }: { utils: Utils }) {
         label: label || undefined,
         pointId: pointId || null,
         profile: {
-          deviceType: 'generic',
+          deviceType,
           scannerSource,
-          printerTarget: 'off',
-          nfcEnabled: false,
+          printerTarget,
+          networkPrinterUrl:
+            printerTarget === 'network' && networkPrinterUrl.trim()
+              ? networkPrinterUrl.trim()
+              : undefined,
+          nfcEnabled,
           credentialMode,
         },
       },
@@ -2117,6 +2353,42 @@ function CheckpointsSection({ utils }: { utils: Utils }) {
               </option>
             ))}
           </Select>
+          <Select
+            value={deviceType}
+            onChange={(e) => setDeviceType(e.target.value as DeviceProfile['deviceType'])}
+          >
+            {deviceTypeSchema.options.map((o) => (
+              <option key={o} value={o}>
+                {DEVICE_TYPE_LABELS[o]}
+              </option>
+            ))}
+          </Select>
+          <Select
+            value={printerTarget}
+            onChange={(e) => setPrinterTarget(e.target.value as DeviceProfile['printerTarget'])}
+          >
+            {printerTargetSchema.options.map((o) => (
+              <option key={o} value={o}>
+                {PRINTER_TARGET_LABELS[o]}
+              </option>
+            ))}
+          </Select>
+          {printerTarget === 'network' && (
+            <Input
+              value={networkPrinterUrl}
+              onChange={(e) => setNetworkPrinterUrl(e.target.value)}
+              placeholder="Network printer URL"
+            />
+          )}
+          <label className="flex items-center gap-2 px-1 text-sm text-slate-600">
+            <input
+              type="checkbox"
+              checked={nfcEnabled}
+              onChange={(e) => setNfcEnabled(e.target.checked)}
+              className="size-4 rounded border-slate-300"
+            />
+            Enable NFC (tap card / tag)
+          </label>
           <div className="flex gap-2">
             <Button type="submit" loading={upsert.isPending} className="flex-1">
               <Plus className="size-4" /> {editingDevice ? 'Save device' : 'Add / update'}
@@ -2176,6 +2448,18 @@ function CheckpointsSection({ utils }: { utils: Utils }) {
                     >
                       Activity
                     </button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      loading={pairingId === d.deviceId}
+                      disabled={!d.isActive}
+                      onClick={() => {
+                        setPairingId(d.deviceId);
+                        pair.mutate({ deviceId: d.deviceId });
+                      }}
+                    >
+                      <KeyRound className="size-3.5" /> Pair
+                    </Button>
                     <Button size="sm" variant="ghost" onClick={() => startEdit(d)}>
                       <Pencil className="size-3.5" /> Edit
                     </Button>
@@ -2205,7 +2489,48 @@ function CheckpointsSection({ utils }: { utils: Utils }) {
           </div>
         )}
       </div>
+      {pairResult && <PairCodeModal result={pairResult} onClose={() => setPairResult(null)} />}
     </Card>
+  );
+}
+
+/** Shows a freshly-minted pairing code for the operator to type on the tablet (Kiosk setup). */
+function PairCodeModal({
+  result,
+  onClose,
+}: {
+  result: { code: string; deviceId: string; label: string | null };
+  onClose: () => void;
+}) {
+  return (
+    <Modal
+      open
+      onClose={onClose}
+      icon={<KeyRound />}
+      title={`Pair ${result.label || result.deviceId}`}
+      description={`Expires in ${PAIRING_CODE_TTL_MINUTES} minutes · one-time use`}
+      footer={
+        <>
+          <Button variant="ghost" onClick={() => void navigator.clipboard?.writeText(result.code)}>
+            Copy code
+          </Button>
+          <Button onClick={onClose}>Done</Button>
+        </>
+      }
+    >
+      <p className="text-sm text-slate-600">
+        On the tablet, open <span className="font-medium">Kiosk setup</span> (bottom-left of the
+        check-in / check-out / checkpoint screen) and enter this code to bind it to this device:
+      </p>
+      <div className="mt-4 rounded-2xl bg-slate-50 py-6 text-center ring-1 ring-slate-200">
+        <p className="text-4xl font-black uppercase tracking-[0.3em] text-slate-900 nums">
+          {result.code}
+        </p>
+      </div>
+      <p className="mt-3 text-xs text-slate-400">
+        The device profile and point assignment are managed here — the tablet only needs this code.
+      </p>
+    </Modal>
   );
 }
 

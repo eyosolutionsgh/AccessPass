@@ -5,11 +5,11 @@ import { trpc } from './trpc.ts';
 
 /**
  * Per-device kiosk identity + profile resolution. A device's `deviceId` (from the native kiosk
- * shell, else set locally in Kiosk setup) keys its server-side profile/checkpoint. The resolved
- * profile = local override → server registry → defaults, so an unconfigured tablet just works.
+ * shell, else bound on-device by redeeming an admin pairing code) keys its server-side profile. The
+ * profile is ADMIN-AUTHORITATIVE: resolved = server registry → defaults. There is no on-device
+ * profile override — scanner/printer/credential/NFC are configured in Admin → Devices.
  */
 const DEVICE_ID_KEY = 'vms.kiosk.deviceId';
-const PROFILE_KEY = 'vms.kiosk.deviceProfile';
 
 export function getLocalDeviceId(): string | undefined {
   try {
@@ -28,25 +28,7 @@ export function setLocalDeviceId(id: string | undefined): void {
   }
 }
 
-export function getLocalProfileOverride(): Partial<DeviceProfile> | undefined {
-  try {
-    const json = localStorage.getItem(PROFILE_KEY);
-    return json ? (JSON.parse(json) as Partial<DeviceProfile>) : undefined;
-  } catch {
-    return undefined;
-  }
-}
-
-export function setLocalProfileOverride(p: Partial<DeviceProfile> | undefined): void {
-  try {
-    if (p) localStorage.setItem(PROFILE_KEY, JSON.stringify(p));
-    else localStorage.removeItem(PROFILE_KEY);
-  } catch {
-    /* storage unavailable */
-  }
-}
-
-/** Resolve this device's profile: local override → server profile (by deviceId) → defaults. */
+/** Resolve this device's profile: server profile (by deviceId) → defaults. Server is authoritative. */
 export function useDeviceProfile(): { deviceId?: string; profile: DeviceProfile } {
   const deviceId = getLocalDeviceId();
   const server = trpc.checkin.deviceProfile.useQuery(
@@ -54,11 +36,7 @@ export function useDeviceProfile(): { deviceId?: string; profile: DeviceProfile 
     { enabled: Boolean(deviceId), retry: false, staleTime: Infinity },
   );
   return useMemo(() => {
-    const profile: DeviceProfile = {
-      ...DEFAULT_DEVICE_PROFILE,
-      ...(server.data ?? {}),
-      ...(getLocalProfileOverride() ?? {}),
-    };
+    const profile: DeviceProfile = { ...DEFAULT_DEVICE_PROFILE, ...(server.data ?? {}) };
     return { deviceId, profile };
   }, [deviceId, server.data]);
 }
