@@ -416,7 +416,7 @@ function FacilitiesSection({ utils }: { utils: Utils }) {
             placeholder="Code"
             className="w-24"
           />
-          <TimezoneCombobox value={timezone} onChange={setTimezone} className="w-44" />
+          <TimezoneCombobox value={timezone} onChange={setTimezone} className="w-56" />
           <Button type="submit" size="icon" loading={create.isPending} aria-label="Add facility">
             <Plus className="size-4" />
           </Button>
@@ -440,7 +440,7 @@ function FacilitiesSection({ utils }: { utils: Utils }) {
                   onChange={(e) => setEditCode(e.target.value)}
                   className="w-24"
                 />
-                <TimezoneCombobox value={editTz} onChange={setEditTz} className="w-40" />
+                <TimezoneCombobox value={editTz} onChange={setEditTz} className="w-56" />
                 <Button
                   size="sm"
                   loading={update.isPending}
