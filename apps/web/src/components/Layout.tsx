@@ -209,9 +209,9 @@ function prettyRole(role?: string | null) {
 function Brand() {
   const orgName = useOrgName();
   return (
-    <Link href="/appointments" className="flex items-center gap-2.5">
-      <Logo className="size-8 rounded-lg" />
-      <span className="text-[15px] font-semibold leading-tight tracking-tight text-white">
+    <Link href="/appointments" className="flex flex-col items-center gap-2.5 text-center">
+      <Logo className="size-16 rounded-2xl" />
+      <span className="text-[15px] font-semibold leading-snug tracking-tight text-white">
         {orgName}
       </span>
     </Link>
@@ -380,7 +380,7 @@ export function Layout({
             <Menu className="size-5" />
           </button>
           <span className="flex items-center gap-2">
-            <Logo className="size-7 rounded-lg" />
+            <Logo className="size-9 rounded-lg" />
             <span className="text-sm font-semibold text-slate-900">{orgName}</span>
           </span>
         </header>

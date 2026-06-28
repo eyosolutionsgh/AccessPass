@@ -5,6 +5,8 @@
  */
 export type InvitationEmailData = {
   organizationName: string;
+  /** content-id of the attached institution logo (coat of arms). */
+  logoCid: string;
   visitorName: string;
   hostName: string;
   facilityName: string;
@@ -51,10 +53,14 @@ export function renderInvitationEmail(d: InvitationEmailData): {
       <tr><td align="center">
         <table role="presentation" width="600" cellpadding="0" cellspacing="0"
                style="background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #e2e8f0;">
-          <tr><td style="background:#2563eb;padding:20px 28px;color:#ffffff;font-size:18px;font-weight:bold;">
-            ${escape(d.organizationName)}
+          <tr><td align="center" style="padding:28px 28px 6px;">
+            <img src="cid:${d.logoCid}" width="120" height="100" alt="${escape(d.organizationName)} logo"
+                 style="display:block;margin:0 auto;border:0;" />
+            <div style="margin-top:12px;font-size:20px;font-weight:bold;color:#0f172a;">
+              ${escape(d.organizationName)}
+            </div>
           </td></tr>
-          <tr><td style="padding:28px;">
+          <tr><td style="padding:16px 28px 28px;">
             <p style="margin:0 0 8px;font-size:16px;">Dear ${escape(d.visitorName)},</p>
             <p style="margin:0 0 20px;line-height:1.5;">
               You are invited to visit <strong>${escape(d.organizationName)}</strong> on

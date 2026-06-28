@@ -5,6 +5,7 @@
  * email backs the "forgot / resend" path, so the copy works for both first-time setup and reset.
  */
 import { fromWithName, sendMail } from './mailer.ts';
+import { COAT_OF_ARMS_CID, coatOfArmsPng } from './logo.ts';
 import { logger } from '../../logger.ts';
 
 function escape(s: string): string {
@@ -49,10 +50,14 @@ export async function sendPasswordSetupEmail(input: PasswordSetupEmail): Promise
       <tr><td align="center">
         <table role="presentation" width="600" cellpadding="0" cellspacing="0"
                style="background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #e2e8f0;">
-          <tr><td style="background:#2563eb;padding:20px 28px;color:#ffffff;font-size:18px;font-weight:bold;">
-            ${escape(input.orgName)}
+          <tr><td align="center" style="padding:28px 28px 6px;">
+            <img src="cid:${COAT_OF_ARMS_CID}" width="120" height="100" alt="${escape(input.orgName)} logo"
+                 style="display:block;margin:0 auto;border:0;" />
+            <div style="margin-top:12px;font-size:20px;font-weight:bold;color:#0f172a;">
+              ${escape(input.orgName)}
+            </div>
           </td></tr>
-          <tr><td style="padding:28px;">
+          <tr><td style="padding:16px 28px 28px;">
             <p style="margin:0 0 8px;font-size:16px;">${escape(greeting)}</p>
             <p style="margin:0 0 20px;line-height:1.5;">
               An administrator has created a <strong>${escape(input.orgName)}</strong> staff account for you.
@@ -85,7 +90,14 @@ export async function sendPasswordSetupEmail(input: PasswordSetupEmail): Promise
 </html>`;
 
   try {
-    await sendMail({ to: input.to, subject, html, text, from: fromWithName(input.orgName) });
+    await sendMail({
+      to: input.to,
+      subject,
+      html,
+      text,
+      from: fromWithName(input.orgName),
+      attachments: [{ filename: 'logo.png', content: coatOfArmsPng, cid: COAT_OF_ARMS_CID }],
+    });
   } catch (err) {
     logger.error({ err, to: input.to }, 'failed to send password-setup email');
   }

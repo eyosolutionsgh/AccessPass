@@ -98,11 +98,11 @@ export function SignIn() {
         {/* Lockup */}
         <div className="mb-7 flex flex-col items-center text-center">
           {forgotSent ? (
-            <span className="flex size-14 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-600 text-white shadow-[var(--shadow-brand)] ring-1 ring-white/20">
-              <CheckCircle2 className="size-7" />
+            <span className="flex size-20 items-center justify-center rounded-3xl bg-gradient-to-br from-emerald-500 to-emerald-600 text-white shadow-[var(--shadow-brand)] ring-1 ring-white/20">
+              <CheckCircle2 className="size-10" />
             </span>
           ) : (
-            <Logo className="size-14 rounded-2xl shadow-[var(--shadow-brand)] ring-1 ring-white/20" />
+            <Logo className="size-20 rounded-3xl shadow-[var(--shadow-brand)] ring-1 ring-white/20" />
           )}
           <h1 className="mt-5 text-2xl font-bold tracking-tight text-white">{title}</h1>
           <p className="mt-1.5 text-sm text-slate-300">{subtitle}</p>
