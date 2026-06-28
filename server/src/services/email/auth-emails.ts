@@ -4,7 +4,7 @@
  * receives a link to set one (better-auth reset flow, see auth.ts `sendResetPassword`). The same
  * email backs the "forgot / resend" path, so the copy works for both first-time setup and reset.
  */
-import { fromWithName, sendMail } from './mailer.ts';
+import { institutionFrom, sendMail } from './mailer.ts';
 import { getEmailLogo } from './brandLogo.ts';
 import { logger } from '../../logger.ts';
 import { env } from '../../env.ts';
@@ -101,7 +101,7 @@ export async function sendPasswordSetupEmail(input: PasswordSetupEmail): Promise
       subject,
       html,
       text,
-      from: fromWithName(input.orgName),
+      from: institutionFrom(input.orgName),
       attachments: [{ filename: logo.filename, content: logo.content, cid: logo.cid }],
     });
   } catch (err) {

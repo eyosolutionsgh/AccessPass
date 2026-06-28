@@ -21,6 +21,7 @@ export const emailChannel: ChannelAdapter = {
       html: message.html ?? `<p>${message.text}</p>`,
       text: message.text,
       attachments,
+      from: message.from,
     });
     return { providerMessageId };
   },

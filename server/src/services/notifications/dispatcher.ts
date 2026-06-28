@@ -35,6 +35,8 @@ export type RenderedMessage = {
   html?: string;
   text: string;
   attachments?: NotificationAttachment[];
+  /** Optional sender override (e.g. an institution-branded From); defaults to SMTP_FROM. */
+  from?: string;
 };
 
 export interface ChannelAdapter {
@@ -53,7 +55,13 @@ export type DispatchInput = {
 
 /** Serializable form carried in the BullMQ retry job (Buffers → base64 for JSON transport). */
 type SerializedAttachment = { filename: string; contentBase64: string; cid?: string };
-type SerializedMessage = { subject?: string; html?: string; text: string; attachments?: SerializedAttachment[] };
+type SerializedMessage = {
+  subject?: string;
+  html?: string;
+  text: string;
+  attachments?: SerializedAttachment[];
+  from?: string;
+};
 export type NotificationJobData = {
   notificationId: string;
   channel: NotificationChannelName;
@@ -93,6 +101,7 @@ function serializeMessage(message: RenderedMessage): SerializedMessage {
     subject: message.subject,
     html: message.html,
     text: message.text,
+    from: message.from,
     attachments: message.attachments?.map((a) => ({
       filename: a.filename,
       contentBase64: a.content.toString('base64'),
@@ -106,6 +115,7 @@ function deserializeMessage(message: SerializedMessage): RenderedMessage {
     subject: message.subject,
     html: message.html,
     text: message.text,
+    from: message.from,
     attachments: message.attachments?.map((a) => ({
       filename: a.filename,
       content: Buffer.from(a.contentBase64, 'base64'),
@@ -222,7 +232,10 @@ export async function attemptDelivery(
       .update(schema.notification)
       .set({ status: 'failed', attemptCount: attemptNo, failureReason: reason, nextRetryAt: null })
       .where(eq(schema.notification.id, notificationId));
-    logger.error({ notificationId, channel, attemptNo }, 'notification delivery failed permanently');
+    logger.error(
+      { notificationId, channel, attemptNo },
+      'notification delivery failed permanently',
+    );
     return 'failed';
   }
 }
@@ -232,7 +245,12 @@ export async function attemptDelivery(
  * nor tests pull in the BullMQ/Redis connection unless a retry is actually needed. Never throws.
  */
 async function scheduleRetry(
-  job: { notificationId: string; channel: NotificationChannelName; recipient: string; message: RenderedMessage },
+  job: {
+    notificationId: string;
+    channel: NotificationChannelName;
+    recipient: string;
+    message: RenderedMessage;
+  },
   delayMs: number,
 ): Promise<void> {
   try {
@@ -245,11 +263,19 @@ async function scheduleRetry(
     };
     await enqueueNotificationRetry(data, delayMs);
   } catch (err) {
-    logger.error({ err, notificationId: job.notificationId }, 'failed to schedule notification retry');
+    logger.error(
+      { err, notificationId: job.notificationId },
+      'failed to schedule notification retry',
+    );
   }
 }
 
 /** BullMQ `notification-send` job handler — invoked from the maintenance worker. */
 export async function processNotificationJob(data: NotificationJobData): Promise<void> {
-  await attemptDelivery(data.notificationId, data.channel, data.recipient, deserializeMessage(data.message));
+  await attemptDelivery(
+    data.notificationId,
+    data.channel,
+    data.recipient,
+    deserializeMessage(data.message),
+  );
 }
