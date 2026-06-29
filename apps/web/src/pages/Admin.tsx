@@ -2299,6 +2299,7 @@ function AssignPointModal({
   });
   const [selected, setSelected] = useState<Set<string> | null>(null);
   const [query, setQuery] = useState('');
+  const [roleFilter, setRoleFilter] = useState<string>('all');
 
   // Seed selection from current assignments once both queries have loaded.
   useEffect(() => {
@@ -2309,13 +2310,22 @@ function AssignPointModal({
 
   const sel = selected ?? new Set<string>();
   const q = query.trim().toLowerCase();
-  const staff = (users.data ?? []).filter(
+  // Operational staff only: active, onboarded, and a point-operating role. This is the universe
+  // the role filter and search narrow down (admins/auditors/visitors/hosts never appear).
+  const eligible = (users.data ?? []).filter(
     (u) =>
-      // Operational staff only: active, onboarded, and a point-operating role.
       !u.banned &&
       u.passwordSet && // exclude pending invites (password not yet set)
       u.isActive !== false && // exclude deactivated staff
-      POINT_STAFF_ROLES.has(u.role ?? '') && // exclude admins/auditors/visitors/hosts
+      POINT_STAFF_ROLES.has(u.role ?? ''),
+  );
+  // Only offer roles that actually have eligible staff, so the dropdown never lists empty options.
+  const availableRoles = [
+    ...new Set(eligible.map((u) => u.role).filter(Boolean) as string[]),
+  ].sort();
+  const staff = eligible.filter(
+    (u) =>
+      (roleFilter === 'all' || u.role === roleFilter) &&
       (u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q)),
   );
 
@@ -2350,13 +2360,28 @@ function AssignPointModal({
         </>
       }
     >
-      <InputWithIcon
-        icon={<Search />}
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        placeholder="Search staff…"
-        wrapperClassName="mb-3"
-      />
+      <div className="mb-3 flex flex-col gap-2 sm:flex-row">
+        <InputWithIcon
+          icon={<Search />}
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search staff…"
+          wrapperClassName="flex-1"
+        />
+        <Select
+          value={roleFilter}
+          onChange={(e) => setRoleFilter(e.target.value)}
+          className="sm:w-44"
+          aria-label="Filter by role"
+        >
+          <option value="all">All roles</option>
+          {availableRoles.map((r) => (
+            <option key={r} value={r}>
+              {roleLabel(r)}
+            </option>
+          ))}
+        </Select>
+      </div>
       <div className="max-h-72 overflow-y-auto rounded-lg border border-slate-100">
         {users.isLoading || assignments.isLoading ? (
           <p className="p-3 text-sm text-slate-400">Loading…</p>
