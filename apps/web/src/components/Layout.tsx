@@ -7,6 +7,7 @@ import {
   DoorOpen,
   HelpCircle,
   LogOut,
+  MapPin,
   Menu,
   Network,
   Plus,
@@ -92,8 +93,14 @@ const NAV: NavSection[] = [
             perm: { user: ['read'] },
           },
           {
-            href: '/admin/checkpoints',
-            label: 'Checkpoints',
+            href: '/admin/points',
+            label: 'Points',
+            icon: MapPin,
+            perm: { config: ['manage'] },
+          },
+          {
+            href: '/admin/devices',
+            label: 'Devices',
             icon: ScanLine,
             perm: { config: ['manage'] },
           },
@@ -486,7 +493,7 @@ export function Layout({
         </div>
       )}
 
-      <div className="lg:pl-60">
+      <div className="overflow-x-clip lg:pl-60">
         {/* Mobile top bar — only the menu toggle and wordmark, nothing decorative. */}
         <header className="sticky top-0 z-20 flex h-14 items-center gap-3 border-b border-slate-200 bg-white/90 px-4 backdrop-blur lg:hidden">
           <Tooltip content="Open navigation menu" side="bottom">

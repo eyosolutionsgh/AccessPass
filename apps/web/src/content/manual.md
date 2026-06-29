@@ -43,7 +43,7 @@ This is an internal staff system: staff pages require sign-in and role permissio
 | Start emergency muster      | Choose Security, then Muster. Use the live on-site list to mark visitors accounted for, print the roll-call or export the list for the incident team.                                            | staff    |
 | Complete pre-registration   | If the invitation asks for pre-registration, the visitor opens that invitation link, enters the required details and acknowledgements, then presents the QR code on arrival.                     | visitor  |
 | Review reports              | Choose Reports in the sidebar. Search by visitor, host, date range, facility or status, then export only what your role and audit purpose require.                                               | staff    |
-| Configure the system        | Administrators choose Administration in the sidebar to manage facilities, departments, offices, checkpoints, visitor categories, users, roles, devices and retention settings.                   | admin    |
+| Configure the system        | Administrators choose Administration in the sidebar to manage facilities, departments, offices, points, visitor categories, users, roles, devices and retention settings.                        | admin    |
 
 > For fixed devices, administrators should configure the device profile under Administration, then label the device clearly, such as Reception check-in, Exit check-out or East Gate checkpoint. Staff should use the labelled device instead of typing addresses manually.
 
@@ -68,28 +68,28 @@ In the addresses below, replace `<your-vms-address>` with your site's internal V
 
 ### Points and devices are separate
 
-A **point** is a fixed operating location, such as a reception desk or a security check-point. A **device** is the physical tablet stationed at that point. They are kept separate so the location keeps its identity, its staffing and the visitor trail even when the hardware changes: if a tablet is faulty, register a replacement device, point it at the same location and deactivate the old one. The point, its assigned staff and the visitor trail are unaffected. Manage both under Administration → Checkpoints (Points and devices).
+A **point** is a fixed operating location, such as a reception desk or a security check-point. A **device** is the physical tablet stationed at that point. They are kept separate so the location keeps its identity, its staffing and the visitor trail even when the hardware changes: if a tablet is faulty, register a replacement device, point it at the same location and deactivate the old one. The point, its assigned staff and the visitor trail are unaffected. Manage them under Administration → Points and Administration → Devices.
 
 ### How to set up a staffed point
 
-1. Sign in as an administrator and open Administration → Checkpoints (Points and devices).
-2. Under Points, add the location and give it a clear name and kind, such as Main Reception (reception desk) or Main Gate (security check-point).
-3. Register the tablet under Devices: enter its device ID, choose the point it is stationed at, and set the scanner, camera, printer and credential options for that hardware.
+1. Sign in as an administrator and open Administration → Points.
+2. Add the location and give it a clear name and kind, such as Main Reception (reception desk) or Main Gate (security check-point).
+3. Open Administration → Devices and register the tablet: enter its device ID, choose the point it is stationed at, and set the scanner, camera, printer and credential options for that hardware.
 4. Open the point's Staff list and tick the staff members allowed to operate it — only assigned staff can sign a device in there.
 5. On the physical tablet, open the matching station address, run Kiosk setup once to record its device ID, then have an assigned staff member sign in.
 6. Test the full flow with a real or test appointment: scan the QR code, print or assign the badge if used, then check the visitor out.
 
-> Who can open a post: when a staff member signs in on a device, the system checks that they are assigned to the point that device is stationed at. If they are not, the post stays closed and no visitor can be processed there, even if their role would otherwise allow it. Administrators can always open any post for setup and inspection, and can see who is currently signed in where from the Points and devices screen.
+> Who can open a post: when a staff member signs in on a device, the system checks that they are assigned to the point that device is stationed at. If they are not, the post stays closed and no visitor can be processed there, even if their role would otherwise allow it. Administrators can always open any post for setup and inspection, and can see who is currently signed in where from the Devices screen.
 
 ### Device settings to confirm
 
-| Setting              | What to do                                                                                                                                                                                                                                                          |
-| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Tablet or kiosk      | Open the correct station address on the device browser, sign in with the assigned staff or station account, and label the device clearly. Keep it charged, connected to the internal network and placed where staff can supervise it.                               |
-| Camera or QR scanner | In Administration, open Checkpoints and devices and choose the scanner source for that point: built-in camera, USB scanner, NFC/tag reader or manual code entry. If the browser asks for camera access, allow it for VMS, then test with a real invitation QR code. |
-| Badge printer        | Select the badge printer for the reception or exit point, choose the badge template and run a test print. Keep blank badges or labels near the printer and record a manual badge process for printer downtime.                                                      |
-| Reusable tags or NFC | If the site uses reusable credentials, enable the tag mode for that point, assign the tag at check-in and require staff to collect or deactivate it at check-out.                                                                                                   |
-| Point permissions    | Give each device or staff role only the actions needed at that point. Reception should not use a security checkpoint profile, and a checkpoint device should not be used for reports or administration.                                                             |
+| Setting              | What to do                                                                                                                                                                                                                                          |
+| -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Tablet or kiosk      | Open the correct station address on the device browser, sign in with the assigned staff or station account, and label the device clearly. Keep it charged, connected to the internal network and placed where staff can supervise it.               |
+| Camera or QR scanner | In Administration, open Devices and choose the scanner source for that point: built-in camera, USB scanner, NFC/tag reader or manual code entry. If the browser asks for camera access, allow it for VMS, then test with a real invitation QR code. |
+| Badge printer        | Select the badge printer for the reception or exit point, choose the badge template and run a test print. Keep blank badges or labels near the printer and record a manual badge process for printer downtime.                                      |
+| Reusable tags or NFC | If the site uses reusable credentials, enable the tag mode for that point, assign the tag at check-in and require staff to collect or deactivate it at check-out.                                                                                   |
+| Point permissions    | Give each device or staff role only the actions needed at that point. Reception should not use a security checkpoint profile, and a checkpoint device should not be used for reports or administration.                                             |
 
 > If a point does not use a camera, badge printer or reusable tag, leave that option disabled for that device profile. The staff screen should only show the tools that are actually available at the desk or checkpoint.
 
@@ -273,7 +273,7 @@ Administrators set up the building and the team; security managers tune day-to-d
 Set up Administration in the same order people move through the product: first the place, then the team, then visitor rules, then device behavior. That keeps the booking screens clean because departments, offices and officers appear in the right cascade.
 
 - **Facilities, departments and offices** — Model your premises so bookings route to the right officer and room.
-- **Checkpoints and devices** — Register each post, its scanner and badge/printer behaviour.
+- **Points and devices** — Register each post and the tablet stationed at it, with its scanner and badge/printer behaviour.
 - **Users and roles** — Invite staff (they set their own password) and assign least-privilege roles.
 - **Visitor categories** — Decide which visit types need approval, escort or pre-registration.
 
@@ -282,7 +282,7 @@ Set up Administration in the same order people move through the product: first t
 3. Departments and offices: create the organizational structure that hosts belong to.
 4. Users: invite staff, assign least-privilege roles, and attach hosts/secretaries to their department and office.
 5. Visitor categories: define which visit types require approval, escort or induction.
-6. Checkpoints: register devices and choose scanner source, printer target and credential mode such as QR only, printed badge or reusable tag/NFC.
+6. Points and devices: add each operating location, then register its device and choose scanner source, printer target and credential mode such as QR only, printed badge or reusable tag/NFC.
 
 ## Privacy and audit
 

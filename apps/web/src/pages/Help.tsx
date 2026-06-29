@@ -934,9 +934,9 @@ const DEVICE_SETUP = [
     term: 'Camera or QR scanner',
     detail: (
       <>
-        In Administration, open Checkpoints & devices and choose the scanner source for that point:
-        built-in camera, USB scanner, NFC/tag reader or manual code entry. If the browser asks for
-        camera access, allow it for VMS, then test with a real invitation QR code.
+        In Administration, open Devices and choose the scanner source for that point: built-in
+        camera, USB scanner, NFC/tag reader or manual code entry. If the browser asks for camera
+        access, allow it for VMS, then test with a real invitation QR code.
       </>
     ),
   },
@@ -1303,8 +1303,9 @@ export function Help() {
               security check-point. A <strong>device</strong> is the physical tablet stationed at a
               point. They are kept separate so the location keeps its identity, its staffing and the
               visitor trail even when the hardware changes: if a tablet is faulty, you register a
-              replacement and point it at the same place. Manage both under{' '}
-              <strong>Administration → Checkpoints</strong> (Points &amp; devices).
+              replacement and point it at the same place. Manage them under{' '}
+              <strong>Administration → Points</strong> and <strong>Administration → Devices</strong>
+              .
             </p>
             <Shot
               src="/screenshots/points-devices.png"
@@ -1323,9 +1324,9 @@ export function Help() {
             </h3>
             <Procedure
               steps={[
-                'Sign in as an administrator and open Administration → Checkpoints (Points & devices).',
-                'Under Points, add the location and give it a clear name and kind, such as Main Reception (reception desk) or Main Gate (security check-point).',
-                'Register the tablet under Devices: enter its device ID, choose the point it is stationed at, and set the scanner, camera, printer and credential options for that hardware.',
+                'Sign in as an administrator and open Administration → Points.',
+                'Add the location and give it a clear name and kind, such as Main Reception (reception desk) or Main Gate (security check-point).',
+                'Open Administration → Devices and register the tablet: enter its device ID, choose the point it is stationed at, and set the scanner, camera, printer and credential options for that hardware.',
                 'Open the point’s Staff list and tick the staff members allowed to operate it — only assigned staff can sign a device in there.',
                 'On the physical tablet, open the matching station address, run Kiosk setup once to record its device ID, then have an assigned staff member sign in.',
                 'Test the full flow with a real or test appointment: scan the QR code, print or assign the badge if used, then check the visitor out.',
