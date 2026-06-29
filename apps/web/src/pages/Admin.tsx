@@ -37,6 +37,7 @@ import {
   POINT_KIND_LABELS,
   POINT_KINDS,
   PRINTER_TARGET_LABELS,
+  ROLES,
   ROLE_VALUES,
   SCANNER_SOURCE_LABELS,
   VOICE_LABELS,
@@ -1487,6 +1488,15 @@ const ROLE_TONE: Record<string, 'brand' | 'amber' | 'cyan' | 'slate'> = {
 const roleTone = (r?: string | null): 'brand' | 'amber' | 'cyan' | 'slate' =>
   (r && ROLE_TONE[r]) || 'slate';
 
+/** Roles eligible to staff a point (operate a desk / sign a device in). Admins and auditors are
+ * oversight-only; visitors and hosts are not front-line operators — none appear in the picker. */
+const POINT_STAFF_ROLES: ReadonlySet<string> = new Set([
+  ROLES.receptionist,
+  ROLES.secretary,
+  ROLES.securityGuard,
+  ROLES.securityManager,
+]);
+
 /** A row from `admin.userList`. */
 type StaffUser = {
   id: string;
@@ -2298,11 +2308,15 @@ function AssignPointModal({
   }, [assignments.data, selected]);
 
   const sel = selected ?? new Set<string>();
+  const q = query.trim().toLowerCase();
   const staff = (users.data ?? []).filter(
     (u) =>
+      // Operational staff only: active, onboarded, and a point-operating role.
       !u.banned &&
-      (u.name.toLowerCase().includes(query.toLowerCase()) ||
-        u.email.toLowerCase().includes(query.toLowerCase())),
+      u.passwordSet && // exclude pending invites (password not yet set)
+      u.isActive !== false && // exclude deactivated staff
+      POINT_STAFF_ROLES.has(u.role ?? '') && // exclude admins/auditors/visitors/hosts
+      (u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q)),
   );
 
   function toggle(id: string) {
