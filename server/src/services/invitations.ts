@@ -7,7 +7,7 @@ import { qrPng } from '../lib/qr.ts';
 import { recordAudit } from '../lib/audit.ts';
 import { formatDateTime } from '../lib/datetime.ts';
 import { env } from '../env.ts';
-import { getDateDisplay, getOrganizationName } from './admin.ts';
+import { getDateDisplay, getInstitutionContact, getOrganizationName } from './admin.ts';
 import { institutionLabel } from './email/mailer.ts';
 import { notifyContact, type ContactNotification } from './notifications/notify.ts';
 import { renderInvitationEmail } from './email/templates/invitation.ts';
@@ -104,6 +104,7 @@ export async function issueInvitation(visitId: string, actor?: Actor): Promise<I
   // delegates to dispatch(), which never throws.
   const display = await getDateDisplay();
   const organizationName = await getOrganizationName();
+  const contact = await getInstitutionContact();
   const visitDateStr = visit.expectedArrival
     ? formatDateTime(visit.expectedArrival, {
         dateFormat: display.dateFormat,
@@ -128,6 +129,8 @@ export async function issueInvitation(visitId: string, actor?: Actor): Promise<I
       checkInUrl,
       preRegisterUrl,
       qrCid: 'vms-qr',
+      contactEmail: contact.email,
+      contactPhone: contact.phone,
     });
     emailPart = {
       address: visitor.email,
@@ -148,7 +151,11 @@ export async function issueInvitation(visitId: string, actor?: Actor): Promise<I
     sms: visitor?.phone
       ? {
           phone: visitor.phone,
-          text: `${organizationName}: your visit is confirmed for ${visitDateStr}. Check-in code: ${code}. ${checkInUrl}`,
+          text:
+            `${organizationName}: your visit is confirmed for ${visitDateStr}. Check-in code: ${code}. ${checkInUrl}` +
+            (contact.email || contact.phone
+              ? ` Questions? ${[contact.email, contact.phone].filter(Boolean).join(' · ')}`
+              : ''),
         }
       : undefined,
   });

@@ -2,7 +2,7 @@ import { and, eq, ilike, or } from 'drizzle-orm';
 import { z } from 'zod';
 import { schema } from '@vms/shared';
 import { db } from '../../db.ts';
-import { getLogoVersion, getSettings } from '../../services/admin.ts';
+import { getLogoVersion, getPolicyContent, getSettings } from '../../services/admin.ts';
 import { actorOfficeId, isSecretaryOnly } from '../../services/scope.ts';
 import { protectedProcedure, publicProcedure, router } from '../trpc.ts';
 
@@ -19,10 +19,19 @@ export const lookupsRouter = router({
       dateFormat: s.dateFormat,
       organizationName: s.organizationName,
       brandColor: s.brandColor,
+      // Institution contact shown to visitors on the pre-registration page.
+      contactEmail: s.contactEmail,
+      contactPhone: s.contactPhone,
       // Version stamp only — the actual image bytes come from GET /api/v1/branding/logo.
       logoVersion: await getLogoVersion(),
     };
   }),
+
+  /**
+   * Visitor-facing policy text (site rules, privacy notice) keyed by policy code. Public so the
+   * standalone `/policy/:key` reader page (opened in a new tab from pre-registration) can load it.
+   */
+  policies: publicProcedure.query(() => getPolicyContent()),
 
   facilities: protectedProcedure.query(() =>
     db

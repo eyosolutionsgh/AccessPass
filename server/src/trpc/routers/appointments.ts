@@ -2,6 +2,7 @@ import { TRPCError } from '@trpc/server';
 import {
   createVisitSchema,
   denyVisitSchema,
+  idSchema,
   listVisitsSchema,
   updateVisitSchema,
   visitIdSchema,
@@ -46,7 +47,11 @@ async function guardConflict<T>(run: () => Promise<T>): Promise<T> {
     return await run();
   } catch (err) {
     if (err instanceof SchedulingConflictError) {
-      throw new TRPCError({ code: 'CONFLICT', message: conflictMessage(err.conflicts), cause: err });
+      throw new TRPCError({
+        code: 'CONFLICT',
+        message: conflictMessage(err.conflicts),
+        cause: err,
+      });
     }
     if (err instanceof ForbiddenScopeError) {
       throw new TRPCError({ code: 'FORBIDDEN', message: err.message, cause: err });
@@ -74,6 +79,16 @@ export const appointmentsRouter = router({
   trail: authorized({ appointment: ['read'] })
     .input(visitIdSchema)
     .query(({ input }) => visitCheckpointTrail(input.visitId)),
+
+  /** Identity images (selfie / ID) captured at pre-registration — metadata only. */
+  documents: authorized({ appointment: ['read'] })
+    .input(visitIdSchema)
+    .query(({ input }) => appointments.listVisitDocuments(input.visitId)),
+
+  /** A single identity image's bytes (base64), proxied from object storage. */
+  document: authorized({ appointment: ['read'] })
+    .input(idSchema)
+    .query(({ input }) => appointments.getVisitDocument(input.id)),
 
   update: authorized({ appointment: ['update'] })
     .input(updateVisitSchema)

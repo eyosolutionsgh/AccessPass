@@ -128,6 +128,18 @@ const NAV: NavSection[] = [
             icon: Tags,
             perm: { config: ['manage'] },
           },
+          {
+            href: '/admin/site-rules',
+            label: 'Site rules',
+            icon: ScrollText,
+            perm: { config: ['manage'] },
+          },
+          {
+            href: '/admin/privacy-notice',
+            label: 'Privacy notice',
+            icon: ShieldCheck,
+            perm: { config: ['manage'] },
+          },
         ],
       },
     ],

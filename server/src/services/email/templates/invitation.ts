@@ -20,7 +20,16 @@ export type InvitationEmailData = {
   qrCid: string; // content-id of the attached QR image
   supportContact?: string | null;
   privacyNoticeUrl?: string | null;
+  /** Institution contact shown so visitors can reach the organisation with questions. */
+  contactEmail?: string | null;
+  contactPhone?: string | null;
 };
+
+/** Build the "Questions? Contact us at …" line, or '' when no contact is configured. */
+function contactLine(d: InvitationEmailData): string {
+  const parts = [d.contactEmail, d.contactPhone].filter(Boolean) as string[];
+  return parts.length ? `Questions? Contact us at ${parts.join(' · ')}` : '';
+}
 
 export function renderInvitationEmail(d: InvitationEmailData): {
   subject: string;
@@ -28,6 +37,7 @@ export function renderInvitationEmail(d: InvitationEmailData): {
   text: string;
 } {
   const subject = `Your Visitor Invitation — ${d.organizationName}`;
+  const contact = contactLine(d);
 
   const text = [
     `Dear ${d.visitorName},`,
@@ -42,6 +52,7 @@ export function renderInvitationEmail(d: InvitationEmailData): {
     `Check-in link: ${d.checkInUrl}`,
     ``,
     `Bring a valid ID and follow reception instructions. This invitation is valid only for the scheduled visit and may be revoked if the appointment is cancelled.`,
+    contact ? `\n${contact}` : '',
     d.privacyNoticeUrl ? `\nPrivacy notice: ${d.privacyNoticeUrl}` : '',
     d.supportContact ? `\nNeed help? ${d.supportContact}` : '',
   ]
@@ -98,6 +109,13 @@ export function renderInvitationEmail(d: InvitationEmailData): {
               Bring a valid ID and follow reception instructions. This invitation is valid only for the
               scheduled visit and may be revoked if the appointment is cancelled.
             </p>
+            ${
+              contact
+                ? `<p style="margin:14px 0 0;padding-top:14px;border-top:1px solid #e2e8f0;line-height:1.5;font-size:13px;color:#475569;">
+                     ${escape(contact)}
+                   </p>`
+                : ''
+            }
             ${
               d.privacyNoticeUrl
                 ? `<p style="margin:12px 0 0;font-size:12px;color:#94a3b8;">

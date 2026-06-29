@@ -1,6 +1,6 @@
 import { TRPCError } from '@trpc/server';
-import { preRegSubmitSchema, tokenSchema } from '@vms/shared';
-import { getPreReg, submitPreReg } from '../../services/prereg.ts';
+import { preRegSubmitSchema, preRegUploadSchema, tokenSchema } from '@vms/shared';
+import { getPreReg, submitPreReg, uploadPreRegDocument } from '../../services/prereg.ts';
 import { rateLimited } from '../permission.ts';
 import { router } from '../trpc.ts';
 
@@ -23,4 +23,9 @@ export const preregRouter = router({
   submit: rateLimited(20, 60)
     .input(preRegSubmitSchema)
     .mutation(({ input }) => submitPreReg(input)),
+
+  /** Upload an optional identity image (selfie / ID) captured during pre-registration (public). */
+  uploadDocument: rateLimited(10, 60)
+    .input(preRegUploadSchema)
+    .mutation(({ input }) => uploadPreRegDocument(input)),
 });

@@ -3,6 +3,7 @@ import {
   Building2,
   Clock,
   DoorClosed,
+  ExternalLink,
   KeyRound,
   Mail,
   MapPin,
@@ -12,6 +13,7 @@ import {
   Power,
   PowerOff,
   ScanLine,
+  ScrollText,
   Search,
   Send,
   ShieldCheck,
@@ -64,6 +66,7 @@ import { PageHeader } from '../components/ui/page-header.tsx';
 import { Pagination } from '../components/ui/pagination.tsx';
 import { Select } from '../components/ui/select.tsx';
 import { StatCard } from '../components/ui/stat-card.tsx';
+import { RichTextEditor } from '../components/ui/rich-text-editor.tsx';
 import { Table, TBody, Th, THead, StateRow, SkeletonRows } from '../components/ui/table.tsx';
 import { TimezoneCombobox } from '../components/ui/timezone-combobox.tsx';
 import { Avatar } from '../components/ui/avatar.tsx';
@@ -90,6 +93,48 @@ export function AdminSettings() {
         description="Organization-wide defaults — locale, retention and AI voice."
       />
       <SettingsSection utils={utils} />
+    </div>
+  );
+}
+
+/** Admin → Site rules: the visitor-facing site-rules policy (its own page). */
+export function AdminSiteRules() {
+  const utils = trpc.useUtils();
+  return (
+    <div className="space-y-6">
+      <PageHeader
+        icon={ScrollText}
+        eyebrow="Administration"
+        title="Site rules"
+        description="The conduct and safety rules visitors agree to before arrival."
+      />
+      <PolicyEditorSection
+        utils={utils}
+        field="siteRules"
+        previewKey="site_rules"
+        placeholder="e.g. Wear your visitor badge at all times. Remain with your host…"
+      />
+    </div>
+  );
+}
+
+/** Admin → Privacy notice: the visitor-facing data-protection notice (its own page). */
+export function AdminPrivacyNotice() {
+  const utils = trpc.useUtils();
+  return (
+    <div className="space-y-6">
+      <PageHeader
+        icon={ShieldCheck}
+        eyebrow="Administration"
+        title="Privacy notice"
+        description="How visitor data is collected, used and retained (data-protection notice)."
+      />
+      <PolicyEditorSection
+        utils={utils}
+        field="privacyNotice"
+        previewKey="privacy_notice"
+        placeholder="e.g. We collect your name and contact details to manage your visit…"
+      />
     </div>
   );
 }
@@ -390,6 +435,8 @@ function SettingsSection({ utils }: { utils: Utils }) {
   const [voiceLanguage, setVoiceLanguage] = useState<VoiceLanguage>('en');
   const [voiceName, setVoiceName] = useState<VoiceName>('nova');
   const [voiceSpeed, setVoiceSpeed] = useState('1');
+  const [contactEmail, setContactEmail] = useState('');
+  const [contactPhone, setContactPhone] = useState('');
   useEffect(() => {
     if (settings.data) {
       setDays(String(settings.data.retentionDays));
@@ -401,6 +448,8 @@ function SettingsSection({ utils }: { utils: Utils }) {
       setVoiceLanguage(settings.data.voiceLanguage);
       setVoiceName(settings.data.voiceName);
       setVoiceSpeed(String(settings.data.voiceSpeed));
+      setContactEmail(settings.data.contactEmail ?? '');
+      setContactPhone(settings.data.contactPhone ?? '');
     }
   }, [settings.data]);
 
@@ -437,6 +486,24 @@ function SettingsSection({ utils }: { utils: Utils }) {
             value={orgName}
             onChange={(e) => setOrgName(e.target.value)}
             placeholder="Acme Corp"
+          />
+        </Field>
+        <Field
+          label="Contact email"
+          hint="Shown to visitors in the invitation and on the pre-registration page."
+        >
+          <Input
+            type="email"
+            value={contactEmail}
+            onChange={(e) => setContactEmail(e.target.value)}
+            placeholder="visitors@acme.com"
+          />
+        </Field>
+        <Field label="Contact phone" hint="Shown to visitors alongside the contact email.">
+          <Input
+            value={contactPhone}
+            onChange={(e) => setContactPhone(e.target.value)}
+            placeholder="+233 20 000 0000"
           />
         </Field>
         <Field label="Country" hint="Drives local-number detection for SMS.">
@@ -510,7 +577,76 @@ function SettingsSection({ utils }: { utils: Utils }) {
               voiceLanguage,
               voiceName,
               voiceSpeed: Number(voiceSpeed),
+              contactEmail,
+              contactPhone,
             })
+          }
+        >
+          Save changes
+        </Button>
+      </div>
+    </Card>
+  );
+}
+
+/**
+ * A single visitor-facing policy editor (site rules OR privacy notice), each on its own admin page.
+ * Visitors open the saved content from the pre-registration acknowledgements ("I acknowledge the
+ * site rules / privacy notice") on a standalone `/policy/<key>` page. Rich text (HTML) is formatted
+ * with the toolbar; an empty editor leaves the acknowledgement as a plain checkbox with no link.
+ */
+function PolicyEditorSection({
+  utils,
+  field,
+  previewKey,
+  placeholder,
+}: {
+  utils: Utils;
+  field: 'siteRules' | 'privacyNotice';
+  previewKey: string;
+  placeholder: string;
+}) {
+  const settings = trpc.admin.settingsGet.useQuery();
+  const [html, setHtml] = useState('');
+  useEffect(() => {
+    if (settings.data) setHtml(settings.data[field] ?? '');
+  }, [settings.data, field]);
+
+  const update = trpc.admin.settingsUpdate.useMutation({
+    onSuccess: () => (
+      toast.success('Saved'),
+      utils.admin.settingsGet.invalidate(),
+      utils.lookups.publicConfig.invalidate(),
+      utils.lookups.policies.invalidate()
+    ),
+    onError: (e) => toast.error(e.message),
+  });
+
+  return (
+    <Card>
+      <CardHeader
+        icon={<ScrollText />}
+        title="Content"
+        description="Format with the toolbar (headings, bold, lists, links…). This is exactly what visitors see. Leave it empty to hide the link and keep a plain acknowledgement checkbox."
+        action={
+          <a
+            href={`/policy/${previewKey}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-900"
+          >
+            <ExternalLink className="size-3.5" /> View visitor page
+          </a>
+        }
+      />
+      <div className="p-5">
+        <RichTextEditor value={html} onChange={setHtml} placeholder={placeholder} />
+      </div>
+      <div className="flex justify-end border-t border-slate-100 p-4">
+        <Button
+          loading={update.isPending}
+          onClick={() =>
+            update.mutate(field === 'siteRules' ? { siteRules: html } : { privacyNotice: html })
           }
         >
           Save changes

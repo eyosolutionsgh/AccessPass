@@ -41,6 +41,10 @@ const VOICE_NAME_KEY = 'voice_name';
 const VOICE_SPEED_KEY = 'voice_speed';
 const BRAND_COLOR_KEY = 'brand_color';
 const LOGO_KEY = 'logo';
+const CONTACT_EMAIL_KEY = 'institution_contact_email';
+const CONTACT_PHONE_KEY = 'institution_contact_phone';
+const SITE_RULES_KEY = 'policy_site_rules';
+const PRIVACY_NOTICE_KEY = 'policy_privacy_notice';
 
 type StoredLogo = { mime: string; data: string };
 
@@ -75,6 +79,50 @@ export async function getSettings() {
     voiceLanguage: await getSetting<VoiceLanguage>(VOICE_LANGUAGE_KEY, DEFAULT_VOICE_LANGUAGE),
     voiceName: await getSetting<VoiceName>(VOICE_NAME_KEY, DEFAULT_VOICE_NAME),
     voiceSpeed: await getSetting(VOICE_SPEED_KEY, DEFAULT_VOICE_SPEED),
+    contactEmail: await getSetting<string | null>(CONTACT_EMAIL_KEY, null),
+    contactPhone: await getSetting<string | null>(CONTACT_PHONE_KEY, null),
+    siteRules: await getSetting<string | null>(SITE_RULES_KEY, null),
+    privacyNotice: await getSetting<string | null>(PRIVACY_NOTICE_KEY, null),
+  };
+}
+
+/**
+ * Visitor-facing policy text (site rules, privacy notice) an administrator maintains under
+ * Admin → Visitor policies. Keyed by the policy code used in the pre-registration acknowledgements
+ * (`site_rules`, `privacy_notice`) so the page can link the policy name to its content. Only
+ * policies with non-empty text are returned, so the page links a name only when there's something
+ * to show.
+ */
+export async function getPolicyContent(): Promise<Record<string, string>> {
+  const out: Record<string, string> = {};
+  const siteRules = (await getSetting<string | null>(SITE_RULES_KEY, null))?.trim();
+  const privacyNotice = (await getSetting<string | null>(PRIVACY_NOTICE_KEY, null))?.trim();
+  if (siteRules && !isEmptyHtml(siteRules)) out.site_rules = siteRules;
+  if (privacyNotice && !isEmptyHtml(privacyNotice)) out.privacy_notice = privacyNotice;
+  return out;
+}
+
+/** A rich-text value with no visible content (e.g. the editor's empty `<p></p>`) counts as unset. */
+function isEmptyHtml(html: string): boolean {
+  return (
+    html
+      .replace(/<[^>]*>/g, '')
+      .replace(/&nbsp;/g, '')
+      .replace(/\s+/g, '') === ''
+  );
+}
+
+/**
+ * Institution contact (email + phone) shown to visitors in the invitation message and on the
+ * pre-registration page so they can reach the organisation with questions. Either may be unset.
+ */
+export async function getInstitutionContact(): Promise<{
+  email: string | null;
+  phone: string | null;
+}> {
+  return {
+    email: (await getSetting<string | null>(CONTACT_EMAIL_KEY, null))?.trim() || null,
+    phone: (await getSetting<string | null>(CONTACT_PHONE_KEY, null))?.trim() || null,
   };
 }
 
@@ -88,6 +136,10 @@ export async function updateSettings(input: SettingsUpdateInput, actor: Actor) {
   if (input.voiceLanguage !== undefined) await setSetting(VOICE_LANGUAGE_KEY, input.voiceLanguage);
   if (input.voiceName !== undefined) await setSetting(VOICE_NAME_KEY, input.voiceName);
   if (input.voiceSpeed !== undefined) await setSetting(VOICE_SPEED_KEY, input.voiceSpeed);
+  if (input.contactEmail !== undefined) await setSetting(CONTACT_EMAIL_KEY, input.contactEmail);
+  if (input.contactPhone !== undefined) await setSetting(CONTACT_PHONE_KEY, input.contactPhone);
+  if (input.siteRules !== undefined) await setSetting(SITE_RULES_KEY, input.siteRules);
+  if (input.privacyNotice !== undefined) await setSetting(PRIVACY_NOTICE_KEY, input.privacyNotice);
   await recordAudit(db, {
     actorId: actor.id,
     actorRole: actor.role,

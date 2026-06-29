@@ -49,6 +49,8 @@ export default defineConfig({
             return 'data-vendor';
           if (id.includes('better-auth')) return 'auth-vendor';
           if (id.includes('socket.io') || id.includes('engine.io')) return 'realtime-vendor';
+          // Rich-text editor — only reached via the lazy admin chunk, so keep it isolated.
+          if (/[\\/]node_modules[\\/](@tiptap|prosemirror-)/.test(id)) return 'editor-vendor';
         },
       },
     },

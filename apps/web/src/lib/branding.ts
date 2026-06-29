@@ -8,7 +8,7 @@ export const APP_NAME_FALLBACK = 'Visitor Management System';
 export const DEFAULT_LOGO_SRC = '/brand/ghana-coat-of-arms.svg';
 
 /** Public, unauthenticated branding config — works on the sign-in and kiosk screens too. */
-function usePublicConfig() {
+export function usePublicConfig() {
   return trpc.lookups.publicConfig.useQuery(undefined, { staleTime: 5 * 60 * 1000 });
 }
 

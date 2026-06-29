@@ -69,6 +69,24 @@ export const preRegSubmitSchema = z.object({
 });
 export type PreRegSubmitInput = z.infer<typeof preRegSubmitSchema>;
 
+/**
+ * Optional identity capture during pre-registration (selfie / ID photo). The image rides as a
+ * base64 `data:` URL (downscaled client-side); the server validates mime + decoded size, stores
+ * the bytes in object storage and upserts a `document_record`. `kind` maps to the document type
+ * (`selfie` → photo, `id` → id_document).
+ */
+export const PREREG_IMAGE_ALLOWED_MIME = ['image/jpeg', 'image/png', 'image/webp'] as const;
+export const PREREG_IMAGE_MAX_BYTES = 5_000_000; // 5 MB (post-downscale headroom)
+export const preRegUploadSchema = z.object({
+  token: z.string().min(16),
+  kind: z.enum(['selfie', 'id']),
+  dataUrl: z
+    .string()
+    .regex(/^data:image\/(jpeg|png|webp);base64,/, 'Use a JPG, PNG or WebP image')
+    .max(8_000_000, 'Image is too large'),
+});
+export type PreRegUploadInput = z.infer<typeof preRegUploadSchema>;
+
 export const paginationSchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(100).default(25),
@@ -341,6 +359,12 @@ export const settingsUpdateSchema = z.object({
   voiceLanguage: voiceLanguageSchema.optional(),
   voiceName: voiceNameSchema.optional(),
   voiceSpeed: z.coerce.number().min(0.5).max(2).optional(),
+  /** Institution contact shown to visitors in the invitation + on the pre-registration page. */
+  contactEmail: z.union([z.literal(''), z.email()]).optional(),
+  contactPhone: z.string().max(40).optional(),
+  /** Visitor-facing policy content (rich-text HTML) opened from the pre-registration page. */
+  siteRules: z.string().max(100_000).optional(),
+  privacyNotice: z.string().max(100_000).optional(),
 });
 export type SettingsUpdateInput = z.infer<typeof settingsUpdateSchema>;
 

@@ -17,6 +17,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1075.0",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "@trpc/server": "^11.6.0",
     "@vms/shared": "workspace:*",
