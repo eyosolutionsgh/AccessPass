@@ -29,22 +29,22 @@ export function CardHeader({
   return (
     <div
       className={cn(
-        'flex items-start justify-between gap-4 border-b border-slate-100 px-5 py-4',
+        'flex flex-wrap items-start justify-between gap-4 border-b border-slate-100 px-5 py-4',
         className,
       )}
     >
-      <div className="flex items-center gap-3">
+      <div className="flex min-w-0 items-center gap-3">
         {icon && (
           <span className="flex size-9 items-center justify-center rounded-xl bg-brand-50 text-brand-600 [&_svg]:size-4.5">
             {icon}
           </span>
         )}
-        <div>
+        <div className="min-w-0">
           <h2 className="text-sm font-semibold text-slate-900">{title}</h2>
           {description && <p className="mt-0.5 text-xs text-slate-500">{description}</p>}
         </div>
       </div>
-      {action && <div className="shrink-0">{action}</div>}
+      {action && <div className="w-full shrink-0 sm:w-auto">{action}</div>}
     </div>
   );
 }
