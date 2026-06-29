@@ -35,3 +35,6 @@ coverage/
 
 # Electron
 apps/kiosk/release/
+
+# Scratch / local working files
+tmp/
