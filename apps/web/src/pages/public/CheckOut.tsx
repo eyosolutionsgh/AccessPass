@@ -130,12 +130,12 @@ export function CheckOut() {
 
   return (
     <>
-      <Shell>
-        <PostGate
-          deviceId={deviceId}
-          permission={{ checkin: ['checkout'] }}
-          postLabel="check-out desk"
-        >
+      <PostGate
+        deviceId={deviceId}
+        permission={{ checkin: ['checkout'] }}
+        postLabel="check-out desk"
+      >
+        <Shell>
           {checkedOut ? (
             <div className="text-center">
               <div className="mx-auto flex size-20 items-center justify-center rounded-full bg-emerald-50 ring-8 ring-emerald-100/60">
@@ -199,8 +199,8 @@ export function CheckOut() {
               </form>
             </div>
           )}
-        </PostGate>
-      </Shell>
+        </Shell>
+      </PostGate>
       <KioskSetupLink onClick={() => setSetup(true)} />
     </>
   );

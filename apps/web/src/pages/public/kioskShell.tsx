@@ -1,3 +1,4 @@
+import { AuthBackdrop } from '../../components/AuthBackdrop.tsx';
 import { Logo } from '../../components/Logo.tsx';
 import { useOrgName } from '../../lib/branding.ts';
 
@@ -6,9 +7,9 @@ import { useOrgName } from '../../lib/branding.ts';
 function KioskBrand() {
   const orgName = useOrgName();
   return (
-    <div className="mb-6 flex shrink-0 flex-col items-center gap-2 border-b border-slate-100 pb-5 text-center">
-      <Logo className="size-12 rounded-2xl" />
-      <span className="text-base font-semibold tracking-tight text-slate-900">{orgName}</span>
+    <div className="mb-6 flex shrink-0 flex-col items-center gap-2.5 border-b border-slate-100 pb-5 text-center">
+      <Logo className="size-20 rounded-3xl shadow-[var(--shadow-brand)] ring-1 ring-black/5" />
+      <span className="text-lg font-semibold tracking-tight text-slate-900">{orgName}</span>
     </div>
   );
 }
@@ -24,9 +25,10 @@ function KioskBrand() {
  */
 export function Shell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="relative flex min-h-[100dvh] flex-col overflow-hidden bg-white select-none [-webkit-tap-highlight-color:transparent] lg:items-center lg:justify-center lg:bg-mesh lg:p-6">
-      <div className="pointer-events-none absolute inset-0 hidden bg-grid opacity-[0.04] lg:block" />
-      <div className="relative flex w-full flex-1 flex-col bg-white px-5 pt-[max(1.5rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))] lg:max-w-lg lg:flex-none lg:animate-scale-in lg:rounded-3xl lg:px-10 lg:py-10 lg:shadow-2xl lg:ring-1 lg:ring-black/5">
+    <div className="relative flex min-h-[100dvh] flex-col overflow-hidden bg-slate-950 select-none [-webkit-tap-highlight-color:transparent] lg:items-center lg:justify-center lg:bg-mesh lg:p-6">
+      {/* Immersive backdrop matches the staff sign-in screen — large screens / landscape kiosks. */}
+      <AuthBackdrop className="hidden lg:block" />
+      <div className="relative flex w-full flex-1 flex-col bg-white px-5 pt-[max(1.5rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))] lg:max-w-lg lg:flex-none lg:animate-rise lg:rounded-3xl lg:border lg:border-white/60 lg:bg-white/95 lg:px-10 lg:py-10 lg:shadow-[0_30px_80px_-24px_oklch(0.272_0.09_270/0.85)] lg:ring-1 lg:ring-black/5 lg:backdrop-blur-xl">
         <KioskBrand />
         <div className="flex flex-1 flex-col justify-center">
           <div className="mx-auto w-full max-w-md lg:max-w-none">{children}</div>
