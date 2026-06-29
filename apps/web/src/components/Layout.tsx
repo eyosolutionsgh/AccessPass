@@ -1,11 +1,11 @@
 import {
-  BarChart3,
   Building2,
   CalendarCheck,
   ChevronDown,
   DoorClosed,
   DoorOpen,
   HelpCircle,
+  ListFilter,
   LogOut,
   MapPin,
   Menu,
@@ -15,6 +15,7 @@ import {
   ScrollText,
   ShieldCheck,
   Sliders,
+  Sparkles,
   Tags,
   UsersRound,
   X,
@@ -24,6 +25,7 @@ import { Link, useLocation } from 'wouter';
 import { anyRoleHasPermission, type PermissionRequest } from '@vms/shared';
 import { signOut } from '../lib/auth.ts';
 import { useOrgName } from '../lib/branding.ts';
+import { trpc } from '../lib/trpc.ts';
 import { cn } from '../lib/utils.ts';
 import { Avatar } from './ui/avatar.tsx';
 import { Button } from './ui/button.tsx';
@@ -67,7 +69,18 @@ const NAV: NavSection[] = [
   {
     label: 'Insights',
     items: [
-      { href: '/reports', label: 'Reports', icon: BarChart3, perm: { report: ['read'] } },
+      {
+        href: '/insights',
+        label: 'Visitor insights',
+        icon: Sparkles,
+        perm: { report: ['insights'] },
+      },
+      {
+        href: '/visitor-log',
+        label: 'Visitor log',
+        icon: ListFilter,
+        perm: { report: ['insights'] },
+      },
       { href: '/audit', label: 'Audit log', icon: ScrollText, perm: { audit: ['read'] } },
     ],
   },
@@ -362,6 +375,37 @@ function UserCard({
   );
 }
 
+/**
+ * Persistent identity context for the signed-in user — facility, department · office, and the
+ * post(s) they're assigned to operate. Always visible in the sidebar (no profile click needed);
+ * the institution name sits in the Brand above. Renders only the rows that have data.
+ */
+function MyContext() {
+  const { data } = trpc.lookups.myContext.useQuery(undefined, { staleTime: 60_000 });
+  if (!data) return null;
+  const deptOffice = [data.departmentName, data.officeName].filter(Boolean).join(' · ');
+  const rows: { icon: typeof Building2; text: string }[] = [];
+  if (data.facilityName) rows.push({ icon: Building2, text: data.facilityName });
+  if (deptOffice) rows.push({ icon: Network, text: deptOffice });
+  if (data.posts.length) rows.push({ icon: MapPin, text: data.posts.join(', ') });
+  if (rows.length === 0) return null;
+  return (
+    <div className="mt-2 space-y-1.5 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2.5">
+      {rows.map((r, i) => {
+        const Icon = r.icon;
+        return (
+          <div key={i} className="flex items-center gap-2 text-xs text-slate-400">
+            <Icon className="size-3.5 shrink-0 text-slate-500" />
+            <span className="truncate" title={r.text}>
+              {r.text}
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function SidebarContent({
   sections,
   location,
@@ -388,6 +432,7 @@ function SidebarContent({
 
       <div className="pt-4">
         <UserCard name={displayName} role={role} onNavigate={onNavigate} />
+        <MyContext />
       </div>
 
       {canCreate && (

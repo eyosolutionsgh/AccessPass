@@ -296,7 +296,14 @@ export function Appointments() {
                   </Link>
                 </td>
                 <td className="px-4 py-3">
-                  <span className="block font-medium text-slate-800">{v.hostName ?? '—'}</span>
+                  <span className="flex items-center gap-1.5 font-medium text-slate-800">
+                    {v.hostName ?? '—'}
+                    {v.origin === 'walk_in' && (
+                      <span className="inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700 ring-1 ring-inset ring-amber-600/20">
+                        Walk-in
+                      </span>
+                    )}
+                  </span>
                   {(v.departmentName || v.officeName) && (
                     <span className="block text-xs text-slate-500">
                       {[v.departmentName, v.officeName].filter(Boolean).join(' · ')}

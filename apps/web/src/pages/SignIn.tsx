@@ -47,7 +47,7 @@ export function SignIn() {
     ? `If an account exists for ${email}, a secure reset link is on its way.`
     : forgotMode
       ? 'Enter your account email and we’ll send you a secure reset link.'
-      : `Sign in to ${orgName}`;
+      : 'Sign in to continue';
 
   return (
     <AuthScreen

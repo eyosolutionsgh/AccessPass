@@ -99,7 +99,12 @@ export function Checkpoint() {
 
   return (
     <>
-      <PostGate deviceId={deviceId} permission={{ checkin: ['override'] }} postLabel="checkpoint">
+      <PostGate
+        deviceId={deviceId}
+        permission={{ checkin: ['override'] }}
+        postLabel="checkpoint"
+        onSetup={() => setSetup(true)}
+      >
         <Shell>
           {result && result.ok ? (
             <div className="text-center">

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   adminSetActiveSchema,
   checkInSubmitSchema,
+  createVisitorSchema,
   deviceLoginSchema,
   pointAssignSchema,
   pointCreateSchema,
@@ -11,10 +12,68 @@ import {
   invitationCodeSchema,
   normalizeInvitationCode,
   preRegSubmitSchema,
+  registerWalkInSchema,
   reprintSchema,
   userCreateSchema,
   watchlistAddSchema,
 } from './index.ts';
+
+const FACILITY = '11111111-1111-4111-8111-111111111111';
+const DEPARTMENT = '22222222-2222-4222-8222-222222222222';
+const OFFICE = '33333333-3333-4333-8333-333333333333';
+const HOST = '44444444-4444-4444-8444-444444444444';
+const VISITOR = '55555555-5555-4555-8555-555555555555';
+
+describe('walk-in registration input', () => {
+  it('accepts an existing visitor directed to a department', () => {
+    const r = registerWalkInSchema.parse({
+      visitorId: VISITOR,
+      facilityId: FACILITY,
+      departmentId: DEPARTMENT,
+    });
+    expect(r.issuePass).toBe(false); // defaults off — pass is opt-in
+  });
+
+  it('accepts a new inline visitor directed to an office, with a pass', () => {
+    const r = registerWalkInSchema.parse({
+      visitor: { fullName: 'Ama Mensah' },
+      facilityId: FACILITY,
+      officeId: OFFICE,
+      issuePass: true,
+    });
+    expect(r.visitor?.fullName).toBe('Ama Mensah');
+    expect(r.issuePass).toBe(true);
+  });
+
+  it('requires either an existing visitor or new visitor details', () => {
+    expect(() => registerWalkInSchema.parse({ facilityId: FACILITY, hostId: HOST })).toThrow();
+  });
+
+  it('requires the visitor to be directed somewhere (department/office/host)', () => {
+    expect(() =>
+      registerWalkInSchema.parse({ visitorId: VISITOR, facilityId: FACILITY }),
+    ).toThrow();
+  });
+
+  it('does not require a facility (server derives it from the operating device/point)', () => {
+    const r = registerWalkInSchema.parse({ visitorId: VISITOR, departmentId: DEPARTMENT });
+    expect(r.facilityId).toBeUndefined();
+  });
+});
+
+describe('directory visitor input', () => {
+  it('accepts a name-only entry (contact is optional for the directory)', () => {
+    expect(createVisitorSchema.parse({ fullName: 'Kwame Owusu' }).fullName).toBe('Kwame Owusu');
+  });
+
+  it('rejects an empty name', () => {
+    expect(() => createVisitorSchema.parse({ fullName: '' })).toThrow();
+  });
+
+  it('rejects a malformed email', () => {
+    expect(() => createVisitorSchema.parse({ fullName: 'X', email: 'not-an-email' })).toThrow();
+  });
+});
 
 describe('invitation code (SRS FR-022 / QR-003)', () => {
   it('normalizes whitespace/hyphens and uppercases', () => {

@@ -12,6 +12,7 @@ import { invitationsRouter } from './invitations.ts';
 import { lookupsRouter } from './lookups.ts';
 import { preregRouter } from './prereg.ts';
 import { reportsRouter } from './reports.ts';
+import { visitorsRouter } from './visitors.ts';
 import { watchlistRouter } from './watchlist.ts';
 
 /**
@@ -31,6 +32,7 @@ export const appRouter = router({
   audit: auditRouter,
   admin: adminRouter,
   reports: reportsRouter,
+  visitors: visitorsRouter,
   ai: aiRouter,
 });
 

@@ -33,10 +33,12 @@ async function loadIncidentContext(incidentId: string) {
         .select({ fullName: schema.visitor.fullName })
         .from(schema.visitor)
         .where(eq(schema.visitor.id, v.visitorId));
-      [host] = await db
-        .select({ name: schema.host.name })
-        .from(schema.host)
-        .where(eq(schema.host.id, v.hostId));
+      if (v.hostId) {
+        [host] = await db
+          .select({ name: schema.host.name })
+          .from(schema.host)
+          .where(eq(schema.host.id, v.hostId));
+      }
     }
   }
   return { inc, visitor, host };
@@ -145,7 +147,10 @@ export async function askAudit(
       content:
         'Answer the question using ONLY the audit-log entries provided. If the answer is not in them, say you cannot determine it. Be concise.',
     },
-    { role: 'user', content: `Question: ${question}\n\nAudit entries (most recent first):\n${context}` },
+    {
+      role: 'user',
+      content: `Question: ${question}\n\nAudit entries (most recent first):\n${context}`,
+    },
   ]);
 
   await recordAudit(db, {
@@ -167,7 +172,10 @@ export async function embedIncident(incidentId: string): Promise<boolean> {
   if (!inc) return false;
   const text = `${inc.type}: ${inc.description ?? ''}`.trim();
   const [vector] = await embed([text]);
-  await db.update(schema.incident).set({ embedding: vector }).where(eq(schema.incident.id, incidentId));
+  await db
+    .update(schema.incident)
+    .set({ embedding: vector })
+    .where(eq(schema.incident.id, incidentId));
   return true;
 }
 

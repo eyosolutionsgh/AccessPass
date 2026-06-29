@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { useOrgName } from '../lib/branding.ts';
 import { AuthBackdrop } from './AuthBackdrop.tsx';
 import { Logo } from './Logo.tsx';
 
@@ -13,6 +14,7 @@ export function AuthScreen({
   title,
   subtitle,
   icon,
+  place,
   children,
   footer,
   topRight,
@@ -23,10 +25,13 @@ export function AuthScreen({
   subtitle?: ReactNode;
   /** Replaces the default institution logo above the title (e.g. a success / alert badge). */
   icon?: ReactNode;
+  /** Location context shown under the institution name — e.g. the facility a paired post is at. */
+  place?: ReactNode;
   children: ReactNode;
   footer?: ReactNode;
   topRight?: ReactNode;
 }) {
+  const orgName = useOrgName();
   return (
     <div className="bg-mesh relative flex min-h-[100dvh] items-center justify-center overflow-hidden px-4 py-12">
       {topRight}
@@ -39,13 +44,20 @@ export function AuthScreen({
           {icon ?? (
             <Logo className="size-20 rounded-3xl shadow-[var(--shadow-brand)] ring-1 ring-white/20" />
           )}
+          {/* Institution name under the logo — consistent across every auth/login surface. */}
+          <span className="mt-3 text-sm font-semibold tracking-tight text-white/90">{orgName}</span>
+          {place && (
+            <span className="mt-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-brand-300">
+              {place}
+            </span>
+          )}
           {eyebrow && (
-            <p className="mt-5 text-xs font-semibold uppercase tracking-[0.2em] text-brand-300">
+            <p className="mt-3 text-xs font-semibold uppercase tracking-[0.2em] text-brand-300">
               {eyebrow}
             </p>
           )}
           <h1
-            className={`font-bold tracking-tight text-white ${eyebrow ? 'mt-1.5 text-3xl' : 'mt-5 text-2xl'}`}
+            className={`font-bold tracking-tight text-white ${eyebrow ? 'mt-1.5 text-3xl' : 'mt-3 text-2xl'}`}
           >
             {title}
           </h1>

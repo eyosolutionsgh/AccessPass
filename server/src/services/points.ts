@@ -188,6 +188,34 @@ export async function assertDeviceLogin(
   return { pointId: d.pointId, pointName: pt.name };
 }
 
+/**
+ * Public, pre-sign-in view of a device's posting: is it paired (registered, active, and stationed
+ * at an active point) and, if so, the point + facility name. Drives the post sign-in screen — a
+ * paired device shows "Sign in to {pointName}", an unpaired one shows a Point Setup CTA instead.
+ * Never throws and reveals no PII.
+ */
+export async function getDevicePost(
+  deviceId: string,
+): Promise<{ paired: boolean; pointName: string | null; facilityName: string | null }> {
+  const unpaired = { paired: false, pointName: null, facilityName: null };
+  const [d] = await db
+    .select({ pointId: schema.deviceProfile.pointId, isActive: schema.deviceProfile.isActive })
+    .from(schema.deviceProfile)
+    .where(eq(schema.deviceProfile.deviceId, deviceId));
+  if (!d || !d.isActive || !d.pointId) return unpaired;
+  const [pt] = await db
+    .select({
+      name: schema.point.name,
+      isActive: schema.point.isActive,
+      facilityName: schema.facility.name,
+    })
+    .from(schema.point)
+    .leftJoin(schema.facility, eq(schema.facility.id, schema.point.facilityId))
+    .where(eq(schema.point.id, d.pointId));
+  if (!pt || !pt.isActive) return unpaired;
+  return { paired: true, pointName: pt.name, facilityName: pt.facilityName };
+}
+
 // ── Device pairing (admin issues a one-time code; a kiosk redeems it to bind its deviceId) ──────
 /** Mint a short-lived one-time pairing code for an already-registered device (config is admin-side). */
 export async function createDevicePairing(deviceId: string, actor: Actor) {

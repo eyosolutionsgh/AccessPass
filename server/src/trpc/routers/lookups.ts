@@ -73,6 +73,38 @@ export const lookupsRouter = router({
     return h ?? null;
   }),
 
+  /**
+   * The signed-in user's own org context — facility, department, office (from their host record)
+   * and the post(s) they're assigned to operate. Surfaced persistently in the sidebar so a user
+   * always sees who/where they are without opening a profile screen.
+   */
+  myContext: protectedProcedure.query(async ({ ctx }) => {
+    const [h] = await db
+      .select({
+        facilityName: schema.facility.name,
+        departmentName: schema.department.name,
+        officeName: schema.office.name,
+      })
+      .from(schema.host)
+      .leftJoin(schema.department, eq(schema.department.id, schema.host.departmentId))
+      .leftJoin(schema.office, eq(schema.office.id, schema.host.officeId))
+      .leftJoin(schema.facility, eq(schema.facility.id, schema.host.facilityId))
+      .where(eq(schema.host.userId, ctx.user.id));
+    const posts = await db
+      .select({ name: schema.point.name, facilityName: schema.facility.name })
+      .from(schema.pointAssignment)
+      .innerJoin(schema.point, eq(schema.point.id, schema.pointAssignment.pointId))
+      .leftJoin(schema.facility, eq(schema.facility.id, schema.point.facilityId))
+      .where(and(eq(schema.pointAssignment.userId, ctx.user.id), eq(schema.point.isActive, true)));
+    return {
+      // Facility falls back to an assigned post's facility when the user has no host facility.
+      facilityName: h?.facilityName ?? posts.find((p) => p.facilityName)?.facilityName ?? null,
+      departmentName: h?.departmentName ?? null,
+      officeName: h?.officeName ?? null,
+      posts: posts.map((p) => p.name),
+    };
+  }),
+
   hosts: protectedProcedure
     .input(z.object({ q: z.string().max(120).optional() }))
     .query(async ({ input, ctx }) => {

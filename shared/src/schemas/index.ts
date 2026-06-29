@@ -173,6 +173,50 @@ export const updateVisitSchema = z.object({
 });
 export type UpdateVisitInput = z.infer<typeof updateVisitSchema>;
 
+/** Inline visitor details — shared by walk-in registration and directory add. */
+const visitorDetailsSchema = z.object({
+  fullName: z.string().min(1).max(160),
+  organization: z.string().max(160).optional(),
+  email: z.email().optional().or(z.literal('')),
+  phone: z.string().max(40).optional(),
+});
+
+/**
+ * Register an unscheduled walk-in at reception (no invitation). The visitor is either picked from
+ * the directory (`visitorId`) or captured inline (`visitor`), and is directed to a department,
+ * office and/or a specific host. A pass/badge is issued only when `issuePass` is set.
+ */
+export const registerWalkInSchema = z
+  .object({
+    visitorId: z.uuid().optional(),
+    visitor: visitorDetailsSchema.optional(),
+    // Optional: when omitted the server derives the facility from the operating device/point
+    // (the reception desk is stationed at a facility). Sent explicitly by the desktop dashboard.
+    facilityId: z.uuid().optional(),
+    departmentId: z.uuid().optional(),
+    officeId: z.uuid().optional(),
+    hostId: z.uuid().optional(),
+    purpose: z.string().max(500).optional(),
+    /** Issue a temporary pass/badge (same credential + QR as an appointment check-in). */
+    issuePass: z.boolean().default(false),
+    deviceId: z.string().max(120).optional(),
+  })
+  .refine((v) => v.visitorId || v.visitor, {
+    message: 'Provide either an existing visitor or new visitor details',
+    path: ['visitor'],
+  })
+  .refine((v) => v.departmentId || v.officeId || v.hostId, {
+    message: 'Direct the visitor to a department, office or person',
+    path: ['departmentId'],
+  });
+export type RegisterWalkInInput = z.infer<typeof registerWalkInSchema>;
+
+/** Add a person to the visitor directory (for later scheduling) without creating a visit. */
+export const createVisitorSchema = visitorDetailsSchema.extend({
+  notes: z.string().max(500).optional(),
+});
+export type CreateVisitorInput = z.infer<typeof createVisitorSchema>;
+
 /** SRS FR-090 — reception/host dashboard filters. */
 export const listVisitsSchema = z.object({
   facilityId: z.uuid().optional(),
@@ -556,6 +600,16 @@ export const reportRangeSchema = z.object({
   to: z.coerce.date().optional(),
 });
 export type ReportRangeInput = z.infer<typeof reportRangeSchema>;
+
+/** Filterable, paginated visitor-log report (the list view on the insights page). */
+export const insightsLogSchema = reportRangeSchema.extend({
+  status: visitStatusSchema.optional(),
+  origin: z.enum(['appointment', 'walk_in']).optional(),
+  search: z.string().max(120).optional(),
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).default(25),
+});
+export type InsightsLogInput = z.infer<typeof insightsLogSchema>;
 
 /** Visitor-insights search: find a recurring visitor by name, org, email or phone. */
 export const visitorSearchSchema = z.object({

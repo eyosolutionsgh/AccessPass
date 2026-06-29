@@ -15,6 +15,12 @@ export const visitStatus = pgEnum('visit_status', [
   'no_show',
 ]);
 
+/**
+ * How a visit came to exist: a scheduled `appointment` (booked ahead, invitation + QR) or an
+ * unscheduled `walk_in` registered at reception (no invitation; directed to a department/office).
+ */
+export const visitOrigin = pgEnum('visit_origin', ['appointment', 'walk_in']);
+
 /** SRS §7 — visit invitation (code + QR) token status. */
 export const invitationStatus = pgEnum('invitation_status', [
   'active',

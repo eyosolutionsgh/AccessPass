@@ -3,6 +3,7 @@ import {
   Ban,
   Building2,
   CalendarClock,
+  CalendarPlus,
   CheckCircle2,
   Footprints,
   IdCard,
@@ -11,10 +12,11 @@ import {
   Phone,
   Send,
   Ticket,
+  UserPlus,
   XCircle,
 } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
-import { Link, useRoute } from 'wouter';
+import { Link, useLocation, useRoute } from 'wouter';
 import { toast } from 'sonner';
 import { anyRoleHasPermission } from '@vms/shared';
 import { useSession } from '../lib/auth.ts';
@@ -223,10 +225,12 @@ export function AppointmentDetail() {
   const [, params] = useRoute('/appointments/:id');
   const id = params?.id ?? '';
   const utils = trpc.useUtils();
+  const [, navigate] = useLocation();
   const [rescheduling, setRescheduling] = useState(false);
 
   const { data: session } = useSession();
   const role = (session?.user as { role?: string | null } | undefined)?.role ?? null;
+  const canBook = anyRoleHasPermission(role, { appointment: ['create'] });
   const canApprove = anyRoleHasPermission(role, { appointment: ['approve'] });
   const canDeny = anyRoleHasPermission(role, { appointment: ['deny'] });
   const canReschedule = anyRoleHasPermission(role, { appointment: ['update'] });
@@ -281,6 +285,9 @@ export function AppointmentDetail() {
   if (q.error || !q.data) return <div className="text-red-600">Could not load appointment.</div>;
 
   const { visit, visitor, host, facility, invitation, location } = q.data;
+  const departmentName = q.data.departmentName ?? host?.departmentName ?? null;
+  const officeName = q.data.officeName ?? host?.officeName ?? null;
+  const isWalkIn = visit.origin === 'walk_in';
   const onSite = visit.status === 'checked_in';
   const busy =
     approve.isPending || deny.isPending || cancel.isPending || resend.isPending || revoke.isPending;
@@ -294,9 +301,17 @@ export function AppointmentDetail() {
   const showResend =
     ['approved', 'invitation_sent', 'pre_registered'].includes(visit.status) && canResend;
   const showRevoke = invitation?.status === 'active' && canRevoke;
-  const showCancel = !closed && canCancel;
+  const showCancel = !closed && visit.status !== 'checked_in' && canCancel;
+  // Re-book a repeat visitor (or follow up after a walk-in enquiry) — prefills the booking form.
+  const showFollowUp = canBook && Boolean(visit.visitorId);
   const showActions =
-    showApprove || showDeny || showReschedule || showResend || showRevoke || showCancel;
+    showApprove ||
+    showDeny ||
+    showReschedule ||
+    showResend ||
+    showRevoke ||
+    showCancel ||
+    showFollowUp;
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -321,6 +336,11 @@ export function AppointmentDetail() {
           </div>
           <div className="flex flex-col items-end gap-2">
             <StatusBadge status={visit.status} />
+            {isWalkIn && (
+              <span className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700 ring-1 ring-amber-600/20">
+                <Footprints className="size-3.5" /> Walk-in
+              </span>
+            )}
             {onSite && (
               <span
                 className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 ring-1 ring-emerald-600/20"
@@ -340,14 +360,18 @@ export function AppointmentDetail() {
           <div className="divide-y divide-slate-100 px-5 py-1">
             <Row label="Email" value={visitor?.email ?? '—'} icon={<Mail />} />
             <Row label="Phone" value={visitor?.phone ?? '—'} icon={<Phone />} />
-            <Row label="Host" value={host?.name ?? '—'} />
-            <Row label="Department" value={host?.departmentName ?? '—'} />
-            <Row label="Office / Room" value={host?.officeName ?? '—'} />
+            <Row label="Host" value={host?.name ?? (isWalkIn ? 'No specific person' : '—')} />
+            <Row label="Department" value={departmentName ?? '—'} />
+            <Row label="Office / Room" value={officeName ?? '—'} />
             <Row label="Facility" value={facility?.name ?? '—'} icon={<MapPin />} />
             <Row label="Purpose" value={visit.purpose ?? '—'} />
-            <Row label="Date" value={fmtDate(visit.expectedArrival)} />
-            <Row label="Start time" value={fmtClock(visit.expectedArrival)} />
-            <Row label="Estimated end" value={fmtClock(visit.expectedDeparture)} />
+            {!isWalkIn && (
+              <>
+                <Row label="Date" value={fmtDate(visit.expectedArrival)} />
+                <Row label="Start time" value={fmtClock(visit.expectedArrival)} />
+                <Row label="Estimated end" value={fmtClock(visit.expectedDeparture)} />
+              </>
+            )}
           </div>
         </Card>
 
@@ -361,7 +385,9 @@ export function AppointmentDetail() {
                 <Row label="Expires" value={fmt(invitation.expiresAt)} />
               </div>
             ) : (
-              <p className="py-6 text-center text-sm text-slate-400">No invitation issued yet.</p>
+              <p className="py-6 text-center text-sm text-slate-400">
+                {isWalkIn ? 'Walk-in — no invitation needed.' : 'No invitation issued yet.'}
+              </p>
             )}
           </div>
         </Card>
@@ -395,6 +421,17 @@ export function AppointmentDetail() {
           {showReschedule && (
             <Button variant="outline" disabled={busy} onClick={() => setRescheduling(true)}>
               <CalendarClock className="size-4" /> Reschedule
+            </Button>
+          )}
+
+          {showFollowUp && (
+            <Button
+              variant="outline"
+              disabled={busy}
+              onClick={() => navigate(`/appointments/new?visitorId=${visit.visitorId}`)}
+            >
+              {isWalkIn ? <UserPlus className="size-4" /> : <CalendarPlus className="size-4" />}
+              {isWalkIn ? 'Schedule follow-up' : 'Book again'}
             </Button>
           )}
 

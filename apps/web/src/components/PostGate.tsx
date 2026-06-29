@@ -1,4 +1,4 @@
-import { LogOut, Lock, Mail, ShieldAlert } from 'lucide-react';
+import { LogOut, Lock, Mail, ShieldAlert, Wrench } from 'lucide-react';
 import { type FormEvent, type ReactNode, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { anyRoleHasPermission, type PermissionRequest } from '@vms/shared';
@@ -15,6 +15,8 @@ type Props = {
   permission: PermissionRequest;
   /** What to call the post in copy, e.g. "check-in desk", "checkout desk", "checkpoint". */
   postLabel: string;
+  /** Open the device/point setup flow — shown as the CTA when the device isn't paired to a point. */
+  onSetup?: () => void;
   children: ReactNode;
 };
 
@@ -24,7 +26,7 @@ type Props = {
  * (b) assigned to the point this device is stationed at is signed in. The server opens a live
  * staffing session so admins can see who is at post; sign-out closes it.
  */
-export function PostGate({ deviceId, permission, postLabel, children }: Props) {
+export function PostGate({ deviceId, permission, postLabel, onSetup, children }: Props) {
   const { data: session, isPending } = useSettledSession();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -32,6 +34,15 @@ export function PostGate({ deviceId, permission, postLabel, children }: Props) {
   const [loggingOut, setLoggingOut] = useState(false);
   const postSignIn = trpc.checkin.postSignIn.useMutation();
   const postSignOut = trpc.checkin.postSignOut.useMutation();
+
+  // Pre-sign-in posting status: a paired device (registered + stationed at an active point) shows
+  // "Sign in to {pointName}"; an unpaired one shows a Point Setup CTA instead of the login form.
+  const devicePost = trpc.checkin.devicePost.useQuery(
+    { deviceId: deviceId ?? '' },
+    { enabled: Boolean(deviceId), staleTime: 30_000 },
+  );
+  const paired = Boolean(deviceId) && Boolean(devicePost.data?.paired);
+  const pointName = devicePost.data?.pointName ?? null;
 
   const role = (session?.user as { role?: string | null } | undefined)?.role ?? null;
   const name = (session?.user as { name?: string | null } | undefined)?.name ?? null;
@@ -94,11 +105,48 @@ export function PostGate({ deviceId, permission, postLabel, children }: Props) {
   if (isPending) return null;
 
   if (!session) {
+    // Resolving the device's posting status — avoid flashing the wrong screen.
+    if (deviceId && devicePost.isLoading) return null;
+
+    // Not paired to a point yet → don't offer sign-in; guide the operator to set the device up.
+    if (!paired) {
+      return (
+        <AuthScreen
+          eyebrow="Device setup"
+          title="Point setup required"
+          subtitle="This device isn't paired to a point yet, so it can't open a post for visitors."
+          icon={
+            <span className="flex size-20 items-center justify-center rounded-3xl bg-brand-500/15 text-brand-200 ring-1 ring-brand-300/20">
+              <Wrench className="size-10" />
+            </span>
+          }
+          footer={
+            <>
+              <Lock className="size-3.5" /> Authorized personnel only
+            </>
+          }
+        >
+          <p className="text-center text-sm text-slate-600">
+            Pair this device to a reception or checkpoint point, then staff can sign in here.
+          </p>
+          {onSetup && (
+            <Button
+              size="lg"
+              className="mt-5 w-full bg-gradient-to-r from-brand-600 to-brand-500 shadow-[var(--shadow-brand)] hover:from-brand-700 hover:to-brand-600"
+              onClick={onSetup}
+            >
+              <Wrench className="size-4" /> Set up this point
+            </Button>
+          )}
+        </AuthScreen>
+      );
+    }
+
     return (
       <AuthScreen
-        eyebrow="Staff sign in"
-        title={postLabel.charAt(0).toUpperCase() + postLabel.slice(1)}
-        subtitle="Sign in to open this post for visitors."
+        place={devicePost.data?.facilityName ?? undefined}
+        title={`Sign in to ${pointName}`}
+        subtitle="Use your staff account to open this post for visitors."
         footer={
           <>
             <Lock className="size-3.5" /> Authorized personnel only
@@ -176,10 +224,14 @@ export function PostGate({ deviceId, permission, postLabel, children }: Props) {
 
   return (
     <>
-      <div className="fixed right-[max(1rem,env(safe-area-inset-right))] top-[max(1rem,env(safe-area-inset-top))] z-10 flex items-center gap-2 rounded-full bg-white/95 py-1.5 pl-3 pr-1.5 text-xs font-medium text-slate-600 shadow-lg ring-1 ring-slate-900/5 backdrop-blur">
-        <span className="size-1.5 rounded-full bg-emerald-500" />
-        {name ?? 'Signed in'}
-        {post.pointName && <span className="text-slate-400">· {post.pointName}</span>}
+      <div className="fixed right-[max(1rem,env(safe-area-inset-right))] top-[max(1rem,env(safe-area-inset-top))] z-10 flex max-w-[88vw] items-center gap-2 rounded-full bg-white/95 py-1.5 pl-3 pr-1.5 text-xs font-medium text-slate-600 shadow-lg ring-1 ring-slate-900/5 backdrop-blur">
+        <span className="size-1.5 shrink-0 rounded-full bg-emerald-500" />
+        <span className="shrink-0">{name ?? 'Signed in'}</span>
+        {(devicePost.data?.facilityName || post.pointName) && (
+          <span className="truncate text-slate-400">
+            · {[devicePost.data?.facilityName, post.pointName].filter(Boolean).join(' · ')}
+          </span>
+        )}
         <button
           type="button"
           onClick={onLogout}

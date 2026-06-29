@@ -1,4 +1,5 @@
 import {
+  BadgeCheck,
   CalendarClock,
   DoorOpen,
   Hourglass,
@@ -6,12 +7,15 @@ import {
   LogOut,
   QrCode,
   Search,
+  Smartphone,
   Tags,
   UserCheck,
+  UserPlus,
   UserRound,
   X,
 } from 'lucide-react';
 import { type FormEvent, Suspense, lazy, useEffect, useMemo, useState } from 'react';
+import { useLocation } from 'wouter';
 import { toast } from 'sonner';
 import { invitationCodeSchema, anyRoleHasPermission, type CheckInLookup } from '@vms/shared';
 import { useSession } from '../lib/auth.ts';
@@ -22,8 +26,13 @@ import { Card, CardHeader } from '../components/ui/card.tsx';
 import { EmptyState } from '../components/ui/empty-state.tsx';
 import { HelpLink } from '../components/HelpLink.tsx';
 import { Input, InputWithIcon } from '../components/ui/input.tsx';
+import { Field } from '../components/ui/misc.tsx';
 import { PageHeader } from '../components/ui/page-header.tsx';
 import { Pagination } from '../components/ui/pagination.tsx';
+import { PhoneInput } from '../components/ui/phone-input.tsx';
+import { Select } from '../components/ui/select.tsx';
+import { Textarea } from '../components/ui/textarea.tsx';
+import { VisitorPicker, type PickedVisitor } from '../components/VisitorPicker.tsx';
 import { StatCard } from '../components/ui/stat-card.tsx';
 import { StateRow, TBody, Table, Th, THead } from '../components/ui/table.tsx';
 import { useClientTable } from '../lib/hooks.ts';
@@ -55,6 +64,7 @@ const STAT_CARDS = [
 
 export function Reception() {
   const utils = trpc.useUtils();
+  const [, navigate] = useLocation();
   const { data: session } = useSession();
   const role = (session?.user as { role?: string | null } | undefined)?.role ?? null;
   // Read-only oversight roles (e.g. administrator) see live occupancy but no front-desk actions.
@@ -105,7 +115,16 @@ export function Reception() {
         eyebrow="Front desk"
         title="Reception"
         description="Live occupancy, assisted check-in and badge control."
-        actions={<HelpLink section="checkpoints" />}
+        actions={
+          <>
+            {canProcess && (
+              <Button variant="outline" size="sm" onClick={() => navigate('/front-desk')}>
+                <Smartphone className="size-4" /> Open front desk
+              </Button>
+            )}
+            <HelpLink section="checkpoints" />
+          </>
+        }
       />
 
       <div className="grid grid-cols-2 gap-4 stagger lg:grid-cols-4">
@@ -122,6 +141,8 @@ export function Reception() {
       </div>
 
       {canProcess && <AssistedCheckInCard onDone={refresh} />}
+
+      {canProcess && <WalkInCard onDone={refresh} />}
 
       {canCheckout && <TagsOutCard />}
 
@@ -189,7 +210,13 @@ export function Reception() {
                     </div>
                   </div>
                 </td>
-                <td className="px-4 py-3 text-slate-700">{v.hostName ?? '—'}</td>
+                <td className="px-4 py-3 text-slate-700">
+                  {v.hostName ?? (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-700 ring-1 ring-inset ring-amber-600/20">
+                      <UserPlus className="size-3" /> Walk-in
+                    </span>
+                  )}
+                </td>
                 <td className="px-4 py-3">
                   <span className="rounded-md bg-slate-100 px-2 py-0.5 font-mono text-xs font-medium text-slate-700">
                     {v.badgeNumber ?? '—'}
@@ -382,6 +409,294 @@ function AssistedCheckInCard({ onDone }: { onDone: () => void }) {
             <QrCode className="size-4" /> Scan QR
           </Button>
         </form>
+      )}
+    </Card>
+  );
+}
+
+/**
+ * Register an unscheduled walk-in/enquiry: pick or capture the visitor, direct them to a
+ * department/office/officer, and optionally issue a pass. No invitation needed. A new person is
+ * saved to the directory so they can be picked later when scheduling a follow-up.
+ */
+function WalkInCard({ onDone }: { onDone: () => void }) {
+  const [open, setOpen] = useState(false);
+  const [visitor, setVisitor] = useState<PickedVisitor | null>(null);
+  const [fullName, setFullName] = useState('');
+  const [organization, setOrganization] = useState('');
+  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
+  const [facilityId, setFacilityId] = useState('');
+  const [departmentId, setDepartmentId] = useState('');
+  const [officeId, setOfficeId] = useState('');
+  const [hostId, setHostId] = useState('');
+  const [purpose, setPurpose] = useState('');
+  const [issuePass, setIssuePass] = useState(false);
+
+  const facilities = trpc.lookups.facilities.useQuery();
+  const departments = trpc.lookups.departments.useQuery();
+  const offices = trpc.lookups.officesByDepartment.useQuery(
+    { departmentId },
+    { enabled: !!departmentId },
+  );
+  const hosts = trpc.lookups.hostsByOffice.useQuery({ officeId }, { enabled: !!officeId });
+
+  // Default to the only / first facility so the desk doesn't pick it every time.
+  useEffect(() => {
+    if (!facilityId && facilities.data?.length) setFacilityId(facilities.data[0]!.id);
+  }, [facilities.data, facilityId]);
+
+  function reset() {
+    setVisitor(null);
+    setFullName('');
+    setOrganization('');
+    setEmail('');
+    setPhone('');
+    setDepartmentId('');
+    setOfficeId('');
+    setHostId('');
+    setPurpose('');
+    setIssuePass(false);
+    setOpen(false);
+  }
+
+  const register = trpc.checkin.registerWalkIn.useMutation({
+    onSuccess: (res) => {
+      if (res.ok) {
+        toast.success(
+          res.badgeNumber
+            ? `${res.visitorName} registered — pass ${res.badgeNumber}`
+            : `${res.visitorName} registered`,
+        );
+        reset();
+        onDone();
+      } else {
+        toast.error(res.message);
+      }
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const saveToDirectory = trpc.visitors.create.useMutation({
+    onSuccess: (v) => {
+      toast.success(`${v.fullName} saved to the directory`);
+      reset();
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const visitorDetails = () =>
+    visitor
+      ? { visitorId: visitor.visitorId }
+      : {
+          visitor: {
+            fullName: fullName.trim(),
+            organization: organization.trim() || undefined,
+            email: email.trim() || undefined,
+            phone: phone.trim() || undefined,
+          },
+        };
+
+  const hasVisitor = visitor ? true : fullName.trim().length > 0;
+  const hasDirection = Boolean(departmentId || officeId || hostId);
+
+  function submit() {
+    if (!hasVisitor) return toast.error("Enter the visitor's name or pick an existing visitor");
+    if (!facilityId) return toast.error('Select a facility');
+    if (!hasDirection) return toast.error('Direct the visitor to a department, office or officer');
+    register.mutate({
+      ...visitorDetails(),
+      facilityId,
+      departmentId: departmentId || undefined,
+      officeId: officeId || undefined,
+      hostId: hostId || undefined,
+      purpose: purpose.trim() || undefined,
+      issuePass,
+    });
+  }
+
+  function saveOnly() {
+    if (!fullName.trim()) return toast.error("Enter the visitor's name");
+    saveToDirectory.mutate({
+      fullName: fullName.trim(),
+      organization: organization.trim() || undefined,
+      email: email.trim() || undefined,
+      phone: phone.trim() || undefined,
+    });
+  }
+
+  return (
+    <Card>
+      <CardHeader
+        icon={<UserPlus />}
+        title="Walk-in / enquiry"
+        description="Register a visitor without an appointment, or log their details for later."
+        action={
+          <Button variant={open ? 'ghost' : 'outline'} size="sm" onClick={() => setOpen(!open)}>
+            {open ? (
+              <>
+                <X className="size-3.5" /> Close
+              </>
+            ) : (
+              <>
+                <UserPlus className="size-4" /> Register walk-in
+              </>
+            )}
+          </Button>
+        }
+      />
+
+      {open && (
+        <div className="space-y-5 p-5">
+          <div className="space-y-3">
+            <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+              Visitor
+            </div>
+            <VisitorPicker
+              selected={visitor}
+              onSelect={setVisitor}
+              onClear={() => setVisitor(null)}
+            />
+            {!visitor && (
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <Field label="Full name">
+                  <Input
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    placeholder="Jane Doe"
+                  />
+                </Field>
+                <Field label="Organization">
+                  <Input
+                    value={organization}
+                    onChange={(e) => setOrganization(e.target.value)}
+                    placeholder="Acme Inc."
+                  />
+                </Field>
+                <Field label="Email">
+                  <Input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="jane@acme.com"
+                  />
+                </Field>
+                <Field label="Phone" hint="Optional — useful for scheduling a follow-up later.">
+                  <PhoneInput value={phone} onChange={setPhone} placeholder="24 123 4567" />
+                </Field>
+              </div>
+            )}
+          </div>
+
+          <div className="space-y-3">
+            <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+              Direct to
+            </div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              {(facilities.data?.length ?? 0) > 1 && (
+                <Field label="Facility">
+                  <Select value={facilityId} onChange={(e) => setFacilityId(e.target.value)}>
+                    <option value="" disabled>
+                      Select facility…
+                    </option>
+                    {facilities.data?.map((f) => (
+                      <option key={f.id} value={f.id}>
+                        {f.name}
+                      </option>
+                    ))}
+                  </Select>
+                </Field>
+              )}
+              <Field label="Department">
+                <Select
+                  value={departmentId}
+                  onChange={(e) => {
+                    setDepartmentId(e.target.value);
+                    setOfficeId('');
+                    setHostId('');
+                  }}
+                >
+                  <option value="" disabled>
+                    Select department…
+                  </option>
+                  {departments.data?.map((d) => (
+                    <option key={d.id} value={d.id}>
+                      {d.name}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
+              <Field label="Office / room (optional)">
+                <Select
+                  value={officeId}
+                  disabled={!departmentId}
+                  onChange={(e) => {
+                    setOfficeId(e.target.value);
+                    setHostId('');
+                  }}
+                >
+                  <option value="">
+                    {departmentId ? 'Any office' : 'Select a department first'}
+                  </option>
+                  {offices.data?.map((o) => (
+                    <option key={o.id} value={o.id}>
+                      {o.name}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
+              <Field label="Officer (optional)">
+                <Select
+                  value={hostId}
+                  disabled={!officeId}
+                  onChange={(e) => setHostId(e.target.value)}
+                >
+                  <option value="">
+                    {officeId ? 'No specific person' : 'Select an office first'}
+                  </option>
+                  {hosts.data?.map((h) => (
+                    <option key={h.id} value={h.id}>
+                      {h.name}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
+            </div>
+            <Field label="Purpose / enquiry">
+              <Textarea
+                value={purpose}
+                onChange={(e) => setPurpose(e.target.value)}
+                placeholder="What is the enquiry about?"
+              />
+            </Field>
+          </div>
+
+          <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 bg-slate-50/60 p-3.5">
+            <input
+              type="checkbox"
+              checked={issuePass}
+              onChange={(e) => setIssuePass(e.target.checked)}
+              className="mt-0.5 size-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+            />
+            <span className="text-sm">
+              <span className="font-semibold text-slate-800">Issue a visitor pass</span>
+              <span className="mt-0.5 block text-xs text-slate-500">
+                Prints a badge with a QR code, the same as an appointment check-in.
+              </span>
+            </span>
+          </label>
+
+          <div className="flex flex-wrap justify-end gap-2">
+            {!visitor && (
+              <Button variant="ghost" onClick={saveOnly} loading={saveToDirectory.isPending}>
+                <UserRound className="size-4" /> Save to directory only
+              </Button>
+            )}
+            <Button onClick={submit} loading={register.isPending}>
+              <BadgeCheck className="size-4" /> Register walk-in
+            </Button>
+          </div>
+        </div>
       )}
     </Card>
   );

@@ -162,7 +162,12 @@ export function CheckIn() {
 
   return (
     <>
-      <PostGate deviceId={deviceId} permission={{ checkin: ['process'] }} postLabel="check-in desk">
+      <PostGate
+        deviceId={deviceId}
+        permission={{ checkin: ['process'] }}
+        postLabel="check-in desk"
+        onSetup={() => setSetup(true)}
+      >
         <Shell>
           {badge ? (
             <div className="text-center">
@@ -273,7 +278,7 @@ export function CheckIn() {
 }
 
 /** Issue a reusable tag to the just-checked-in visitor (numbered card or, on a kiosk, an NFC tap). */
-function TagIssue({
+export function TagIssue({
   visitId,
   nfc,
   deviceId,
