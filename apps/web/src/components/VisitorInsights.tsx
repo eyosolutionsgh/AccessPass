@@ -3,7 +3,7 @@
  * they come (frequency timeline + KPIs) and WHY (purpose breakdown), plus who they see and a
  * recent-visit log. Backed by reports.visitorSearch / reports.visitorAnalytics (report:['read']).
  */
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import {
   Building2,
   CalendarClock,
@@ -18,6 +18,7 @@ import {
   X,
 } from 'lucide-react';
 import { Avatar } from './ui/avatar.tsx';
+import { Button } from './ui/button.tsx';
 import { Card, CardHeader } from './ui/card.tsx';
 import { EmptyState } from './ui/empty-state.tsx';
 import { InputWithIcon } from './ui/input.tsx';
@@ -75,17 +76,16 @@ function Stat({
 
 export function VisitorInsights() {
   const [q, setQ] = useState('');
-  const [debounced, setDebounced] = useState('');
+  const [submitted, setSubmitted] = useState('');
   const [selected, setSelected] = useState<{ id: string; name: string } | null>(null);
 
-  useEffect(() => {
-    const t = setTimeout(() => setDebounced(q.trim()), 250);
-    return () => clearTimeout(t);
-  }, [q]);
+  function runSearch() {
+    setSubmitted(q.trim());
+  }
 
   const search = trpc.reports.visitorSearch.useQuery(
-    { q: debounced },
-    { enabled: debounced.length >= 2 && !selected },
+    { q: submitted },
+    { enabled: submitted.length >= 2 && !selected },
   );
   const analytics = trpc.reports.visitorAnalytics.useQuery(
     { visitorId: selected?.id ?? '' },
@@ -109,7 +109,7 @@ export function VisitorInsights() {
               onClick={() => {
                 setSelected(null);
                 setQ('');
-                setDebounced('');
+                setSubmitted('');
               }}
               className="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700"
             >
@@ -123,19 +123,31 @@ export function VisitorInsights() {
         {/* Search */}
         {!selected && (
           <div className="relative max-w-md">
-            <InputWithIcon
-              icon={<Search />}
-              placeholder="Search by name, organisation, email or phone…"
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              autoFocus
-            />
-            {debounced.length >= 2 && (
+            <form
+              className="flex items-center gap-2"
+              onSubmit={(e) => {
+                e.preventDefault();
+                runSearch();
+              }}
+            >
+              <InputWithIcon
+                icon={<Search />}
+                placeholder="Search by name, organisation, email or phone…"
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                autoFocus
+                className="flex-1"
+              />
+              <Button type="submit" disabled={q.trim().length < 2} loading={search.isFetching}>
+                Search
+              </Button>
+            </form>
+            {submitted.length >= 2 && (
               <div className="mt-2 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
                 {search.isLoading && <p className="px-4 py-3 text-sm text-slate-400">Searching…</p>}
                 {!search.isLoading && (search.data?.length ?? 0) === 0 && (
                   <p className="px-4 py-3 text-sm text-slate-400">
-                    No visitors match “{debounced}”.
+                    No visitors match “{submitted}”.
                   </p>
                 )}
                 <ul className="max-h-72 divide-y divide-slate-100 overflow-auto">
