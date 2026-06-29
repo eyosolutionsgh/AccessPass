@@ -64,15 +64,21 @@ const SECTIONS: Section[] = [
   { id: 'quick-start', label: 'Quick start by role', icon: ClipboardCheck },
   { id: 'roles', label: 'Roles & who can book', icon: Users },
   { id: 'booking', label: 'Booking an appointment', icon: CalendarPlus },
+  { id: 'manage-visit', label: 'Managing a visit', icon: ClipboardCheck },
   { id: 'pre-registration', label: 'Pre-registration', icon: FileText },
+  { id: 'visitor-arrival', label: 'How visitors arrive', icon: QrCode },
   { id: 'checkpoints', label: 'Security posts & checkpoints', icon: ScanLine },
   { id: 'reception', label: 'Reception desk', icon: DoorOpen },
   { id: 'front-desk', label: 'Front-desk post', icon: UserRound },
   { id: 'walk-in', label: 'Walk-in / enquiry', icon: UserPlus },
+  { id: 'check-out', label: 'Checking visitors out', icon: ArrowRight },
+  { id: 'tags', label: 'Badges, tags & NFC', icon: Tags },
   { id: 'tracking', label: 'Live tracking & dashboards', icon: MapPin },
   { id: 'security', label: 'Security operations', icon: ShieldAlert },
+  { id: 'watchlist', label: 'Watchlist', icon: Ban },
   { id: 'muster', label: 'Emergency muster', icon: AlertTriangle },
   { id: 'analytics', label: 'Visitor analytics', icon: BarChart3 },
+  { id: 'audit', label: 'Audit log', icon: FileSpreadsheet },
   { id: 'notifications', label: 'Notifications', icon: Bell },
   { id: 'admin', label: 'Administration', icon: Sliders },
   { id: 'privacy', label: 'Privacy & audit', icon: Lock },
@@ -1353,7 +1359,13 @@ export function Help() {
               src="/screenshots/guide/admin-devices-pair.png"
               url="VMS · Pair device"
               alt="Pair Exit modal showing a one-time pairing code SK2GSNR8, a 15-minute validity note, Copy code and Done buttons."
-              caption="Pairing — open the device row, tap Pair, then type the code into the tablet's Kiosk setup."
+              caption="Pairing (admin side) — open the device row, tap Pair, then read out the code to whoever is setting up the tablet."
+            />
+            <Shot
+              src="/screenshots/guide/kiosk-setup.png"
+              url="VMS · Kiosk setup"
+              alt="Kiosk setup screen on a tablet with a key icon, a pairing code input, a Pair device button and a Configure camera link."
+              caption="Kiosk setup (tablet side) — open from the bottom-left link on any post, type the pairing code, tap Pair device. The Configure camera link picks between the front and rear cameras."
             />
             <Callout>
               <strong>Replacing a faulty device:</strong> register a new device row for the
@@ -1548,6 +1560,32 @@ export function Help() {
               <em>Book this visit for myself</em> to skip the department/office/officer pickers —
               VMS sets you as the host automatically.
             </Callout>
+            <h3 className="pt-4 text-base font-semibold text-slate-900">
+              Secretaries booking for officers
+            </h3>
+            <p>
+              A secretary's booking permission is scoped to the office they are attached to in User
+              management. They see only the officers in that office in the picker, can create and
+              update those officers' visits, but can&apos;t book against a different department or
+              office. If a secretary needs to cover another office, ask the administrator to update
+              their office assignment.
+            </p>
+            <h3 className="pt-4 text-base font-semibold text-slate-900">
+              Filtering the Appointments list
+            </h3>
+            <p>
+              The Appointments page lists every visit the signed-in user can see. The tab strip at
+              the top (All · Past · Today · Upcoming) is a quick time filter; the search box and the
+              Status / Facility / Host dropdowns narrow the list further. Date range (FROM/TO) is
+              for picking specific weeks or audit periods. Filters combine; clearing the search box
+              restores the date and status filters.
+            </p>
+            <Shot
+              src="/screenshots/guide/admin-appointments.png"
+              url="VMS · Appointments"
+              alt="Appointments page with All / Past / Today / Upcoming tabs, search input, status, facility and host filter dropdowns, FROM and TO date inputs, and a list of visits with visitor avatar, officer, location, date/time and status badge."
+              caption="Appointments — filters across the top combine; tap a row to open the visit's detail page."
+            />
             <div>
               <p className="mb-1 text-sm font-semibold text-slate-700">Visit status lifecycle</p>
               <p className="mb-3 text-xs text-slate-500">
@@ -1567,6 +1605,71 @@ export function Help() {
                 ))}
               </div>
             </div>
+          </Section>
+
+          <Section
+            id="manage-visit"
+            icon={ClipboardCheck}
+            title="Managing a visit after booking"
+            lead="Open any visit from the Appointments list to approve, reschedule, cancel, resend the invitation or revoke it — the actions you can see depend on your role and the visit status."
+          >
+            <p>
+              The appointment detail page is the workflow centre for a visit. The Visit details card
+              on the left shows the visitor and the booking; the Invitation card on the right shows
+              whether an invitation has been issued, when it expires and whether it has been used.
+              The buttons under the cards are the actions available to you right now.
+            </p>
+            <Shot
+              src="/screenshots/guide/host-appt-detail.png"
+              url="VMS · Appointment detail"
+              alt="Appointment detail for Guide Demo Visitor (status Invitation Sent) with Visit details, Invitation (Active) and action buttons Reschedule, Book again, Resend invitation, Revoke invitation, Cancel appointment."
+              caption="Appointment detail — the action row at the bottom reveals every workflow step available for this visit."
+            />
+            <DefinitionTable
+              rows={[
+                {
+                  term: 'Approve / Deny',
+                  detail:
+                    'Visible while the visit is Pending approval — appears for hosts and security managers (categories that require approval). Approving issues the invitation; denying closes the visit with reason.',
+                },
+                {
+                  term: 'Reschedule',
+                  detail:
+                    'Move the visit to a new date/time without losing its visitor, host or invitation history. The invitation is re-sent with the new window.',
+                },
+                {
+                  term: 'Cancel appointment',
+                  detail:
+                    'Close the visit because it is no longer happening. The invitation is revoked and the visitor is notified.',
+                },
+                {
+                  term: 'Resend invitation',
+                  detail:
+                    'Re-deliver the same invitation email / SMS (handy if the visitor lost the email). The QR and code stay the same; only the message is re-sent.',
+                },
+                {
+                  term: 'Revoke invitation',
+                  detail:
+                    'Invalidate the QR and code without cancelling the visit. Useful if the wrong contact was used or the credential leaked. Re-issuing a fresh invitation mints new codes.',
+                },
+                {
+                  term: 'Book again',
+                  detail:
+                    'Open the New appointment form pre-filled with this visitor — for repeat visits where most of the details are unchanged.',
+                },
+                {
+                  term: 'Schedule follow-up (walk-ins only)',
+                  detail:
+                    'Walk-in entries show this in place of Reschedule — opens the booking form pre-filled from the walk-in record.',
+                },
+              ]}
+            />
+            <Callout>
+              The buttons you actually see depend on your <strong>role permissions</strong> and the
+              visit&apos;s <strong>current status</strong>. Auditors see no action buttons (they are
+              read-only); a Checked-out visit only shows Book again. If a button you expect is
+              missing, check both conditions.
+            </Callout>
           </Section>
 
           <Section
@@ -1599,6 +1702,45 @@ export function Help() {
               If the visitor reaches reception without completing pre-registration, the check-in
               flow will warn staff. Reception can continue only if site policy allows them to verify
               and capture the missing information at the desk.
+            </Callout>
+          </Section>
+
+          <Section
+            id="visitor-arrival"
+            icon={QrCode}
+            title="How visitors arrive"
+            lead="There are three valid ways a visitor reaches the check-in moment — pick whichever fits the site."
+          >
+            <InfoGrid
+              columns="sm:grid-cols-3"
+              items={[
+                {
+                  icon: ScanLine,
+                  title: 'QR scan at a kiosk',
+                  text: 'The visitor presents the QR from their invitation; the staffed kiosk or front-desk tablet camera reads it.',
+                },
+                {
+                  icon: QrCode,
+                  title: "Visitor's own phone",
+                  text: 'They open the invitation email link on their phone, which loads the check-in page over HTTPS. Reception still verifies them in person before admitting.',
+                },
+                {
+                  icon: Lock,
+                  title: 'Manual entry code',
+                  text: 'If the QR will not scan or the visitor only has the SMS code, reception types the short alphanumeric code into Assisted check-in.',
+                },
+              ]}
+            />
+            <p>
+              All three paths land on the same staff-attended check-in flow — there is no
+              self-service entry. The visitor never operates the system on their own; reception or a
+              guard always confirms identity before the badge is issued or the gate opened.
+            </p>
+            <Callout>
+              <strong>Camera permission &amp; HTTPS:</strong> the camera scanner only works on
+              <code> https://</code> or <code>http://localhost</code>. A LAN kiosk on plain
+              <code> http://192.168.x.x</code> will fall back to manual code entry — use a
+              self-signed certificate (Caddy / nginx) so the camera works on tablets.
             </Callout>
           </Section>
 
@@ -1810,6 +1952,111 @@ export function Help() {
           </Section>
 
           <Section
+            id="check-out"
+            icon={ArrowRight}
+            title="Checking visitors out"
+            lead="A visitor's record stays open until they are checked out — close visits the same day so the on-site list, badges and overstay alerts stay accurate."
+          >
+            <p>
+              There are three places to check a visitor out, all of which write the same exit event
+              and close the visit:
+            </p>
+            <Procedure
+              steps={[
+                <>
+                  <strong>Reception desk (one row at a time)</strong> — open Reception, find the
+                  visitor in the <em>On-site now</em> table and tap <em>Check out</em>. Use the
+                  filter box to find a name quickly during a busy departure window.
+                </>,
+                <>
+                  <strong>Front-desk tablet</strong> — on the <code>/front-desk</code> post tap the
+                  <em> Check out</em> tile, then scan the visitor&apos;s QR / badge or type their
+                  invitation code. The same flow handles all three credential modes.
+                </>,
+                <>
+                  <strong>Dedicated check-out kiosk</strong> — at sites where exit traffic is high
+                  enough to need its own tablet, pair a device to a Check-out point and have staff
+                  open <code>/check-out</code>. Same scan-or-type flow as the front desk, no walk-in
+                  tile.
+                </>,
+              ]}
+            />
+            <Shot
+              src="/screenshots/guide/post-checkout.png"
+              url="VMS · Check out"
+              alt="The /check-out post screen showing the institution logo, a 'Scan QR code' button and an invitation-code input."
+              caption="Check-out post — the same Scan-QR / type-code flow as check-in, but it closes the visit instead of opening it."
+            />
+            <h3 className="pt-4 text-base font-semibold text-slate-900">
+              If the site uses reusable tags
+            </h3>
+            <p>
+              When the device profile is set to <em>Reusable tag / NFC</em>, returning the tag IS
+              the check-out: on the check-out screen, scan or type the tag ID. VMS frees the tag for
+              the next visitor and closes the visit in one step. See the next section for tag
+              issuing and reconciliation.
+            </p>
+            <Callout>
+              Visitors who left without checking out show up under <em>Overstays</em> on the
+              Security console and on the <em>Tags out</em> card if they were given a reusable tag.
+              Reconcile them at end of day from Reception or Security; never simply delete the
+              visit, because that destroys the audit trail.
+            </Callout>
+          </Section>
+
+          <Section
+            id="tags"
+            icon={Tags}
+            title="Badges, tags & NFC"
+            lead="VMS supports three credential modes per device — printed paper badges, QR-only (no physical credential) and reusable tags or NFC cards. Pick the mode per point."
+          >
+            <DefinitionTable
+              rows={[
+                {
+                  term: 'QR only',
+                  detail:
+                    "No physical credential. The visitor's invitation QR is the credential. Cheapest to run, no paper or hardware. The default for unattended back gates and most internal checkpoints.",
+                },
+                {
+                  term: 'Printed badge',
+                  detail:
+                    'A paper or label badge is printed at the desk during assisted check-in. Required for visible identification policies. Configure the printer target and template under Administration → Devices.',
+                },
+                {
+                  term: 'Reusable tag / NFC',
+                  detail:
+                    'Numbered cards or NFC tags issued at check-in and collected at check-out. The tag ID is unique per facility and cannot be re-issued while still out. Best for high-volume sites where consumable badges are not practical.',
+                },
+              ]}
+            />
+            <h3 className="pt-4 text-base font-semibold text-slate-900">
+              Issuing a tag at check-in
+            </h3>
+            <Procedure
+              steps={[
+                'Complete assisted check-in as usual. On the badge screen, the device profile triggers a tag-issue prompt instead of the badge print.',
+                "Type the number printed on the card, or tap the card on the tablet's NFC reader. VMS rejects the tag if it is already out with another visitor.",
+                'Hand the tag to the visitor. The On-site list now shows their tag number alongside their name.',
+              ]}
+            />
+            <h3 className="pt-4 text-base font-semibold text-slate-900">
+              Returning a tag at check-out
+            </h3>
+            <Procedure
+              steps={[
+                'At Reception or the check-out post, the visitor presents the tag.',
+                'Scan or type the tag ID. VMS frees the tag and closes the visit in one step.',
+                'If a visitor leaves without returning their tag, find them under Reception → Tags out (a card that only renders when at least one tag is unreturned) and tap Mark returned after recovering the physical credential.',
+              ]}
+            />
+            <Callout>
+              The <strong>Tags out</strong> card on Reception is your end-of-day reconciliation view
+              — close it down to zero before locking up. Unreturned tags also surface in the audit
+              log so security can investigate.
+            </Callout>
+          </Section>
+
+          <Section
             id="tracking"
             icon={MapPin}
             title="Live tracking & dashboards"
@@ -1881,6 +2128,42 @@ export function Help() {
               alt="The Checkpoint scan page for a security guard with a large Scan QR code button, an invitation-code input and a Verify code button."
               caption="Checkpoint scan — guards scan the visitor's QR or type the code; verified visitors get a green confirmation, denials raise an incident."
             />
+          </Section>
+
+          <Section
+            id="watchlist"
+            icon={Ban}
+            title="Watchlist"
+            lead="Block specific identities from passing through assisted check-in or a guard scan. Only security managers can add or remove entries; guards see read-only matches."
+          >
+            <p>
+              Add an identity to the watchlist when a person should be denied entry — disputed
+              contractor, ejected visitor, persona non grata. VMS stores only the secure hash of the
+              blocked value, never the raw email / phone / name, so the watchlist screen never
+              becomes a leak risk on its own.
+            </p>
+            <Procedure
+              steps={[
+                'Open Security and scroll to the Watchlist card (security managers only).',
+                'Pick the Match type: email, phone, name (case-insensitive) or organisation.',
+                'Enter the value to block and an optional reason (for the audit trail and for whoever resolves an incident later).',
+                'Tap Add. The entry appears in the list immediately; the hash matches at every check-in and checkpoint scan from this point on.',
+                'To remove an entry, tap the bin icon next to its row.',
+              ]}
+            />
+            <Shot
+              src="/screenshots/guide/mgr-watchlist.png"
+              url="VMS · Security — Watchlist"
+              alt="Watchlist card on the Security console showing the description 'Blocked identities are matched by secure hash — raw values are never stored', a search box, and the add form with Match type, Value to block, Reason and Add button."
+              caption="Watchlist — managers add by match type + value; matches at any post raise a high-severity incident."
+            />
+            <Callout>
+              A watchlist hit at <strong>check-in</strong> or <strong>walk-in</strong> blocks the
+              entry and raises a high-severity incident — staff are told the entry was blocked but
+              not why. At a <strong>checkpoint scan</strong>, the guard sees a clear &quot;not
+              cleared&quot; result and follows the site&apos;s escalation procedure. The incident
+              shows the matched reason on the Security console for managers to resolve.
+            </Callout>
           </Section>
 
           <Section
@@ -1959,6 +2242,46 @@ export function Help() {
                     'CSV and Excel exports are role-restricted and should be filtered to the date range needed before use.',
                 },
               ]}
+            />
+          </Section>
+
+          <Section
+            id="audit"
+            icon={FileSpreadsheet}
+            title="Audit log"
+            lead="Every important change is recorded in an append-only audit log — appointments, invitations, check-in/out, incidents, exports, admin changes, and every post sign-in / sign-out."
+          >
+            <p>
+              Open <strong>Audit log</strong> in the sidebar (security managers, auditors and
+              administrators). The list shows the action, the actor (the signed-in staff member),
+              the affected object (visit, user, device, watchlist entry…) and the post the action
+              was taken from. The audit chain is hash-linked, so tampering is detectable.
+            </p>
+            <Shot
+              src="/screenshots/guide/admin-audit.png"
+              url="VMS · Audit log"
+              alt="Audit log page listing audit events with their action, actor, object type and post columns."
+              caption="Audit log — search by action or actor, filter by date or post, and export only what the audit period requires."
+            />
+            <Checklist
+              items={[
+                'Use the search and filter inputs at the top to narrow by action (e.g. checkin.complete, watchlist.add) or by actor email.',
+                'Look at the Post column to tell which physical device produced an action — for an inspection trail, filter by post and time range.',
+                'Use the Visitor log (separate sidebar entry) for the operational visit history; the Audit log is for compliance review.',
+                'Export CSV when needed, but only the date range the audit requires — exports are themselves logged.',
+              ]}
+            />
+            <h3 className="pt-4 text-base font-semibold text-slate-900">Visitor log</h3>
+            <p>
+              The <strong>Visitor log</strong> sidebar entry is a complementary view: visits across
+              the facility, searchable by visitor, host, status and date range, with the same
+              role-restricted CSV/Excel export.
+            </p>
+            <Shot
+              src="/screenshots/guide/admin-visitor-log.png"
+              url="VMS · Visitor log"
+              alt="Visitor log page showing visits across the facility with visitor, host, facility, status and check-in/out columns."
+              caption="Visitor log — the searchable operational record. Use it for day-to-day reporting; use the Audit log for compliance."
             />
           </Section>
 
@@ -2068,6 +2391,49 @@ export function Help() {
                 'Devices: register each tablet, attach it to a point and choose scanner source, printer target and credential mode (QR only, printed badge or reusable tag / NFC). Then pair the tablet with a one-time code.',
               ]}
             />
+            <h3 className="pt-4 text-base font-semibold text-slate-900">Branding</h3>
+            <p>
+              Administration → System settings holds the institution branding shown across the app,
+              invitation emails and post screens.
+            </p>
+            <Checklist
+              items={[
+                'Upload your institution logo (PNG / JPG / WebP / SVG, max 1000 kB). It appears on sign-in, in the sidebar and in every email. Leave empty to use the default Ghana coat-of-arms.',
+                'Set the organisation name — this is the title under the logo and the subject line prefix on emails.',
+                'Pick the brand color (or tap Detect from logo). It drives buttons, links and active sidebar items live across the app.',
+                'Set the contact email and phone shown to visitors in the invitation email and on the pre-registration page.',
+                'Set country, date format and timezone — country drives local-number detection for SMS, date format and timezone control how dates render.',
+                'Set the retention period — closed visits older than this many days are anonymised automatically.',
+              ]}
+            />
+
+            <h3 className="pt-4 text-base font-semibold text-slate-900">
+              Privacy notice &amp; site rules
+            </h3>
+            <p>
+              Administration → Privacy notice and Administration → Site rules let you author the
+              text shown to visitors during pre-registration. Use them for the privacy notice
+              required by local data-protection regulation, the safety acknowledgement that needs a
+              checkbox, the visitor code of conduct, etc.
+            </p>
+            <Shot
+              src="/screenshots/guide/admin-site-rules.png"
+              url="VMS · Site rules"
+              alt="Site rules admin editor where the privacy notice and any extra policies shown to visitors are authored."
+              caption="Site rules — anything you publish here surfaces on the pre-registration page; visitors must acknowledge before submitting."
+            />
+
+            <h3 className="pt-4 text-base font-semibold text-slate-900">
+              Editing and deactivating
+            </h3>
+            <p>
+              Every admin list — facilities, departments, offices, visitor categories, points,
+              devices — supports Edit (rename / move) and an Active toggle (the eye-off icon at the
+              right of each row) that soft-deletes the entry. Historical records that referenced the
+              entry stay valid; the entry just stops appearing in new pickers. Re-activate any time
+              by switching off the &quot;Active only&quot; filter, opening the row and turning
+              Active back on.
+            </p>
           </Section>
 
           <Section
