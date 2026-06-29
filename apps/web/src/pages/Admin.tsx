@@ -70,6 +70,7 @@ import { StatCard } from '../components/ui/stat-card.tsx';
 import { RichTextEditor } from '../components/ui/rich-text-editor.tsx';
 import { Table, TBody, Th, THead, StateRow, SkeletonRows } from '../components/ui/table.tsx';
 import { TimezoneCombobox } from '../components/ui/timezone-combobox.tsx';
+import { Tooltip } from '../components/ui/tooltip.tsx';
 import { Avatar } from '../components/ui/avatar.tsx';
 import { Field, Label } from '../components/ui/misc.tsx';
 import { useLogoSrc } from '../lib/branding.ts';
@@ -878,6 +879,20 @@ type CategoryFlags = {
   requiresInduction: boolean;
 };
 const CATEGORY_FLAGS = ['requiresApproval', 'requiresEscort', 'requiresInduction'] as const;
+const CATEGORY_FLAG_META: Record<keyof CategoryFlags, { label: string; hint: string }> = {
+  requiresApproval: {
+    label: 'Approval',
+    hint: 'Visits in this category must be approved by a host or admin before the visitor can check in.',
+  },
+  requiresEscort: {
+    label: 'Escort',
+    hint: 'Visitors in this category must be accompanied by a staff escort while on-site.',
+  },
+  requiresInduction: {
+    label: 'Induction',
+    hint: 'Visitors must complete a safety or security induction before being granted entry.',
+  },
+};
 
 function CategoriesSection({ utils }: { utils: Utils }) {
   const list = trpc.admin.categoryList.useQuery();
@@ -948,36 +963,54 @@ function CategoriesSection({ utils }: { utils: Utils }) {
       <div className="flex flex-1 flex-col p-5">
         <form onSubmit={onSubmit} className="mb-4 space-y-3">
           <div className="flex flex-wrap gap-2">
-            <Input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Name"
+            <Tooltip
+              content="A clear name visitors and staff will recognise, e.g. “Contractor” or “Interview”."
+              side="bottom"
               className="min-w-32 flex-1"
-            />
-            <Input
-              value={code}
-              onChange={(e) => setCode(e.target.value)}
-              placeholder="Code"
+            >
+              <Input
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Name"
+                className="w-full"
+              />
+            </Tooltip>
+            <Tooltip
+              content="A short code used on badges and reports, e.g. “CTR”. Keep it brief and unique."
+              side="bottom"
               className="w-36"
-            />
-            <Button type="submit" size="icon" loading={create.isPending} aria-label="Add category">
-              <Plus className="size-4" />
-            </Button>
+            >
+              <Input
+                value={code}
+                onChange={(e) => setCode(e.target.value)}
+                placeholder="Code"
+                className="w-full"
+              />
+            </Tooltip>
+            <Tooltip content="Add category" side="bottom">
+              <Button
+                type="submit"
+                size="icon"
+                loading={create.isPending}
+                aria-label="Add category"
+              >
+                <Plus className="size-4" />
+              </Button>
+            </Tooltip>
           </div>
           <div className="flex flex-wrap gap-3">
-            {(['requiresApproval', 'requiresEscort', 'requiresInduction'] as const).map((f) => (
-              <label
-                key={f}
-                className="flex cursor-pointer items-center gap-1.5 text-xs font-medium text-slate-600"
-              >
-                <input
-                  type="checkbox"
-                  checked={flags[f]}
-                  onChange={(e) => setFlags((s) => ({ ...s, [f]: e.target.checked }))}
-                  className="size-3.5 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
-                />
-                {f.replace('requires', '')}
-              </label>
+            {CATEGORY_FLAGS.map((f) => (
+              <Tooltip key={f} content={CATEGORY_FLAG_META[f].hint} side="bottom">
+                <label className="flex cursor-help items-center gap-1.5 text-xs font-medium text-slate-600">
+                  <input
+                    type="checkbox"
+                    checked={flags[f]}
+                    onChange={(e) => setFlags((s) => ({ ...s, [f]: e.target.checked }))}
+                    className="size-3.5 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+                  />
+                  {CATEGORY_FLAG_META[f].label}
+                </label>
+              </Tooltip>
             ))}
           </div>
         </form>
@@ -1019,18 +1052,17 @@ function CategoriesSection({ utils }: { utils: Utils }) {
                 </div>
                 <div className="flex flex-wrap gap-3">
                   {CATEGORY_FLAGS.map((f) => (
-                    <label
-                      key={f}
-                      className="flex cursor-pointer items-center gap-1.5 text-xs font-medium text-slate-600"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={editFlags[f]}
-                        onChange={(e) => setEditFlags((s) => ({ ...s, [f]: e.target.checked }))}
-                        className="size-3.5 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
-                      />
-                      {f.replace('requires', '')}
-                    </label>
+                    <Tooltip key={f} content={CATEGORY_FLAG_META[f].hint} side="bottom">
+                      <label className="flex cursor-help items-center gap-1.5 text-xs font-medium text-slate-600">
+                        <input
+                          type="checkbox"
+                          checked={editFlags[f]}
+                          onChange={(e) => setEditFlags((s) => ({ ...s, [f]: e.target.checked }))}
+                          className="size-3.5 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+                        />
+                        {CATEGORY_FLAG_META[f].label}
+                      </label>
+                    </Tooltip>
                   ))}
                 </div>
               </li>
