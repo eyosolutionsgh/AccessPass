@@ -61,7 +61,11 @@ const envSchema = z.object({
   // projects. Unset SMS_PROVIDER (or missing credentials) = SMS channel disabled.
   // Blank string (a present-but-empty .env line) must read as "disabled", not a validation error
   // that would crash boot — `.optional()` alone only permits a missing key, not "".
-  SMS_PROVIDER: z.preprocess((v) => (v === '' ? undefined : v), z.enum(['nalo']).optional()),
+  // Casing is also normalised so an operator writing `SMS_PROVIDER=Nalo` doesn't crash boot.
+  SMS_PROVIDER: z.preprocess(
+    (v) => (typeof v === 'string' && v.trim() !== '' ? v.trim().toLowerCase() : undefined),
+    z.enum(['nalo']).optional(),
+  ),
   NALO_SMS_USERNAME: z.string().optional(),
   NALO_SMS_PASSWORD: z.string().optional(),
   NALO_SMS_SOURCE: z.string().default('VMS'),
