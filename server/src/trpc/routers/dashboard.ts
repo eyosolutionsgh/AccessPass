@@ -23,6 +23,7 @@ export const dashboardRouter = router({
           organization: schema.visitor.organization,
           hostName: schema.host.name,
           facilityName: schema.facility.name,
+          origin: schema.visit.origin,
           timeIn: schema.checkInRecord.timeIn,
           badgeNumber: schema.credential.badgeNumber,
         })

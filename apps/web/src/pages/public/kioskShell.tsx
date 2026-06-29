@@ -23,16 +23,41 @@ function KioskBrand() {
  * is suppressed so it doesn't feel like a web page. On large screens (`lg+`, desktops / landscape
  * tablets) it collapses back into the elegant floating card on the mesh backdrop.
  */
-export function Shell({ children }: { children: React.ReactNode }) {
+export function Shell({
+  children,
+  scroll = false,
+  header,
+}: {
+  children: React.ReactNode;
+  /** Top-align + scroll the content instead of vertically centring it — for longer forms (e.g. the
+   * front-desk walk-in capture) that can exceed the viewport. Defaults to the centred kiosk look. */
+  scroll?: boolean;
+  /** Optional top-bar content (e.g. a Back button). Rendered as its own row ABOVE the brand so it
+   * never collides with the brand or the fixed post chrome. */
+  header?: React.ReactNode;
+}) {
   return (
-    <div className="relative flex min-h-[100dvh] flex-col overflow-hidden bg-slate-950 select-none [-webkit-tap-highlight-color:transparent] lg:items-center lg:justify-center lg:bg-mesh lg:p-6">
+    <div
+      className={`relative flex flex-col overflow-hidden bg-slate-950 select-none [-webkit-tap-highlight-color:transparent] lg:items-center lg:justify-center lg:bg-mesh lg:p-6 ${
+        // Fixed height for scroll mode so the inner area can bound + scroll; min-height otherwise so
+        // short centred posts can still grow on tiny screens.
+        scroll ? 'h-[100dvh]' : 'min-h-[100dvh]'
+      }`}
+    >
       {/* Immersive backdrop matches the staff sign-in screen — large screens / landscape kiosks. */}
       <AuthBackdrop className="hidden lg:block" />
-      <div className="relative flex w-full flex-1 flex-col bg-white px-5 pt-[max(1.5rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))] lg:max-w-lg lg:flex-none lg:animate-rise lg:rounded-3xl lg:border lg:border-white/60 lg:bg-white/95 lg:px-10 lg:py-10 lg:shadow-[0_30px_80px_-24px_oklch(0.272_0.09_270/0.85)] lg:ring-1 lg:ring-black/5 lg:backdrop-blur-xl">
+      <div className="relative flex w-full flex-1 flex-col overflow-hidden bg-white px-5 pt-[max(1.5rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))] lg:max-h-[calc(100dvh-3rem)] lg:max-w-lg lg:flex-none lg:animate-rise lg:rounded-3xl lg:border lg:border-white/60 lg:bg-white/95 lg:px-10 lg:py-10 lg:shadow-[0_30px_80px_-24px_oklch(0.272_0.09_270/0.85)] lg:ring-1 lg:ring-black/5 lg:backdrop-blur-xl">
+        {header && <div className="mb-1 flex min-h-10 shrink-0 items-center">{header}</div>}
         <KioskBrand />
-        <div className="flex flex-1 flex-col justify-center">
-          <div className="mx-auto w-full max-w-md lg:max-w-none">{children}</div>
-        </div>
+        {scroll ? (
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            <div className="mx-auto w-full max-w-md pb-8 lg:max-w-none">{children}</div>
+          </div>
+        ) : (
+          <div className="flex flex-1 flex-col justify-center">
+            <div className="mx-auto w-full max-w-md lg:max-w-none">{children}</div>
+          </div>
+        )}
       </div>
     </div>
   );

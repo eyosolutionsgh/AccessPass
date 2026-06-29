@@ -2,12 +2,13 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { ArrowLeft, CalendarPlus, MapPin, UserRound } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { Link, useLocation } from 'wouter';
+import { Link, useLocation, useSearch } from 'wouter';
 import { toast } from 'sonner';
 import { z } from 'zod';
 import { anyRoleHasPermission } from '@vms/shared';
 import { useSession } from '../lib/auth.ts';
 import { ScanIdButton, type ExtractedId } from '../components/ScanIdButton.tsx';
+import { VisitorPicker, type PickedVisitor } from '../components/VisitorPicker.tsx';
 import { Button } from '../components/ui/button.tsx';
 import { Card, CardHeader } from '../components/ui/card.tsx';
 import { Input } from '../components/ui/input.tsx';
@@ -21,6 +22,9 @@ import { trpc } from '../lib/trpc.ts';
 
 const formSchema = z
   .object({
+    // Set when an existing directory visitor is picked — the inline visitor fields are then
+    // prefilled from that record and sent as `visitorId` instead of new visitor details.
+    visitorId: z.string().optional(),
     visitorFullName: z.string().min(1, 'Required'),
     visitorOrg: z.string().optional(),
     visitorEmail: z.union([z.literal(''), z.email('Invalid email')]).optional(),
@@ -62,11 +66,15 @@ const formSchema = z
         });
     }
   })
-  // The visitor needs at least one contact method to receive their invitation/QR.
-  .refine((v) => Boolean(v.visitorEmail?.trim() || v.visitorPhone?.trim()), {
-    message: 'Add an email or phone so the visitor can be sent their invitation',
-    path: ['visitorEmail'],
-  })
+  // The visitor needs at least one contact method to receive their invitation/QR. An existing
+  // directory visitor (picked, so `visitorId` is set) is exempt — they're already on file.
+  .refine(
+    (v) => Boolean(v.visitorId) || Boolean(v.visitorEmail?.trim() || v.visitorPhone?.trim()),
+    {
+      message: 'Add an email or phone so the visitor can be sent their invitation',
+      path: ['visitorEmail'],
+    },
+  )
   // Estimated end must be after the start — clash detection needs a valid time window.
   // ("HH:mm" strings compare lexicographically, which is correct for a same-day window.)
   .refine((v) => !v.startTime || !v.endTime || v.endTime > v.startTime, {
@@ -109,6 +117,38 @@ export function NewAppointment() {
   const role = (session?.user as { role?: string | null } | undefined)?.role ?? null;
   const canScan = anyRoleHasPermission(role, { checkin: ['process'] });
   const [scanned, setScanned] = useState<ExtractedId | null>(null);
+
+  // Pick an existing visitor (e.g. a past walk-in) instead of retyping them. Prefills + locks the
+  // inline fields and books against their existing record (`visitorId`).
+  const [picked, setPicked] = useState<PickedVisitor | null>(null);
+  function applyPick(v: PickedVisitor) {
+    setPicked(v);
+    setValue('visitorId', v.visitorId);
+    setValue('visitorFullName', v.fullName, { shouldValidate: true });
+    setValue('visitorOrg', v.organization ?? '');
+    setValue('visitorEmail', v.email ?? '');
+    setValue('visitorPhone', v.phone ?? '');
+  }
+  function clearPick() {
+    setPicked(null);
+    setValue('visitorId', '');
+  }
+
+  // Follow-up booking: `?visitorId=…` (e.g. from a walk-in's "Schedule follow-up") prefills the
+  // visitor so the receptionist only sets the officer and time.
+  const search = useSearch();
+  const followUpId = new URLSearchParams(search).get('visitorId');
+  const followUp = trpc.visitors.byId.useQuery(
+    { visitorId: followUpId ?? '' },
+    { enabled: !!followUpId },
+  );
+  const seededPick = useRef(false);
+  useEffect(() => {
+    if (seededPick.current || !followUp.data) return;
+    seededPick.current = true;
+    applyPick(followUp.data);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [followUp.data]);
 
   // An officer's own host record — present means they can book a visit for themselves. Default to
   // self-booking for officers (the host role) so they don't re-pick their own department/office.
@@ -163,12 +203,17 @@ export function NewAppointment() {
       purpose: v.purpose || undefined,
       expectedArrival: new Date(`${v.appointmentDate}T${v.startTime}`),
       expectedDeparture: new Date(`${v.appointmentDate}T${v.endTime}`),
-      visitor: {
-        fullName: v.visitorFullName,
-        organization: v.visitorOrg || undefined,
-        email: v.visitorEmail || undefined,
-        phone: v.visitorPhone || undefined,
-      },
+      // Book against the existing visitor when one was picked, else register a new one inline.
+      ...(v.visitorId
+        ? { visitorId: v.visitorId }
+        : {
+            visitor: {
+              fullName: v.visitorFullName,
+              organization: v.visitorOrg || undefined,
+              email: v.visitorEmail || undefined,
+              phone: v.visitorPhone || undefined,
+            },
+          }),
       requestedZoneIds: [],
     });
   }
@@ -198,27 +243,32 @@ export function NewAppointment() {
             description="Who is coming to visit?"
             action={canScan ? <ScanIdButton onResult={onScan} /> : undefined}
           />
-          <div className="grid grid-cols-1 gap-4 p-5 sm:grid-cols-2">
-            <Field label="Full name" error={errors.visitorFullName?.message}>
-              <Input {...register('visitorFullName')} placeholder="Jane Doe" />
-            </Field>
-            <Field label="Organization" error={errors.visitorOrg?.message}>
-              <Input {...register('visitorOrg')} placeholder="Acme Inc." />
-            </Field>
-            <Field label="Email" error={errors.visitorEmail?.message}>
-              <Input type="email" {...register('visitorEmail')} placeholder="jane@acme.com" />
-            </Field>
-            <Field
-              label="Phone"
-              error={errors.visitorPhone?.message}
-              hint="Provide an email or phone — at least one is required."
-            >
-              <PhoneInput
-                value={watch('visitorPhone') ?? ''}
-                onChange={(v) => setValue('visitorPhone', v, { shouldValidate: true })}
-                placeholder="24 123 4567"
-              />
-            </Field>
+          <div className="space-y-4 p-5">
+            <VisitorPicker selected={picked} onSelect={applyPick} onClear={clearPick} />
+            {!picked && (
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <Field label="Full name" error={errors.visitorFullName?.message}>
+                  <Input {...register('visitorFullName')} placeholder="Jane Doe" />
+                </Field>
+                <Field label="Organization" error={errors.visitorOrg?.message}>
+                  <Input {...register('visitorOrg')} placeholder="Acme Inc." />
+                </Field>
+                <Field label="Email" error={errors.visitorEmail?.message}>
+                  <Input type="email" {...register('visitorEmail')} placeholder="jane@acme.com" />
+                </Field>
+                <Field
+                  label="Phone"
+                  error={errors.visitorPhone?.message}
+                  hint="Provide an email or phone — at least one is required."
+                >
+                  <PhoneInput
+                    value={watch('visitorPhone') ?? ''}
+                    onChange={(v) => setValue('visitorPhone', v, { shouldValidate: true })}
+                    placeholder="24 123 4567"
+                  />
+                </Field>
+              </div>
+            )}
           </div>
           {scanned && (
             <div className="mx-5 mb-5 rounded-lg border border-slate-200 bg-slate-50/60 p-3 text-xs text-slate-600">

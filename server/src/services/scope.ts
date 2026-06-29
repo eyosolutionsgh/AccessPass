@@ -48,8 +48,13 @@ export async function actorOfficeId(userId: string): Promise<string | null> {
  * Enforce that a secretary-only actor may only act on a host in their own office. No-op for any
  * other actor. Fails closed (a secretary with no office assigned cannot book at all).
  */
-export async function assertSecretaryScope(actor: Actor, targetHostId: string): Promise<void> {
+export async function assertSecretaryScope(
+  actor: Actor,
+  targetHostId: string | null,
+): Promise<void> {
   if (!isSecretaryOnly(actor.role)) return;
+  // A host-less visit (walk-in directed only to a department/office) has no officer to scope to.
+  if (!targetHostId) return;
   const officeId = await actorOfficeId(actor.id);
   if (!officeId) {
     throw new ForbiddenScopeError(

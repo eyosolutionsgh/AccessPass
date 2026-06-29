@@ -32,7 +32,9 @@ async function loadVisitContext(visitId: string) {
     .select()
     .from(schema.visitor)
     .where(eq(schema.visitor.id, visit.visitorId));
-  const [host] = await db.select().from(schema.host).where(eq(schema.host.id, visit.hostId));
+  const [host] = visit.hostId
+    ? await db.select().from(schema.host).where(eq(schema.host.id, visit.hostId))
+    : [];
   const [facility] = await db
     .select()
     .from(schema.facility)

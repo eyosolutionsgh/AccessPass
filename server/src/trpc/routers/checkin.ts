@@ -5,6 +5,7 @@ import {
   checkoutLookupSchema,
   deviceLoginSchema,
   devicePairRedeemSchema,
+  registerWalkInSchema,
   tagIssueSchema,
   tagReturnSchema,
   visitIdSchema,
@@ -13,6 +14,7 @@ import {
   checkOut,
   completeCheckIn,
   guardScan,
+  registerWalkIn,
   validateLookupReadOnly,
 } from '../../services/checkin.ts';
 import { checkOutSelf } from '../../services/credentials.ts';
@@ -20,6 +22,7 @@ import { getDeviceProfile, getVoiceSettings } from '../../services/admin.ts';
 import {
   assertDeviceLogin,
   closeDeviceSession,
+  getDevicePost,
   openDeviceSession,
   PointAccessError,
   redeemDevicePairing,
@@ -79,6 +82,20 @@ export const checkinRouter = router({
       ),
     ),
 
+  /**
+   * Register an unscheduled walk-in/enquiry at reception — no invitation. Captures or picks the
+   * visitor, directs them to a department/office/host, and optionally issues a pass (staff).
+   */
+  registerWalkIn: authorized({ checkin: ['process'], visitor: ['create'] })
+    .input(registerWalkInSchema)
+    .mutation(({ input, ctx }) =>
+      registerWalkIn(
+        input,
+        { ip: ctx.ip, facilityId: input.facilityId, deviceId: input.deviceId },
+        actorFrom(ctx.user),
+      ),
+    ),
+
   /** Check a visitor out (staff). */
   checkout: authorized({ checkin: ['checkout'] })
     .input(visitIdSchema)
@@ -99,6 +116,15 @@ export const checkinRouter = router({
   deviceProfile: rateLimited(60, 60)
     .input(z.object({ deviceId: z.string().max(120) }))
     .query(({ input }) => getDeviceProfile(input.deviceId)),
+
+  /**
+   * Public, pre-sign-in posting status for a device: paired (registered + assigned to an active
+   * point) and the point/facility name. Lets the sign-in screen say "Sign in to {pointName}" or
+   * show a Point Setup CTA when unpaired. No PII.
+   */
+  devicePost: rateLimited(60, 60)
+    .input(z.object({ deviceId: z.string().max(120) }))
+    .query(({ input }) => getDevicePost(input.deviceId)),
 
   /** Redeem an admin-issued pairing code to bind this tablet to its device id (public, throttled). */
   pairDevice: rateLimited(20, 60)

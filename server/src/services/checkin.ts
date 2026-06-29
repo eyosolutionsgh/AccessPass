@@ -1,6 +1,6 @@
 import { and, desc, eq, inArray, isNull } from 'drizzle-orm';
 import { customAlphabet } from 'nanoid';
-import { schema, type CheckInLookup } from '@vms/shared';
+import { schema, type CheckInLookup, type RegisterWalkInInput } from '@vms/shared';
 import { db } from '../db.ts';
 import { generateToken, hashCode, hashMatch, hashToken } from '../lib/crypto.ts';
 import { recordAudit } from '../lib/audit.ts';
@@ -197,7 +197,9 @@ export async function validateLookup(
     return fail('watchlist'); // silent generic message to the visitor
   }
 
-  const [host] = await db.select().from(schema.host).where(eq(schema.host.id, visit.hostId));
+  const [host] = visit.hostId
+    ? await db.select().from(schema.host).where(eq(schema.host.id, visit.hostId))
+    : [];
   const [facility] = await db
     .select()
     .from(schema.facility)
@@ -377,11 +379,13 @@ export async function completeCheckIn(
 }
 
 async function notifyHostOfArrival(
-  hostId: string,
+  hostId: string | null,
   visitorName: string,
   visitId: string,
   facilityId: string,
 ): Promise<void> {
+  // Walk-ins directed only to a department/office have no host to alert.
+  if (!hostId) return;
   const [host] = await db.select().from(schema.host).where(eq(schema.host.id, hostId));
   const at = new Date().toISOString();
   emitHostAlert(hostId, { type: 'checked_in', visitId, visitorName, at, facilityId });
@@ -410,6 +414,235 @@ async function notifyHostOfArrival(
       ? { phone: host.phone, text: `${visitorName} has arrived at reception.` }
       : undefined,
   });
+}
+
+export type WalkInResult =
+  | {
+      ok: true;
+      visitId: string;
+      visitorId: string;
+      visitorName: string;
+      /** Present only when a pass was issued (`issuePass`). */
+      badgeNumber?: string;
+      badgeToken?: string;
+      checkInTime: Date;
+    }
+  | { ok: false; reason: 'watchlist'; message: string };
+
+const nz = (v: string | undefined): string | null => (v && v.trim() ? v.trim() : null);
+
+/**
+ * Resolve which facility a walk-in belongs to without making the operator pick one — the reception
+ * desk is stationed at a facility. Order: the device's own facility → its point's facility → the
+ * operator's assigned point's facility → the operator's host facility → the sole active facility.
+ * Returns null only when genuinely ambiguous (multi-facility site with nothing configured).
+ */
+async function resolveWalkInFacility(
+  deviceId: string | undefined,
+  actorId: string | undefined,
+): Promise<string | null> {
+  if (deviceId) {
+    const [d] = await db
+      .select({
+        facilityId: schema.deviceProfile.facilityId,
+        pointId: schema.deviceProfile.pointId,
+      })
+      .from(schema.deviceProfile)
+      .where(eq(schema.deviceProfile.deviceId, deviceId));
+    if (d?.facilityId) return d.facilityId;
+    if (d?.pointId) {
+      const [p] = await db
+        .select({ facilityId: schema.point.facilityId })
+        .from(schema.point)
+        .where(eq(schema.point.id, d.pointId));
+      if (p?.facilityId) return p.facilityId;
+    }
+  }
+  if (actorId) {
+    const assigned = await db
+      .select({ facilityId: schema.point.facilityId })
+      .from(schema.pointAssignment)
+      .innerJoin(schema.point, eq(schema.point.id, schema.pointAssignment.pointId))
+      .where(eq(schema.pointAssignment.userId, actorId));
+    const withFacility = assigned.find((r) => r.facilityId)?.facilityId;
+    if (withFacility) return withFacility;
+    const [h] = await db
+      .select({ facilityId: schema.host.facilityId })
+      .from(schema.host)
+      .where(eq(schema.host.userId, actorId));
+    if (h?.facilityId) return h.facilityId;
+  }
+  const active = await db
+    .select({ id: schema.facility.id })
+    .from(schema.facility)
+    .where(eq(schema.facility.isActive, true));
+  return active.length === 1 ? active[0]!.id : null;
+}
+
+/**
+ * Register an unscheduled walk-in/enquiry at reception (no invitation). Resolves or creates the
+ * visitor, runs the watchlist check, records the visit as already `checked_in` (origin `walk_in`)
+ * directed to a department/office/host, optionally issues a pass/badge, and alerts the host if one
+ * was named. A trimmed, invitation-free sibling of {@link completeCheckIn}.
+ */
+export async function registerWalkIn(
+  input: RegisterWalkInInput,
+  ctx: LookupContext,
+  actor: CheckInActor = null,
+): Promise<WalkInResult> {
+  // Resolve the visitor — pick an existing directory entry or capture the new one inline.
+  let visitorRow: typeof schema.visitor.$inferSelect | undefined;
+  if (input.visitorId) {
+    [visitorRow] = await db
+      .select()
+      .from(schema.visitor)
+      .where(eq(schema.visitor.id, input.visitorId));
+    if (!visitorRow) throw new Error('Selected visitor not found');
+  } else if (input.visitor) {
+    [visitorRow] = await db
+      .insert(schema.visitor)
+      .values({
+        fullName: input.visitor.fullName.trim(),
+        organization: nz(input.visitor.organization),
+        email: nz(input.visitor.email),
+        phone: nz(input.visitor.phone),
+      })
+      .returning();
+  }
+  if (!visitorRow) throw new Error('Visitor details required');
+
+  // The desk is stationed at a facility — derive it so the operator never has to pick one.
+  const facilityId = input.facilityId ?? (await resolveWalkInFacility(ctx.deviceId, actor?.id));
+  if (!facilityId) {
+    throw new Error(
+      "Could not determine the facility for this walk-in. Ask an admin to set this reception point's facility (Admin → Points).",
+    );
+  }
+
+  // A watchlisted person physically at the desk is a security event: block, raise an incident, and
+  // tell staff to call security. Staff-facing, so we name the reason (unlike the kiosk).
+  if (await isWatchlisted(visitorRow)) {
+    await raiseIncident({
+      facilityId,
+      type: 'watchlist_match',
+      severity: 'high',
+      description: `Watchlist match on walk-in: ${visitorRow.fullName}`,
+      metadata: { ip: ctx.ip, deviceId: ctx.deviceId, visitorId: visitorRow.id },
+      actor: actor ? { id: actor.id } : undefined,
+    });
+    await recordAudit(db, {
+      actorId: actor?.id,
+      actorRole: actor?.role,
+      action: 'walkin.watchlist_match',
+      result: 'denied',
+      objectType: 'visitor',
+      objectId: visitorRow.id,
+      sourceIp: ctx.ip,
+      deviceId: ctx.deviceId,
+    });
+    return {
+      ok: false,
+      reason: 'watchlist',
+      message: 'This visitor matches the watchlist. Do not issue a pass — contact security.',
+    };
+  }
+
+  // Derive office/department from the named host when not explicitly chosen.
+  let hostRow: typeof schema.host.$inferSelect | undefined;
+  if (input.hostId) {
+    [hostRow] = await db.select().from(schema.host).where(eq(schema.host.id, input.hostId));
+    if (!hostRow) throw new Error('Selected host not found');
+  }
+  const officeId = input.officeId ?? hostRow?.officeId ?? null;
+  const departmentId = input.departmentId ?? hostRow?.departmentId ?? null;
+
+  const checkInTime = new Date();
+  const issuePass = input.issuePass;
+  const badgeNumber = issuePass ? `V-${badgeSuffix()}` : undefined;
+  const badgeToken = issuePass ? generateToken(16) : undefined;
+
+  const visitId = await db.transaction(async (trx) => {
+    const [visit] = await trx
+      .insert(schema.visit)
+      .values({
+        visitorId: visitorRow.id,
+        hostId: input.hostId ?? null,
+        facilityId,
+        departmentId,
+        officeId,
+        purpose: input.purpose,
+        origin: 'walk_in',
+        status: 'checked_in',
+        createdBy: actor?.id,
+      })
+      .returning();
+    if (!visit) throw new Error('Failed to create walk-in visit');
+
+    await trx.insert(schema.checkInRecord).values({
+      visitId: visit.id,
+      timeIn: checkInTime,
+      checkInMethod: 'reception',
+      checkInLocation: null,
+      deviceId: ctx.deviceId,
+      processedBy: actor?.id,
+      selfService: false,
+      identityVerified: Boolean(actor),
+    });
+
+    if (issuePass && badgeNumber && badgeToken) {
+      await trx.insert(schema.credential).values({
+        visitId: visit.id,
+        badgeNumber,
+        qrBadgeTokenHash: hashToken(badgeToken),
+        status: 'active',
+        expiresAt: null,
+      });
+    }
+
+    return visit.id;
+  });
+
+  // Best-effort side-effects after commit (never roll back a completed registration).
+  if (issuePass && badgeNumber) {
+    await accessControl.activate({
+      visitId,
+      badgeNumber,
+      zoneIds: [],
+      validFrom: checkInTime,
+      validUntil: null,
+    });
+  }
+
+  await notifyHostOfArrival(input.hostId ?? null, visitorRow.fullName, visitId, facilityId);
+
+  await recordAudit(db, {
+    actorId: actor?.id,
+    actorRole: actor?.role,
+    action: 'walkin.register',
+    objectType: 'visit',
+    objectId: visitId,
+    sourceIp: ctx.ip,
+    deviceId: ctx.deviceId,
+    metadata: { issuePass, badgeNumber, hostId: input.hostId ?? null, departmentId, officeId },
+  });
+
+  await recordCheckpointEvent(db, {
+    visitId,
+    deviceId: ctx.deviceId,
+    kind: 'check_in',
+    method: 'reception',
+  });
+  await announceCheckpoint(visitId);
+
+  return {
+    ok: true,
+    visitId,
+    visitorId: visitorRow.id,
+    visitorName: visitorRow.fullName,
+    badgeNumber,
+    badgeToken,
+    checkInTime,
+  };
 }
 
 /** Record departure: disable credentials + access, set status, update the on-site list (SRS §6.9). */

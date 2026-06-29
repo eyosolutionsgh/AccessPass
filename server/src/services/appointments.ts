@@ -133,7 +133,7 @@ export async function approveVisit(visitId: string, actor: Actor) {
   assertValidForApproval(visit);
 
   // Two pending visits can both pass creation; the one approved first wins the slot.
-  if (visit.expectedArrival && visit.expectedDeparture) {
+  if (visit.hostId && visit.expectedArrival && visit.expectedDeparture) {
     const conflicts = await findConflicts({
       hostId: visit.hostId,
       officeId: visit.officeId,
@@ -249,15 +249,17 @@ export async function updateVisit(input: UpdateVisitInput, actor: Actor) {
     if (end.getTime() <= start.getTime()) {
       throw new Error('Expected departure must be after expected arrival');
     }
-    const conflicts = await findConflicts({
-      hostId: visit.hostId,
-      officeId: visit.officeId,
-      visitorId: visit.visitorId,
-      start,
-      end,
-      excludeVisitId: visit.id,
-    });
-    if (conflicts.length) throw new SchedulingConflictError(conflicts);
+    if (visit.hostId) {
+      const conflicts = await findConflicts({
+        hostId: visit.hostId,
+        officeId: visit.officeId,
+        visitorId: visit.visitorId,
+        start,
+        end,
+        excludeVisitId: visit.id,
+      });
+      if (conflicts.length) throw new SchedulingConflictError(conflicts);
+    }
   }
 
   const [updated] = await db
@@ -314,6 +316,7 @@ export async function listVisits(input: ListVisitsInput) {
     .select({
       id: schema.visit.id,
       status: schema.visit.status,
+      origin: schema.visit.origin,
       purpose: schema.visit.purpose,
       expectedArrival: schema.visit.expectedArrival,
       visitorName: schema.visitor.fullName,
@@ -359,7 +362,9 @@ export async function getVisit(visitId: string) {
     .select()
     .from(schema.visitor)
     .where(eq(schema.visitor.id, visit.visitorId));
-  const [host] = await db.select().from(schema.host).where(eq(schema.host.id, visit.hostId));
+  const [host] = visit.hostId
+    ? await db.select().from(schema.host).where(eq(schema.host.id, visit.hostId))
+    : [];
   // The host's department/office give the visit its org context (SRS FR-100).
   let hostDepartment: string | null = null;
   let hostOffice: string | null = null;
@@ -375,6 +380,21 @@ export async function getVisit(visitId: string) {
       .select({ name: schema.office.name })
       .from(schema.office)
       .where(eq(schema.office.id, host.officeId));
+    hostOffice = o?.name ?? null;
+  }
+  // A host-less walk-in carries its own department/office — resolve those for display.
+  if (!hostDepartment && visit.departmentId) {
+    const [d] = await db
+      .select({ name: schema.department.name })
+      .from(schema.department)
+      .where(eq(schema.department.id, visit.departmentId));
+    hostDepartment = d?.name ?? null;
+  }
+  if (!hostOffice && visit.officeId) {
+    const [o] = await db
+      .select({ name: schema.office.name })
+      .from(schema.office)
+      .where(eq(schema.office.id, visit.officeId));
     hostOffice = o?.name ?? null;
   }
   const [facility] = await db
@@ -400,6 +420,9 @@ export async function getVisit(visitId: string) {
     visit,
     visitor,
     host: host ? { ...host, departmentName: hostDepartment, officeName: hostOffice } : host,
+    // Top-level so the UI can show department/office even for a host-less walk-in.
+    departmentName: hostDepartment,
+    officeName: hostOffice,
     facility,
     invitation: invitation ?? null,
     location: location

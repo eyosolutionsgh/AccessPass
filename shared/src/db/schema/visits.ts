@@ -8,42 +8,52 @@
 import { index, integer, jsonb, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
 import { id, timestamps } from './_shared.ts';
 import { user } from './auth.ts';
-import { invitationStatus, preRegStatus, visitStatus } from './enums.ts';
-import { facility, office } from './locations.ts';
+import { invitationStatus, preRegStatus, visitOrigin, visitStatus } from './enums.ts';
+import { department, facility, office } from './locations.ts';
 import { host, visitor, visitorCategory } from './visitors.ts';
 
-export const visit = pgTable('visit', {
-  id,
-  visitorId: uuid()
-    .notNull()
-    .references(() => visitor.id, { onDelete: 'restrict' }),
-  hostId: uuid()
-    .notNull()
-    .references(() => host.id, { onDelete: 'restrict' }),
-  facilityId: uuid()
-    .notNull()
-    .references(() => facility.id, { onDelete: 'restrict' }),
-  /** Room/office the visit is held in — snapshotted from the host at creation for clash detection. */
-  officeId: uuid().references(() => office.id, { onDelete: 'set null' }),
-  categoryId: uuid().references(() => visitorCategory.id, { onDelete: 'set null' }),
-  purpose: text(),
-  status: visitStatus().notNull().default('draft'),
-  /** Expected arrival/departure (tz-aware; SRS FR-011). */
-  expectedArrival: timestamp({ withTimezone: true }),
-  expectedDeparture: timestamp({ withTimezone: true }),
-  durationMinutes: integer(),
-  /** Approved access zones for this visit (SRS FR-060). */
-  requestedZoneIds: jsonb().$type<string[]>().notNull().default([]),
-  escortRequired: text(), // role/name required to escort, null if none (SRS FR-063)
-  createdBy: text().references(() => user.id, { onDelete: 'set null' }),
-  approvedBy: text().references(() => user.id, { onDelete: 'set null' }),
-  approvedAt: timestamp({ withTimezone: true }),
-  denialReason: text(),
-  ...timestamps,
-}, (t) => [
-  // Speeds up overlap lookups against a host's existing bookings (clash detection).
-  index('visit_host_window_idx').on(t.hostId, t.expectedArrival),
-]);
+export const visit = pgTable(
+  'visit',
+  {
+    id,
+    visitorId: uuid()
+      .notNull()
+      .references(() => visitor.id, { onDelete: 'restrict' }),
+    /**
+     * The officer being visited. NULL for walk-ins directed only to a department/office where no
+     * specific person is named yet (an enquiry); always set for scheduled appointments.
+     */
+    hostId: uuid().references(() => host.id, { onDelete: 'restrict' }),
+    facilityId: uuid()
+      .notNull()
+      .references(() => facility.id, { onDelete: 'restrict' }),
+    /** Department the visit/enquiry is directed to — primary target for a host-less walk-in. */
+    departmentId: uuid().references(() => department.id, { onDelete: 'set null' }),
+    /** Room/office the visit is held in — snapshotted from the host at creation for clash detection. */
+    officeId: uuid().references(() => office.id, { onDelete: 'set null' }),
+    categoryId: uuid().references(() => visitorCategory.id, { onDelete: 'set null' }),
+    purpose: text(),
+    /** Scheduled appointment vs. unscheduled walk-in registered at the desk. */
+    origin: visitOrigin().notNull().default('appointment'),
+    status: visitStatus().notNull().default('draft'),
+    /** Expected arrival/departure (tz-aware; SRS FR-011). */
+    expectedArrival: timestamp({ withTimezone: true }),
+    expectedDeparture: timestamp({ withTimezone: true }),
+    durationMinutes: integer(),
+    /** Approved access zones for this visit (SRS FR-060). */
+    requestedZoneIds: jsonb().$type<string[]>().notNull().default([]),
+    escortRequired: text(), // role/name required to escort, null if none (SRS FR-063)
+    createdBy: text().references(() => user.id, { onDelete: 'set null' }),
+    approvedBy: text().references(() => user.id, { onDelete: 'set null' }),
+    approvedAt: timestamp({ withTimezone: true }),
+    denialReason: text(),
+    ...timestamps,
+  },
+  (t) => [
+    // Speeds up overlap lookups against a host's existing bookings (clash detection).
+    index('visit_host_window_idx').on(t.hostId, t.expectedArrival),
+  ],
+);
 
 export const visitInvitation = pgTable('visit_invitation', {
   id,

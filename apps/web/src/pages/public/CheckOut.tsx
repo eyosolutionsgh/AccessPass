@@ -134,6 +134,7 @@ export function CheckOut() {
         deviceId={deviceId}
         permission={{ checkin: ['checkout'] }}
         postLabel="check-out desk"
+        onSetup={() => setSetup(true)}
       >
         <Shell>
           {checkedOut ? (

@@ -21,7 +21,9 @@ export const statement = {
   access: ['assign', 'revoke', 'read'],
   incident: ['create', 'read', 'resolve'],
   dashboard: ['reception', 'security', 'host'],
-  report: ['read', 'export'],
+  // `read`/`export` = the full Reports console + visit-log export (oversight roles). `insights` =
+  // the operational visitor-insights analytics page, granted to front-line post roles too.
+  report: ['read', 'export', 'insights'],
   audit: ['read', 'export'],
   // AI analyst (A4) + operations copilot (A2). `read` = analyst summaries/audit-Q&A/similar;
   // `suggest` = classification; `operations` = the copilot over live visit/on-site data.
@@ -90,6 +92,7 @@ export const receptionist = ac.newRole({
   visitor: ['create', 'read', 'update'],
   incident: ['create', 'read'],
   dashboard: ['reception'],
+  report: ['insights'],
   analyst: ['operations'],
 });
 
@@ -109,6 +112,7 @@ export const securityGuard = ac.newRole({
   access: ['read'],
   incident: ['create', 'read', 'resolve'],
   dashboard: ['security'],
+  report: ['insights'],
   analyst: ['read', 'operations'],
 });
 
@@ -121,7 +125,7 @@ export const securityManager = ac.newRole({
   access: ['assign', 'revoke', 'read'],
   incident: ['create', 'read', 'resolve'],
   dashboard: ['security'],
-  report: ['read', 'export'],
+  report: ['read', 'export', 'insights'],
   audit: ['read'],
   config: ['read'],
   analyst: ['read', 'suggest', 'operations'],
@@ -142,14 +146,14 @@ export const systemAdministrator = ac.newRole({
   appointment: ['read'],
   visitor: ['read'],
   dashboard: ['security'],
-  report: ['read'],
+  report: ['read', 'insights'],
   audit: ['read'],
 });
 
 export const auditor = ac.newRole({
   appointment: ['read'],
   visitor: ['read'],
-  report: ['read', 'export'],
+  report: ['read', 'export', 'insights'],
   audit: ['read', 'export'],
   analyst: ['read'],
 });

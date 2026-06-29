@@ -16,6 +16,9 @@ const CheckOut = lazy(() =>
 const Checkpoint = lazy(() =>
   import('./pages/public/Checkpoint.tsx').then((m) => ({ default: m.Checkpoint })),
 );
+const FrontDesk = lazy(() =>
+  import('./pages/public/FrontDesk.tsx').then((m) => ({ default: m.FrontDesk })),
+);
 const PreRegister = lazy(() =>
   import('./pages/public/PreRegister.tsx').then((m) => ({ default: m.PreRegister })),
 );
@@ -42,7 +45,10 @@ const Muster = lazy(() => import('./pages/Muster.tsx').then((m) => ({ default: m
 const SecurityScan = lazy(() =>
   import('./pages/SecurityScan.tsx').then((m) => ({ default: m.SecurityScan })),
 );
-const Reports = lazy(() => import('./pages/Reports.tsx').then((m) => ({ default: m.Reports })));
+const Insights = lazy(() => import('./pages/Insights.tsx').then((m) => ({ default: m.Insights })));
+const VisitorLog = lazy(() =>
+  import('./pages/VisitorLog.tsx').then((m) => ({ default: m.VisitorLog })),
+);
 const Audit = lazy(() => import('./pages/Audit.tsx').then((m) => ({ default: m.Audit })));
 // The Administration screens share one lazily-loaded chunk; each named export is a
 // focused sub-page reached via its own nested sidebar item.
@@ -121,6 +127,13 @@ export function App() {
         <Checkpoint />
       </Suspense>
     );
+  // Mobile-first reception post (check-in + walk-in + check-out in one staffed station).
+  if (location.startsWith('/front-desk'))
+    return (
+      <Suspense fallback={<FullScreenLoader />}>
+        <FrontDesk />
+      </Suspense>
+    );
   if (location.startsWith('/pre-register'))
     return (
       <Suspense fallback={<FullScreenLoader />}>
@@ -176,10 +189,13 @@ function StaffApp() {
           <Route path="/appointments/new" component={NewAppointment} />
           <Route path="/appointments/:id" component={AppointmentDetail} />
           <Route path="/reception" component={Reception} />
+          <Route path="/insights" component={Insights} />
+          <Route path="/visitor-log" component={VisitorLog} />
           <Route path="/security" component={Security} />
           <Route path="/security/muster" component={Muster} />
           <Route path="/security/scan" component={SecurityScan} />
-          <Route path="/reports" component={Reports} />
+          {/* Legacy /reports → the consolidated Visitor log report. */}
+          <Route path="/reports">{() => <Redirect to="/visitor-log" />}</Route>
           <Route path="/audit" component={Audit} />
           <Route path="/admin">{() => <Redirect to="/admin/settings" />}</Route>
           <Route path="/admin/settings" component={AdminSettings} />
