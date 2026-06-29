@@ -16,6 +16,16 @@ import {
 const RESET_TOKEN_TTL_SECONDS = 60 * 60 * 24;
 
 /**
+ * Build the *public* set-password link the recipient clicks. better-auth's own `url` points at the
+ * backend endpoint (`${BETTER_AUTH_URL}/api/auth/reset-password/<token>?callbackURL=…`), which would
+ * expose the internal API host (e.g. api.vms.3dt.com.gh) in the email. We instead link straight to
+ * the web app's reset page with the token — the page POSTs it back to better-auth's resetPassword,
+ * so the flow is identical, but the user only ever sees the front-end origin.
+ */
+const buildResetUrl = (token: string): string =>
+  `${env.WEB_ORIGIN}/reset-password?token=${encodeURIComponent(token)}`;
+
+/**
  * better-auth fires `sendResetPassword` for two distinct user journeys — the admin-driven
  * invitation (where the credential row was just minted with a throwaway secret) and a
  * forgot-password request from someone who has used the system before. We want each journey
@@ -70,7 +80,7 @@ export const auth = betterAuth({
     // The same callback backs "forgot password"; we branch on credential state below so the
     // user gets the right copy (invitation vs reset).
     resetPasswordTokenExpiresIn: RESET_TOKEN_TTL_SECONDS,
-    sendResetPassword: async ({ user, url }) => {
+    sendResetPassword: async ({ user, token }) => {
       const [hasPassword, orgName] = await Promise.all([
         userHasSetOwnPassword(user.id),
         getOrganizationName(),
@@ -78,7 +88,7 @@ export const auth = betterAuth({
       const payload = {
         to: user.email,
         name: user.name,
-        url,
+        url: buildResetUrl(token),
         expiresInHours: RESET_TOKEN_TTL_SECONDS / 3600,
         orgName,
       };
