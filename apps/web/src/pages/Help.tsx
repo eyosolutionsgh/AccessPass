@@ -5,7 +5,6 @@
  * deep-link to the relevant help (e.g. /help#booking) and the browser scrolls there on load.
  */
 import { useEffect, useState, type ReactNode } from 'react';
-import { toast } from 'sonner';
 import {
   AlertTriangle,
   ArrowLeft,
@@ -20,25 +19,24 @@ import {
   ChevronRight,
   ClipboardCheck,
   DoorOpen,
-  Download,
-  Loader2,
   FileSpreadsheet,
   FileText,
-  Footprints,
   LayoutDashboard,
   Lock,
+  LogIn,
   Mail,
   MapPin,
   MessageSquare,
+  PlayCircle,
   Printer,
   QrCode,
+  Rocket,
   ScanLine,
   ShieldCheck,
   ShieldAlert,
   Sliders,
   Tags,
-  Target,
-  TrendingUp,
+  UserPlus,
   Users,
   UserRound,
   XCircle,
@@ -58,13 +56,19 @@ const stationAddress = (path: string) => `${internalWebOrigin}${path}`;
 const SECTIONS: Section[] = [
   { id: 'overview', label: 'Overview', icon: BookOpen },
   { id: 'getting-started', label: 'Getting started', icon: QrCode },
-  { id: 'point-setup', label: 'Point setup', icon: Sliders },
+  { id: 'sign-in', label: 'Signing in', icon: LogIn },
+  { id: 'first-setup', label: 'First-time setup', icon: Rocket },
+  { id: 'users', label: 'User accounts & roles', icon: UserPlus },
+  { id: 'point-setup', label: 'Points & devices', icon: Sliders },
+  { id: 'posts', label: 'Opening a post', icon: PlayCircle },
   { id: 'quick-start', label: 'Quick start by role', icon: ClipboardCheck },
   { id: 'roles', label: 'Roles & who can book', icon: Users },
   { id: 'booking', label: 'Booking an appointment', icon: CalendarPlus },
   { id: 'pre-registration', label: 'Pre-registration', icon: FileText },
   { id: 'checkpoints', label: 'Security posts & checkpoints', icon: ScanLine },
   { id: 'reception', label: 'Reception desk', icon: DoorOpen },
+  { id: 'front-desk', label: 'Front-desk post', icon: UserRound },
+  { id: 'walk-in', label: 'Walk-in / enquiry', icon: UserPlus },
   { id: 'tracking', label: 'Live tracking & dashboards', icon: MapPin },
   { id: 'security', label: 'Security operations', icon: ShieldAlert },
   { id: 'muster', label: 'Emergency muster', icon: AlertTriangle },
@@ -265,20 +269,6 @@ function DefinitionTable({
   );
 }
 
-/* small mock primitives reused inside Frames */
-function MockField({ label, value }: { label: string; value: string }) {
-  return (
-    <label className="block">
-      <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
-        {label}
-      </span>
-      <div className="mt-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700">
-        {value}
-      </div>
-    </label>
-  );
-}
-
 /* ───────────────────────── illustrations ───────────────────────── */
 
 function FlowDiagram() {
@@ -457,173 +447,6 @@ function FlowDiagram() {
           <span className="size-1.5 animate-pulse rounded-full bg-emerald-500" /> Live events stream
           to reception, security &amp; the host
         </span>
-      </div>
-    </Frame>
-  );
-}
-
-function BookingMock() {
-  return (
-    <Frame url="VMS · New appointment">
-      <div className="mx-auto max-w-md space-y-3">
-        <div className="flex items-center gap-2 text-sm font-semibold text-slate-800">
-          <CalendarPlus className="size-4 text-brand-600" /> New appointment
-        </div>
-        <MockField label="Visitor" value="Akua Mensah" />
-        <div className="grid grid-cols-2 gap-3">
-          <MockField label="Department" value="Operations" />
-          <MockField label="Officer" value="D. Mensah" />
-        </div>
-        <MockField label="Purpose" value="Quarterly audit review" />
-        <div className="grid grid-cols-3 gap-3">
-          <MockField label="Date" value="12 Jul" />
-          <MockField label="Start" value="10:00" />
-          <MockField label="End" value="11:00" />
-        </div>
-        <div className="flex justify-end">
-          <span className="inline-flex items-center gap-1.5 rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white shadow-sm">
-            Send invitation <ArrowRight className="size-4" />
-          </span>
-        </div>
-      </div>
-    </Frame>
-  );
-}
-
-function CheckpointMock() {
-  return (
-    <Frame url="VMS · Checkpoint">
-      <div className="mx-auto max-w-sm space-y-4">
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 text-center shadow-sm">
-          <span className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-brand-50 text-brand-600">
-            <QrCode className="size-7" />
-          </span>
-          <p className="mt-3 text-sm font-semibold text-slate-800">Scan visitor QR or enter code</p>
-          <div className="mx-auto mt-3 flex max-w-[12rem] justify-center gap-1.5">
-            {['7', 'K', '4', 'Q', '9', 'M'].map((c, i) => (
-              <span
-                key={i}
-                className="flex size-7 items-center justify-center rounded-md bg-slate-100 font-mono text-sm font-bold text-slate-700"
-              >
-                {c}
-              </span>
-            ))}
-          </div>
-        </div>
-        <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3">
-          <div className="flex items-center justify-between">
-            <span className="text-sm font-semibold text-emerald-800">Akua Mensah — verified</span>
-            <Chip tone="green">Cleared</Chip>
-          </div>
-          <p className="mt-0.5 text-xs text-emerald-700">
-            Host: D. Mensah · Operations · Not on watchlist
-          </p>
-        </div>
-      </div>
-    </Frame>
-  );
-}
-
-function TrailMock() {
-  const steps = [
-    { kind: 'Check-in', at: 'Main Reception', t: '09:58', tone: 'bg-emerald-50 text-emerald-600' },
-    { kind: 'Passage', at: 'East Wing checkpoint', t: '10:12', tone: 'bg-brand-50 text-brand-600' },
-    {
-      kind: 'Passage',
-      at: 'Server room checkpoint',
-      t: '10:34',
-      tone: 'bg-brand-50 text-brand-600',
-    },
-    { kind: 'Check-out', at: 'Main Reception', t: '11:06', tone: 'bg-slate-100 text-slate-500' },
-  ];
-  return (
-    <Frame url="VMS · Appointment detail">
-      <div className="mx-auto max-w-sm">
-        <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-800">
-          <Footprints className="size-4 text-brand-600" /> Checkpoint trail
-        </div>
-        <ol className="space-y-2">
-          {steps.map((s, i) => (
-            <li
-              key={i}
-              className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-3 py-2"
-            >
-              <span className="flex items-center gap-2 text-sm font-medium text-slate-800">
-                <span className={`flex size-7 items-center justify-center rounded-lg ${s.tone}`}>
-                  <MapPin className="size-3.5" />
-                </span>
-                {s.at}
-                <span className="text-xs font-normal text-slate-400">{s.kind}</span>
-              </span>
-              <span className="text-xs text-slate-500 nums">{s.t}</span>
-            </li>
-          ))}
-        </ol>
-      </div>
-    </Frame>
-  );
-}
-
-function AnalyticsMock() {
-  const months = [0, 0, 0, 1, 1, 1, 1, 2, 1, 1, 1, 1];
-  const purposes = [
-    { label: 'Quarterly audit review', n: 4, cls: 'bg-brand-500' },
-    { label: 'Maintenance contract', n: 3, cls: 'bg-cyan-500' },
-    { label: 'Vendor demo', n: 2, cls: 'bg-amber-500' },
-    { label: 'Contract signing', n: 1, cls: 'bg-emerald-500' },
-  ];
-  return (
-    <Frame url="VMS · Visitor insights">
-      <div className="space-y-4">
-        <div className="flex items-center gap-3">
-          <span className="flex size-10 items-center justify-center rounded-2xl bg-brand-600 text-sm font-bold text-white">
-            AM
-          </span>
-          <div>
-            <p className="text-sm font-bold text-slate-900">Akua Mensah</p>
-            <p className="text-xs text-slate-500">Global Logistics Ltd · 10 visits</p>
-          </div>
-        </div>
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-slate-600">
-              <TrendingUp className="size-3.5 text-brand-600" /> Visit frequency
-            </p>
-            <div className="flex h-20 items-end gap-1 rounded-lg border border-slate-200 bg-white p-2">
-              {months.map((m, i) => (
-                <div key={i} className="flex-1">
-                  <div
-                    className="w-full rounded-t bg-gradient-to-t from-brand-600 to-brand-400"
-                    style={{ height: `${Math.max(8, (m / 2) * 100)}%` }}
-                  />
-                </div>
-              ))}
-            </div>
-          </div>
-          <div>
-            <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-slate-600">
-              <Target className="size-3.5 text-brand-600" /> Purpose of visits
-            </p>
-            <div className="space-y-1.5 rounded-lg border border-slate-200 bg-white p-2.5">
-              {purposes.map((p) => (
-                <div key={p.label} className="flex items-center gap-2">
-                  <span className="w-32 shrink-0 truncate text-[11px] text-slate-600">
-                    {p.label}
-                  </span>
-                  <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-100">
-                    <div
-                      className={`h-full rounded-full ${p.cls}`}
-                      style={{ width: `${(p.n / 4) * 100}%` }}
-                    />
-                  </div>
-                  <span className="w-3 text-right text-[11px] font-semibold text-slate-700">
-                    {p.n}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
       </div>
     </Frame>
   );
@@ -1066,26 +889,6 @@ const EXCEPTIONS = [
 
 export function Help() {
   const [active, setActive] = useState('overview');
-  const [exporting, setExporting] = useState(false);
-
-  // The manual content lives in src/content/manual.md (the single source of
-  // truth). Exporting converts that Markdown into a clean, selectable-text PDF;
-  // the generator and its libraries are lazy-loaded only when a user exports.
-  const exportPdf = async () => {
-    if (exporting) return;
-    setExporting(true);
-    const toastId = toast.loading('Generating PDF…');
-    try {
-      const { generateManualPdf } = await import('../lib/manualPdf');
-      await generateManualPdf();
-      toast.success('PDF downloaded', { id: toastId });
-    } catch (err) {
-      console.error('Help PDF export failed', err);
-      toast.error('Could not generate the PDF. Please try again.', { id: toastId });
-    } finally {
-      setExporting(false);
-    }
-  };
 
   // Scroll to a deep-linked section (e.g. /help#analytics) once the page has mounted.
   useEffect(() => {
@@ -1129,19 +932,6 @@ export function Help() {
               className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm text-slate-500 hover:bg-slate-100 hover:text-slate-700"
             >
               <Printer className="size-4" /> <span className="hidden sm:inline">Print</span>
-            </button>
-            <button
-              type="button"
-              onClick={exportPdf}
-              disabled={exporting}
-              className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm text-slate-500 hover:bg-slate-100 hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {exporting ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : (
-                <Download className="size-4" />
-              )}{' '}
-              <span className="hidden sm:inline">{exporting ? 'Exporting…' : 'Export PDF'}</span>
             </button>
             <a
               href="/"
@@ -1277,6 +1067,196 @@ export function Help() {
           </Section>
 
           <Section
+            id="sign-in"
+            icon={LogIn}
+            title="Signing in"
+            lead="Every staff page and every post requires you to sign in first with your VMS account."
+          >
+            <Procedure
+              steps={[
+                'Open VMS in your browser. The sign-in screen shows the institution logo and a Welcome back card.',
+                'Enter your work email address and the password you chose when you activated your account. If you have never signed in, see “Activating your account” below.',
+                'Tap Sign in. The system loads the sidebar with only the pages your role is allowed to use.',
+                'If you forgot your password, tap Forgot password? — the system emails you a fresh link to set a new one.',
+                'Need to read the manual without signing in? Tap the Help pill in the top right of the sign-in screen.',
+              ]}
+            />
+            <Shot
+              src="/screenshots/guide/public-signin.png"
+              url="VMS · Sign in"
+              alt="The VMS sign-in card with email and password fields, a Forgot password link, and a Help button in the top right."
+              caption="Sign in to VMS — use your work email and the password you chose during account activation."
+            />
+
+            <h3 className="pt-4 text-base font-semibold text-slate-900">Activating your account</h3>
+            <p>
+              When an administrator invites you to VMS, you receive an email titled{' '}
+              <em>Set your Visitor Management password</em> with a one-time link. Open the link to
+              choose your own password — administrators never see or set it for you.
+            </p>
+            <Procedure
+              steps={[
+                'Open the invitation email and tap Set my password. The link is valid for 24 hours.',
+                'Choose a password with at least 8 characters and re-enter it to confirm.',
+                'Tap Set password & continue. The system signs you in and takes you to the app.',
+                'If the link has expired or already been used, ask your administrator to send a new one from User management → Resend reset link.',
+              ]}
+            />
+            <Shot
+              src="/screenshots/guide/public-reset-password.png"
+              url="VMS · Set your password"
+              alt="The Set your password screen with two password fields and a Set password & continue button."
+              caption="Activate your account by choosing your own password — the same screen is also used when you reset a forgotten one."
+            />
+          </Section>
+
+          <Section
+            id="first-setup"
+            icon={Rocket}
+            title="First-time setup (administrator)"
+            lead="A short ordered checklist for the very first time you install VMS — the same steps later become routine maintenance."
+          >
+            <p>
+              Configure the platform in the same order people move through it. Each step unblocks
+              the next, so booking screens and posts stay clean and the cascading pickers behave.
+            </p>
+            <Procedure
+              steps={[
+                <>
+                  <strong>System settings</strong> — Administration → System settings. Set the
+                  institution name, contact email and phone, country, date format, timezone and
+                  retention days. Upload your institution logo. These values appear on sign-in, in
+                  invitation emails and across the sidebar.
+                </>,
+                <>
+                  <strong>Facilities</strong> — Administration → Facilities. Add each premises
+                  (Headquarters, Annex, Procurement Office) with a short code and timezone.
+                </>,
+                <>
+                  <strong>Departments and offices</strong> — Administration → Departments, then
+                  Administration → Offices. Mirror your real org chart; bookings cascade department
+                  → office → officer.
+                </>,
+                <>
+                  <strong>Visitor categories</strong> — Administration → Visitor categories. Mark
+                  which categories need approval, escort or induction (for example Contractor needs
+                  all three; Guest needs none).
+                </>,
+                <>
+                  <strong>Site rules</strong> — Administration → Site rules. Add the privacy notice
+                  text shown to visitors at pre-registration if your jurisdiction requires it.
+                </>,
+                <>
+                  <strong>Users</strong> — Administration → User management. Invite staff with the
+                  correct role (see the User accounts section below).
+                </>,
+                <>
+                  <strong>Points and devices</strong> — Administration → Points, then Administration
+                  → Devices. Add each operating location, register the tablets that will live at
+                  them, and pair each tablet with a one-time code.
+                </>,
+                <>
+                  <strong>Test the flow</strong> — book a test appointment, scan the QR at the
+                  configured post and check the visitor out. Confirm the host received the arrival
+                  notification and the appointment record shows the checkpoint trail.
+                </>,
+              ]}
+            />
+            <Shot
+              src="/screenshots/guide/admin-settings.png"
+              url="VMS · System settings"
+              alt="System settings screen with institution name, logo, color scheme, contact details, country, date format and timezone fields."
+              caption="System settings — set institution name, branding, country, date format and timezone before inviting anyone."
+            />
+            <Shot
+              src="/screenshots/guide/admin-facilities.png"
+              url="VMS · Facilities"
+              alt="Facilities admin screen listing Procurement Office, Annex Building and Headquarters with their codes and Africa/Accra timezone."
+              caption="Facilities — every visit is anchored to a facility; add yours first."
+            />
+            <Shot
+              src="/screenshots/guide/admin-categories.png"
+              url="VMS · Visitor categories"
+              alt="Visitor categories screen showing VIP (approval), Contractor (approval, escort, induction) and Guest (no requirements)."
+              caption="Visitor categories — pick which entry requirements apply to each type of visit."
+            />
+          </Section>
+
+          <Section
+            id="users"
+            icon={UserPlus}
+            title="User accounts & roles"
+            lead="Invite staff, assign them a least-privilege role, and let them activate their account by email — administrators never set or see passwords."
+          >
+            <p>
+              Open Administration → User management. The top cards summarise total, active, pending
+              and banned accounts. Use the Invite a user card to add a new staff member.
+            </p>
+            <Procedure
+              steps={[
+                'Enter the user’s full name, work email and select a role from the dropdown.',
+                'Optionally attach a department and office — required for hosts and secretaries so their bookings and scope work correctly.',
+                'Tap Send invite. VMS creates the account and emails the person a link to set their own password (valid for 24 hours).',
+                'The new account appears in the Staff users table with a Pending status until the recipient completes the password link, at which point it flips to Active.',
+                'To resend the link to a Pending user — or to start a password reset for an Active one — open the row’s Actions menu and choose Resend reset link.',
+                'Use the same Actions menu to Edit the name, email or role, or to Ban an account that should no longer have access.',
+              ]}
+            />
+            <Shot
+              src="/screenshots/guide/admin-users.png"
+              url="VMS · User management"
+              alt="User management screen with stat cards (10 total, 5 active, 5 pending, 0 banned), the Invite a user form and a Staff users table showing demo accounts with role badges and status badges."
+              caption="User management — invite users, assign roles, and watch the Pending → Active flip when they activate."
+            />
+            <h3 className="pt-4 text-base font-semibold text-slate-900">Choosing the right role</h3>
+            <p>
+              VMS is intentionally least-privilege — pick the smallest role that lets the person do
+              their job. The Roles &amp; who can book section below has the full table; the most
+              common assignments are:
+            </p>
+            <InfoGrid
+              columns="sm:grid-cols-2 lg:grid-cols-3"
+              items={[
+                {
+                  icon: UserRound,
+                  title: 'Host / Officer',
+                  text: 'For anyone who receives visitors. Books their own visits, sees their own appointment list and live arrival updates.',
+                },
+                {
+                  icon: ClipboardCheck,
+                  title: 'Secretary',
+                  text: 'Books visits for officers in their own office. Attach to the right department + office.',
+                },
+                {
+                  icon: DoorOpen,
+                  title: 'Receptionist',
+                  text: 'Operates the reception page, assisted check-in, walk-ins and check-out. Needs to be assigned to a reception point.',
+                },
+                {
+                  icon: ScanLine,
+                  title: 'Security guard',
+                  text: 'Operates checkpoints and logs incidents. Needs to be assigned to the security point(s) they staff.',
+                },
+                {
+                  icon: ShieldAlert,
+                  title: 'Security manager',
+                  text: 'Oversees incidents and the watchlist, runs emergency muster and reads reports.',
+                },
+                {
+                  icon: Sliders,
+                  title: 'System administrator',
+                  text: 'Configures the platform and manages users. Does not process visits or check anyone in.',
+                },
+              ]}
+            />
+            <Callout>
+              Receptionists and security guards must also be assigned to the points they operate
+              (Administration → Points → Staff). Without a point assignment, the post screen will
+              show “Not assigned to this post” when they sign in there.
+            </Callout>
+          </Section>
+
+          <Section
             id="point-setup"
             icon={Sliders}
             title="Point and device setup"
@@ -1320,16 +1300,76 @@ export function Help() {
             </Callout>
 
             <h3 className="pt-4 text-base font-semibold text-slate-900">
-              How to set up a staffed point
+              Step 1 — Create the point
             </h3>
             <Procedure
               steps={[
                 'Sign in as an administrator and open Administration → Points.',
-                'Add the location and give it a clear name and kind, such as Main Reception (reception desk) or Main Gate (security check-point).',
-                'Open Administration → Devices and register the tablet: enter its device ID, choose the point it is stationed at, and set the scanner, camera, printer and credential options for that hardware.',
-                'Open the point’s Staff list and tick the staff members allowed to operate it — only assigned staff can sign a device in there.',
-                'On the physical tablet, open the matching station address, run Kiosk setup once to record its device ID, then have an assigned staff member sign in.',
-                'Test the full flow with a real or test appointment: scan the QR code, print or assign the badge if used, then check the visitor out.',
+                'Type a clear name (Main Reception, East Gate, Server Room checkpoint…), pick the kind (Reception desk, Security check-point, Checkpoint, Exit, Other), pick the facility, then tap Add.',
+                'The new point appears in the list. The pill at the right shows how many devices and staff are currently attached to it.',
+              ]}
+            />
+            <Shot
+              src="/screenshots/guide/admin-points.png"
+              url="VMS · Points"
+              alt="Admin Points screen with the Add form (Point name, kind, facility) and one existing point row 'Main Reception' showing 1 device and Staff (1)."
+              caption="Points — fixed operating locations. Add the place first, then the tablet, then the staff."
+            />
+
+            <h3 className="pt-4 text-base font-semibold text-slate-900">
+              Step 2 — Register the device
+            </h3>
+            <Procedure
+              steps={[
+                'Open Administration → Devices and tap Add / update.',
+                'Enter a short, unique device ID (lobby-tablet-1, security-east-1…), an optional label, and pick the point it lives at.',
+                'Choose the credential mode (QR only, Printed badge, Reusable tag / NFC), the scanner source (browser camera, hardware scanner) and the device type. Enable NFC if the tablet has it.',
+                'Tap Add / update. The device appears in the list with an Unstaffed dot until someone signs in there.',
+              ]}
+            />
+            <Shot
+              src="/screenshots/guide/admin-devices.png"
+              url="VMS · Devices"
+              alt="Admin Devices screen with the Add/update form, three registered devices (Exit, Lobby and Main Entrance) and per-row Pair, Edit, deactivate actions."
+              caption="Devices — register each physical tablet, attach it to a point, and pick its scanner / badge behaviour."
+            />
+
+            <h3 className="pt-4 text-base font-semibold text-slate-900">
+              Step 3 — Pair the tablet
+            </h3>
+            <p>
+              Pairing binds a freshly-unboxed tablet to one of the registered devices using a
+              one-time code. Without pairing, the tablet has no identity and can&apos;t open a post.
+            </p>
+            <Procedure
+              steps={[
+                'On the Devices screen, find the device row and tap Pair. VMS shows a one-time code that is valid for 15 minutes and can be redeemed only once.',
+                'On the physical tablet, open the matching station address (/check-in, /check-out, /checkpoint or /front-desk) and tap Kiosk setup in the bottom-left.',
+                'Enter the pairing code and tap Pair. The tablet binds itself to the device record and is ready to be signed in.',
+                'If the code expires before you use it, just tap Pair again to mint a fresh one.',
+              ]}
+            />
+            <Shot
+              src="/screenshots/guide/admin-devices-pair.png"
+              url="VMS · Pair device"
+              alt="Pair Exit modal showing a one-time pairing code SK2GSNR8, a 15-minute validity note, Copy code and Done buttons."
+              caption="Pairing — open the device row, tap Pair, then type the code into the tablet's Kiosk setup."
+            />
+            <Callout>
+              <strong>Replacing a faulty device:</strong> register a new device row for the
+              replacement tablet, point it at the same point, then Deactivate the old row. The point
+              keeps its name, staffing and the historical visitor trail.
+            </Callout>
+
+            <h3 className="pt-4 text-base font-semibold text-slate-900">
+              Step 4 — Unpair or reassign
+            </h3>
+            <Checklist
+              items={[
+                'To reassign a tablet to a different point: open the device row, tap Edit, pick the new point and save.',
+                'To take a tablet out of service permanently: open the device row and tap the Deactivate icon (the eye-off icon next to Edit). Active sessions are closed and the post can no longer be opened on that device.',
+                'To unpair without deactivating: deactivate the device row, then re-activate it later and Pair again — the next pairing code re-binds whichever tablet you use.',
+                'To move staffing without touching the hardware: open Administration → Points, tap Staff next to the point and tick or untick people. Only ticked staff can sign a device in at that point.',
               ]}
             />
 
@@ -1357,6 +1397,75 @@ export function Help() {
               If a point does not use a camera, badge printer or reusable tag, leave that option
               disabled for that device profile. The staff screen should only show the tools that are
               actually available at the desk or checkpoint.
+            </Callout>
+          </Section>
+
+          <Section
+            id="posts"
+            icon={PlayCircle}
+            title="Opening a post for the day"
+            lead="Once a tablet is paired and you are assigned to its point, signing into the post is a one-tap action that opens the post for visitors."
+          >
+            <p>
+              The four post addresses — <code>/check-in</code>, <code>/check-out</code>,{' '}
+              <code>/checkpoint</code> and <code>/front-desk</code> — all share the same lock
+              screen, called the Post gate. The post is closed until a staff member with the right
+              permission signs in there, so visitors can never scan or type a code unattended.
+            </p>
+            <Procedure
+              steps={[
+                'On the tablet, open the matching station address. The Post gate shows “Sign in to {Point name}” with the facility above and a small Kiosk setup link in the bottom-left.',
+                'Enter your VMS email and password, then tap Sign in. The system checks that you are assigned to the point this tablet lives at, and opens the post if you are.',
+                'A small signed-in chip appears in the top-right (●  Your name · Facility · Point). The bottom-left Kiosk setup link disappears once you are inside a flow.',
+                'Process visitors normally. Every scan and every code-entry is attributed to you in the audit log.',
+                'When your shift ends, tap the logout arrow in the signed-in chip. The post returns to the locked Sign-in screen and the next person can take over.',
+              ]}
+            />
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Shot
+                src="/screenshots/guide/post-checkin-signin.png"
+                url="VMS · Check in (locked)"
+                alt="Check-in post locked screen showing 'Sign in to Main Reception' with email and password fields."
+                caption="Post gate — every post is locked until a staff member with the right permission signs in."
+              />
+              <Shot
+                src="/screenshots/guide/post-checkin.png"
+                url="VMS · Check in (open)"
+                alt="Check-in post unlocked, with Scan QR code button, invitation code field, and a top-right chip showing Demo Receptionist · Headquarters · Main Reception."
+                caption="Post open — visitors can now scan their QR or enter an invitation code."
+              />
+            </div>
+            <h3 className="pt-4 text-base font-semibold text-slate-900">
+              Permissions for each post
+            </h3>
+            <DefinitionTable
+              rows={[
+                {
+                  term: '/check-in',
+                  detail:
+                    'Reception roles only (Receptionist). Looks up the QR/code and admits the visitor.',
+                },
+                {
+                  term: '/check-out',
+                  detail: 'Reception roles only. Records departure and frees any reusable tag.',
+                },
+                {
+                  term: '/checkpoint',
+                  detail:
+                    'Security guards and managers. Verifies and logs passage at gates and zone boundaries.',
+                },
+                {
+                  term: '/front-desk',
+                  detail:
+                    'Receptionists. Bundles check-in, walk-in and check-out into one tablet station.',
+                },
+              ]}
+            />
+            <Callout>
+              If a tablet has not been paired yet, the Post gate shows{' '}
+              <strong>“Point setup required”</strong> with a <strong>Set up this point</strong>{' '}
+              button instead of the sign-in form. Tap it to open Kiosk setup and enter the pairing
+              code from the administrator.
             </Callout>
           </Section>
 
@@ -1428,9 +1537,17 @@ export function Help() {
                 'Set an estimated end time. This supports clash detection, overstay monitoring and emergency reporting.',
               ]}
             />
-            <Figure caption="New appointment — capture the visitor, the officer and the time; the invitation is sent automatically.">
-              <BookingMock />
-            </Figure>
+            <Shot
+              src="/screenshots/guide/host-new-appointment.png"
+              url="VMS · New appointment"
+              alt="New appointment screen with Visitor, Visit details, 'Book this visit for myself' toggle, Officer, Category, Appointment date and time fields."
+              caption="New appointment — capture the visitor, the officer and the time; the invitation is sent automatically when you submit."
+            />
+            <Callout>
+              <strong>Officers booking their own visits</strong> can tap{' '}
+              <em>Book this visit for myself</em> to skip the department/office/officer pickers —
+              VMS sets you as the host automatically.
+            </Callout>
             <div>
               <p className="mb-1 text-sm font-semibold text-slate-700">Visit status lifecycle</p>
               <p className="mb-3 text-xs text-slate-500">
@@ -1471,6 +1588,12 @@ export function Help() {
                 'Required acknowledgements must be ticked before the form can be completed.',
                 'Expired or invalid links show a controlled message and do not reveal private visit data.',
               ]}
+            />
+            <Shot
+              src="/screenshots/guide/public-pre-register.png"
+              url="VMS · Visitor pre-registration"
+              alt="Pre-registration screen reading 'Hello, Guide Demo Visitor — you're invited to visit Republic of Ghana (Headquarters) on Monday 29 June 2026 at 14:01' with visit and visitor details, and an Identity (optional) section to capture a selfie or ID photo."
+              caption="Pre-registration — visitors review the visit details, confirm their contact, optionally capture a selfie or ID, then save."
             />
             <Callout>
               If the visitor reaches reception without completing pre-registration, the check-in
@@ -1520,9 +1643,12 @@ export function Help() {
               require a gate scan before reception, a scan into the secure visit location, and a
               return scan before the final check-out.
             </p>
-            <Figure caption="A security checkpoint verifying a visitor by QR or entry code.">
-              <CheckpointMock />
-            </Figure>
+            <Shot
+              src="/screenshots/guide/post-checkpoint.png"
+              url="VMS · Checkpoint"
+              alt="The /checkpoint post showing the institution logo, a 'Scan QR code' button and an invitation-code input."
+              caption="A security checkpoint — scan the visitor's QR or type the short invitation code, then allow, deny or escalate."
+            />
 
             <h3 className="pt-4 text-base font-semibold text-slate-900">Who can open a post</h3>
             <p>
@@ -1574,6 +1700,18 @@ export function Help() {
                 'When the visitor leaves, scan their QR/tag or use the on-site list to check them out.',
               ]}
             />
+            <Shot
+              src="/screenshots/guide/recep-dashboard.png"
+              url="VMS · Reception"
+              alt="Reception dashboard with KPI cards (On-site 6, Pre-registered 0, Expected 11, Pending approval 0), an Assisted check-in card with invitation code field and Scan QR button, a Walk-in / enquiry card, and an On-site now table."
+              caption="Reception dashboard — KPI cards, assisted check-in, walk-in registration and the live on-site list, all on one page."
+            />
+            <Shot
+              src="/screenshots/guide/recep-checkin-preview.png"
+              url="VMS · Reception — preview"
+              alt="Reception page after entering an invitation code: shows a preview of the appointment (Guide Demo Visitor, host Demo Host Officer, Headquarters, 29 Jun 2026 14:01) with Back and Check in buttons."
+              caption="Assisted check-in — VMS previews the appointment so you can verify the person before tapping Check in."
+            />
             <InfoGrid
               items={[
                 {
@@ -1601,6 +1739,77 @@ export function Help() {
           </Section>
 
           <Section
+            id="front-desk"
+            icon={UserRound}
+            title="Front-desk post"
+            lead="A tablet-friendly station that bundles check-in, walk-in and check-out into one screen — open it on the lobby tablet during arrival peaks."
+          >
+            <p>
+              The Reception page is the desktop dashboard for the front desk; the{' '}
+              <code>/front-desk</code> route is the matching mobile / tablet post that staff carry
+              into the lobby. Tap <strong>Open front desk</strong> on the Reception page to launch
+              it, or open the address directly on a paired tablet.
+            </p>
+            <Procedure
+              steps={[
+                'Open /front-desk on the lobby tablet (sign in if the post is locked).',
+                'Tap Check in to look up an appointment, Walk-in / enquiry to register someone without a booking, or Check out to release a visitor.',
+                'Each flow returns to the Front desk home with a green confirmation when complete.',
+                'Use the small back-arrow in the top-left to cancel mid-flow.',
+              ]}
+            />
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Shot
+                src="/screenshots/guide/post-frontdesk.png"
+                url="VMS · Front desk"
+                alt="Front desk home with three tiles: Check in (scan a QR or enter an invitation code), Walk-in / enquiry (register a visitor without an appointment), Check out (sign a visitor out)."
+                caption="Front desk home — three tiles for the three things reception does on the floor."
+              />
+              <Shot
+                src="/screenshots/guide/post-frontdesk-walkin.png"
+                url="VMS · Front desk — Walk-in"
+                alt="Front desk walk-in form with visitor search, Scan ID button, full name, organization, email, phone, department, office, officer, purpose and Register walk-in button."
+                caption="Walk-in tile — capture the visitor on the spot; tap Scan ID to read a printed ID with the tablet camera."
+              />
+            </div>
+          </Section>
+
+          <Section
+            id="walk-in"
+            icon={UserPlus}
+            title="Walk-in / enquiry"
+            lead="A visitor who arrives without a booking can be registered on the spot — with or without issuing a pass."
+          >
+            <p>
+              Reception (and the front-desk post) can register a walk-in or an enquiry: the system
+              creates a visitor record, optionally issues a pass, optionally notifies the host, and
+              keeps the visitor in the directory so a follow-up booking can pre-fill from them.
+            </p>
+            <Procedure
+              steps={[
+                'On Reception, expand Walk-in / enquiry, or on the front desk tablet, tap the Walk-in / enquiry tile.',
+                'Search the visitor directory — if the person has visited before, pick them and most fields pre-fill.',
+                'Otherwise, enter the visitor’s name, organisation, email and/or phone.',
+                'Pick the department and (optionally) office and officer they are visiting. Leaving the officer blank is fine for general enquiries.',
+                'Enter the purpose of the visit or the nature of the enquiry.',
+                'Tick Issue a visitor pass if they are actually entering the building; leave it unticked to log the enquiry without admitting them.',
+                'Tap Register walk-in. The visit shows up in the On-site list (if a pass was issued) and the visitor appears in the directory for future bookings.',
+              ]}
+            />
+            <Shot
+              src="/screenshots/guide/recep-walkin.png"
+              url="VMS · Reception — Walk-in"
+              alt="The expanded Walk-in / enquiry card on the Reception page with visitor search, name, organisation, email, phone, facility and department fields."
+              caption="Reception's walk-in card — searches the directory first, then captures any missing details."
+            />
+            <Callout>
+              A registered walk-in shows a <em>Walk-in</em> chip on the appointment list and a{' '}
+              <em>Schedule follow-up</em> button on its detail page — tap it to book the visitor's
+              next appointment with all of their contact details already filled in.
+            </Callout>
+          </Section>
+
+          <Section
             id="tracking"
             icon={MapPin}
             title="Live tracking & dashboards"
@@ -1613,9 +1822,12 @@ export function Help() {
               accurate on-site count. In an emergency, the muster list shows everyone currently
               inside with their contact details.
             </p>
-            <Figure caption="The checkpoint trail — every post the visitor passed, in order, with timestamps.">
-              <TrailMock />
-            </Figure>
+            <Shot
+              src="/screenshots/guide/admin-appointment-detail.png"
+              url="VMS · Appointment detail"
+              alt="An appointment detail page for Trail Test Visitor showing Visit details, Invitation (Used) and a Checkpoint trail card with Main Entrance (Entry, device entrance-1, qr) and Lobby (Passage, device lobby-1, qr)."
+              caption="The checkpoint trail — every post the visitor presented their credential at, in order, with the device that read it."
+            />
           </Section>
 
           <Section
@@ -1657,6 +1869,18 @@ export function Help() {
                 'Resolve incidents only after the denial, escort, correction, checkout or other required action is complete.',
               ]}
             />
+            <Shot
+              src="/screenshots/guide/mgr-security.png"
+              url="VMS · Security"
+              alt="Security console for a security manager: KPI cards (On-site 6, Open incidents 18, Overstays 1, Denied 0) and an Open incidents table with Watchlist Match, Overstay and Invalid Code rows."
+              caption="Security console — KPIs across the top, then an open-incidents queue with a Resolve action on each row."
+            />
+            <Shot
+              src="/screenshots/guide/guard-scan.png"
+              url="VMS · Checkpoint scan"
+              alt="The Checkpoint scan page for a security guard with a large Scan QR code button, an invitation-code input and a Verify code button."
+              caption="Checkpoint scan — guards scan the visitor's QR or type the code; verified visitors get a green confirmation, denials raise an incident."
+            />
           </Section>
 
           <Section
@@ -1680,6 +1904,12 @@ export function Help() {
                 'After the incident, reconcile remaining visitors in Reception or Security so the on-site list becomes accurate again.',
               ]}
             />
+            <Shot
+              src="/screenshots/guide/mgr-muster.png"
+              url="VMS · Emergency muster"
+              alt="Emergency muster screen with live headcount, search box and a list of currently-checked-in visitors with their hosts and badge numbers."
+              caption="Emergency muster — tap each visitor's row as the muster point confirms them; the progress bar updates live."
+            />
           </Section>
 
           <Section
@@ -1696,9 +1926,12 @@ export function Help() {
               contractor came ten times, mostly for “Quarterly audit review”. You also see which
               officers they visit most and a log of their recent visits.
             </p>
-            <Figure caption="Visitor insights — visit frequency over time and a breakdown of visit purposes.">
-              <AnalyticsMock />
-            </Figure>
+            <Shot
+              src="/screenshots/guide/admin-insights-detail.png"
+              url="VMS · Visitor insights"
+              alt="Visitor insights showing Akua Mensah (Global Logistics Ltd, akua.frequent@mailinator.com) with 10 total visits, 10 attended, first seen 29 Oct 2025, last seen 2 Jun 2026, a Visit frequency bar chart over twelve months and a Purpose of visits breakdown (Quarterly audit re… 4, Maintenance con… 3, Vendor demo 2, Contract signing 1)."
+              caption="Visitor insights — pick a visitor and see how often they come, when they came last and what they came for."
+            />
             <Callout>
               Available to security managers, auditors and administrators (read-only oversight).
               Guards use the live security console; deep analytics live on Reports.
@@ -1796,8 +2029,8 @@ export function Help() {
                 },
                 {
                   icon: ScanLine,
-                  t: 'Checkpoints & devices',
-                  d: 'Register each post, its scanner and badge/printer behaviour.',
+                  t: 'Points & devices',
+                  d: 'Register each post, the tablet stationed at it, and pair tablets with a one-time code.',
                 },
                 {
                   icon: Users,
@@ -1831,7 +2064,8 @@ export function Help() {
                 'Departments and offices: create the organizational structure that hosts belong to.',
                 'Users: invite staff, assign least-privilege roles, and attach hosts/secretaries to their department and office.',
                 'Visitor categories: define which visit types require approval, escort or induction.',
-                'Checkpoints: register devices and choose scanner source, printer target and credential mode such as QR only, printed badge or reusable tag/NFC.',
+                'Points: add each operating location (Reception, Main Gate, East Wing checkpoint) with the right kind and facility.',
+                'Devices: register each tablet, attach it to a point and choose scanner source, printer target and credential mode (QR only, printed badge or reusable tag / NFC). Then pair the tablet with a one-time code.',
               ]}
             />
           </Section>
