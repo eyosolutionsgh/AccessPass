@@ -1,17 +1,18 @@
-import { CheckCircle2, TriangleAlert } from 'lucide-react';
+import { CheckCircle2, Lock, TriangleAlert } from 'lucide-react';
 import { useMemo, useState, type FormEvent } from 'react';
 import { useLocation } from 'wouter';
 import { toast } from 'sonner';
 import { resetPassword } from '../../lib/auth.ts';
 import { useOrgName } from '../../lib/branding.ts';
-import { Logo } from '../../components/Logo.tsx';
+import { AuthScreen } from '../../components/AuthScreen.tsx';
 import { Button } from '../../components/ui/button.tsx';
 import { PasswordInput } from '../../components/ui/input.tsx';
 
 /**
  * Public landing page for the emailed "set your password" link. better-auth validates the token
  * server-side and redirects here with `?token=…` (or `?error=INVALID_TOKEN`). The user picks a
- * password via `resetPassword`, then we send them to the sign-in screen.
+ * password via `resetPassword`, then we send them to the sign-in screen. Shares the immersive
+ * `AuthScreen` chrome with the staff sign-in and kiosk post screens.
  */
 export function ResetPassword() {
   const [, navigate] = useLocation();
@@ -41,84 +42,92 @@ export function ResetPassword() {
     setTimeout(() => navigate('/'), 1200);
   }
 
+  if (done) {
+    return (
+      <AuthScreen
+        title="All set"
+        subtitle="Your password is set — taking you to sign in…"
+        icon={
+          <span className="flex size-20 items-center justify-center rounded-3xl bg-gradient-to-br from-emerald-500 to-emerald-600 text-white shadow-[var(--shadow-brand)] ring-1 ring-white/20">
+            <CheckCircle2 className="size-10" />
+          </span>
+        }
+      >
+        <Button className="w-full" size="lg" onClick={() => navigate('/')}>
+          Continue to sign in
+        </Button>
+      </AuthScreen>
+    );
+  }
+
+  if (invalid) {
+    return (
+      <AuthScreen
+        title="Link expired"
+        subtitle="This password link is invalid or has expired."
+        icon={
+          <span className="flex size-20 items-center justify-center rounded-3xl bg-gradient-to-br from-amber-500 to-amber-600 text-white shadow-[var(--shadow-brand)] ring-1 ring-white/20">
+            <TriangleAlert className="size-10" />
+          </span>
+        }
+      >
+        <p className="text-center text-sm text-slate-600">
+          Ask an administrator to re-send your invitation, then open the new link.
+        </p>
+        <Button variant="outline" size="lg" className="mt-5 w-full" onClick={() => navigate('/')}>
+          Back to sign in
+        </Button>
+      </AuthScreen>
+    );
+  }
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-100 bg-grid px-4 py-12">
-      <div className="w-full max-w-sm animate-rise">
-        <div className="mb-8 flex justify-center">
-          <Logo className="size-20 rounded-3xl shadow-[var(--shadow-brand)]" />
+    <AuthScreen
+      eyebrow="Activate account"
+      title="Set your password"
+      subtitle={`Choose a password to activate your account at ${orgName}.`}
+      footer={
+        <>
+          <Lock className="size-3.5" /> Authorized personnel only · Secured connection
+        </>
+      }
+    >
+      <form onSubmit={onSubmit} className="space-y-4 text-left">
+        <div className="space-y-1.5">
+          <label className="text-xs font-semibold uppercase tracking-wide text-slate-600">
+            New password
+          </label>
+          <PasswordInput
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            autoComplete="new-password"
+            placeholder="At least 8 characters"
+            className="h-12 rounded-xl text-[15px]"
+            required
+          />
         </div>
-
-        {done ? (
-          <div className="rounded-2xl border border-slate-200/80 bg-white p-8 text-center shadow-lg ring-1 ring-slate-900/[0.02]">
-            <span className="mx-auto flex size-12 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
-              <CheckCircle2 className="size-6" />
-            </span>
-            <h1 className="mt-4 text-lg font-bold tracking-tight text-slate-900">All set</h1>
-            <p className="mt-1 text-sm text-slate-500">Redirecting you to sign in…</p>
-          </div>
-        ) : invalid ? (
-          <div className="rounded-2xl border border-slate-200/80 bg-white p-8 text-center shadow-lg ring-1 ring-slate-900/[0.02]">
-            <span className="mx-auto flex size-12 items-center justify-center rounded-full bg-amber-50 text-amber-600">
-              <TriangleAlert className="size-6" />
-            </span>
-            <h1 className="mt-4 text-lg font-bold tracking-tight text-slate-900">Link expired</h1>
-            <p className="mt-1 text-sm text-slate-500">
-              This password link is invalid or has expired. Ask an administrator to re-send your
-              invitation.
-            </p>
-            <Button variant="outline" className="mt-5 w-full" onClick={() => navigate('/')}>
-              Back to sign in
-            </Button>
-          </div>
-        ) : (
-          <>
-            <div className="mb-7 text-center">
-              <p className="text-xs font-semibold uppercase tracking-wider text-brand-600">
-                {orgName}
-              </p>
-              <h1 className="mt-1 text-2xl font-bold tracking-tight text-slate-900">
-                Set your password
-              </h1>
-              <p className="mt-1 text-sm text-slate-500">
-                Choose a password to activate your staff account.
-              </p>
-            </div>
-
-            <form
-              onSubmit={onSubmit}
-              className="space-y-4 rounded-2xl border border-slate-200/80 bg-white p-6 shadow-lg ring-1 ring-slate-900/[0.02]"
-            >
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold uppercase tracking-wide text-slate-600">
-                  New password
-                </label>
-                <PasswordInput
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  autoComplete="new-password"
-                  placeholder="At least 8 characters"
-                  required
-                />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold uppercase tracking-wide text-slate-600">
-                  Confirm password
-                </label>
-                <PasswordInput
-                  value={confirm}
-                  onChange={(e) => setConfirm(e.target.value)}
-                  autoComplete="new-password"
-                  placeholder="Re-enter your password"
-                  required
-                />
-              </div>
-              <Button type="submit" className="w-full" size="lg" loading={loading}>
-                {loading ? 'Saving…' : 'Set password & continue'}
-              </Button>
-            </form>
-          </>
-        )}
-      </div>
-    </div>
+        <div className="space-y-1.5">
+          <label className="text-xs font-semibold uppercase tracking-wide text-slate-600">
+            Confirm password
+          </label>
+          <PasswordInput
+            value={confirm}
+            onChange={(e) => setConfirm(e.target.value)}
+            autoComplete="new-password"
+            placeholder="Re-enter your password"
+            className="h-12 rounded-xl text-[15px]"
+            required
+          />
+        </div>
+        <Button
+          type="submit"
+          size="lg"
+          loading={loading}
+          className="w-full bg-gradient-to-r from-brand-600 to-brand-500 shadow-[var(--shadow-brand)] hover:from-brand-700 hover:to-brand-600"
+        >
+          {loading ? 'Saving…' : 'Set password & continue'}
+        </Button>
+      </form>
+    </AuthScreen>
   );
 }
