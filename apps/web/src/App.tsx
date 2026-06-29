@@ -49,8 +49,11 @@ const AdminSettings = lazy(() =>
   import('./pages/Admin.tsx').then((m) => ({ default: m.AdminSettings })),
 );
 const AdminUsers = lazy(() => import('./pages/Admin.tsx').then((m) => ({ default: m.AdminUsers })));
-const AdminCheckpoints = lazy(() =>
-  import('./pages/Admin.tsx').then((m) => ({ default: m.AdminCheckpoints })),
+const AdminPoints = lazy(() =>
+  import('./pages/Admin.tsx').then((m) => ({ default: m.AdminPoints })),
+);
+const AdminDevices = lazy(() =>
+  import('./pages/Admin.tsx').then((m) => ({ default: m.AdminDevices })),
 );
 const AdminFacilities = lazy(() =>
   import('./pages/Admin.tsx').then((m) => ({ default: m.AdminFacilities })),
@@ -167,7 +170,9 @@ function StaffApp() {
           <Route path="/admin">{() => <Redirect to="/admin/settings" />}</Route>
           <Route path="/admin/settings" component={AdminSettings} />
           <Route path="/admin/users" component={AdminUsers} />
-          <Route path="/admin/checkpoints" component={AdminCheckpoints} />
+          <Route path="/admin/checkpoints">{() => <Redirect to="/admin/points" />}</Route>
+          <Route path="/admin/points" component={AdminPoints} />
+          <Route path="/admin/devices" component={AdminDevices} />
           <Route path="/admin/facilities" component={AdminFacilities} />
           <Route path="/admin/departments" component={AdminDepartments} />
           <Route path="/admin/offices" component={AdminOffices} />

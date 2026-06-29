@@ -109,17 +109,31 @@ export function AdminUsers() {
   );
 }
 
-export function AdminCheckpoints() {
+export function AdminPoints() {
+  const utils = trpc.useUtils();
+  return (
+    <div className="space-y-6">
+      <PageHeader
+        icon={MapPin}
+        eyebrow="Administration"
+        title="Points"
+        description="Fixed operating locations — reception desks and security check-points — and who may staff each."
+      />
+      <PointsSection utils={utils} />
+    </div>
+  );
+}
+
+export function AdminDevices() {
   const utils = trpc.useUtils();
   return (
     <div className="space-y-6">
       <PageHeader
         icon={ScanLine}
         eyebrow="Administration"
-        title="Points & devices"
-        description="Operating locations (reception desks, security check-points), the devices stationed at them, and who may staff each."
+        title="Devices"
+        description="Physical tablets stationed at points, and who is currently signed in to each."
       />
-      <PointsSection utils={utils} />
       <CheckpointsSection utils={utils} />
     </div>
   );
@@ -623,7 +637,7 @@ function FacilitiesSection({ utils }: { utils: Utils }) {
             value={code}
             onChange={(e) => setCode(e.target.value)}
             placeholder="Code"
-            className="w-24"
+            className="w-36"
           />
           <TimezoneCombobox value={timezone} onChange={setTimezone} className="w-56" />
           <Button type="submit" size="icon" loading={create.isPending} aria-label="Add facility">
@@ -647,7 +661,7 @@ function FacilitiesSection({ utils }: { utils: Utils }) {
                 <Input
                   value={editCode}
                   onChange={(e) => setEditCode(e.target.value)}
-                  className="w-24"
+                  className="w-36"
                 />
                 <TimezoneCombobox value={editTz} onChange={setEditTz} className="w-56" />
                 <Button
@@ -807,7 +821,7 @@ function CategoriesSection({ utils }: { utils: Utils }) {
               value={code}
               onChange={(e) => setCode(e.target.value)}
               placeholder="Code"
-              className="w-24"
+              className="w-36"
             />
             <Button type="submit" size="icon" loading={create.isPending} aria-label="Add category">
               <Plus className="size-4" />
@@ -848,7 +862,7 @@ function CategoriesSection({ utils }: { utils: Utils }) {
                   <Input
                     value={editCode}
                     onChange={(e) => setEditCode(e.target.value)}
-                    className="w-24"
+                    className="w-36"
                   />
                   <Button
                     size="sm"

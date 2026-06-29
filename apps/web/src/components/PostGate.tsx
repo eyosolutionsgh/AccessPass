@@ -1,11 +1,12 @@
-import { LogOut, Lock, Mail, ShieldCheck, ShieldAlert } from 'lucide-react';
+import { LogOut, Lock, Mail, ShieldAlert } from 'lucide-react';
 import { type FormEvent, type ReactNode, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { anyRoleHasPermission, type PermissionRequest } from '@vms/shared';
 import { signIn, signOut, useSettledSession } from '../lib/auth.ts';
 import { trpc } from '../lib/trpc.ts';
+import { AuthScreen } from './AuthScreen.tsx';
 import { Button } from './ui/button.tsx';
-import { InputWithIcon } from './ui/input.tsx';
+import { InputWithIcon, PasswordInput } from './ui/input.tsx';
 
 type Props = {
   /** The kiosk device this post is running on — gates sign-in and records the staffing session. */
@@ -94,40 +95,54 @@ export function PostGate({ deviceId, permission, postLabel, children }: Props) {
 
   if (!session) {
     return (
-      <div className="text-center">
-        <div className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-slate-100 text-slate-500">
-          <ShieldCheck className="size-7" />
-        </div>
-        <h1 className="mt-4 text-xl font-bold tracking-tight text-slate-900">Sign in</h1>
-        <p className="mt-1.5 text-sm text-slate-500">
-          Sign in to open the {postLabel} for visitors.
-        </p>
-        <form onSubmit={onSubmit} className="mt-6 space-y-3 text-left">
-          <InputWithIcon
-            icon={<Mail />}
-            type="email"
-            placeholder="Email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            autoComplete="username"
-            className="h-14 text-base"
-            required
-          />
-          <InputWithIcon
-            icon={<Lock />}
-            type="password"
-            placeholder="Password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            autoComplete="current-password"
-            className="h-14 text-base"
-            required
-          />
-          <Button type="submit" className="h-14 w-full text-base" size="lg" loading={loading}>
+      <AuthScreen
+        eyebrow="Staff sign in"
+        title={postLabel.charAt(0).toUpperCase() + postLabel.slice(1)}
+        subtitle="Sign in to open this post for visitors."
+        footer={
+          <>
+            <Lock className="size-3.5" /> Authorized personnel only
+          </>
+        }
+      >
+        <form onSubmit={onSubmit} className="space-y-4 text-left">
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold uppercase tracking-wide text-slate-600">
+              Email
+            </label>
+            <InputWithIcon
+              icon={<Mail />}
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              autoComplete="username"
+              className="h-12 rounded-xl text-[15px]"
+              required
+            />
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold uppercase tracking-wide text-slate-600">
+              Password
+            </label>
+            <PasswordInput
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              autoComplete="current-password"
+              placeholder="••••••••"
+              className="h-12 rounded-xl text-[15px]"
+              required
+            />
+          </div>
+          <Button
+            type="submit"
+            size="lg"
+            loading={loading}
+            className="w-full bg-gradient-to-r from-brand-600 to-brand-500 shadow-[var(--shadow-brand)] hover:from-brand-700 hover:to-brand-600"
+          >
             {loading ? 'Signing in…' : 'Sign in'}
           </Button>
         </form>
-      </div>
+      </AuthScreen>
     );
   }
 
@@ -180,7 +195,7 @@ export function PostGate({ deviceId, permission, postLabel, children }: Props) {
   );
 }
 
-/** Full-card "you can't operate this post" state with a sign-out action. */
+/** Full-screen "you can't operate this post" state with a sign-out action. */
 function PostBlocked({
   tone,
   title,
@@ -194,17 +209,29 @@ function PostBlocked({
   loggingOut: boolean;
   onLogout: () => void;
 }) {
-  const toneCls = tone === 'red' ? 'bg-red-50 text-red-600' : 'bg-amber-50 text-amber-600';
+  const toneCls =
+    tone === 'red'
+      ? 'bg-red-500/15 text-red-200 ring-red-300/20'
+      : 'bg-amber-500/15 text-amber-200 ring-amber-300/20';
   return (
-    <div className="text-center">
-      <div className={`mx-auto flex size-14 items-center justify-center rounded-2xl ${toneCls}`}>
-        <ShieldAlert className="size-7" />
-      </div>
-      <h1 className="mt-4 text-xl font-bold tracking-tight text-slate-900">{title}</h1>
-      <p className="mt-1.5 text-sm text-slate-500">{message}</p>
-      <Button variant="outline" className="mt-6 w-full" loading={loggingOut} onClick={onLogout}>
+    <AuthScreen
+      title={title}
+      icon={
+        <span className={`flex size-20 items-center justify-center rounded-3xl ring-1 ${toneCls}`}>
+          <ShieldAlert className="size-10" />
+        </span>
+      }
+    >
+      <p className="text-center text-sm text-slate-600">{message}</p>
+      <Button
+        variant="outline"
+        size="lg"
+        className="mt-5 w-full"
+        loading={loggingOut}
+        onClick={onLogout}
+      >
         Sign out
       </Button>
-    </div>
+    </AuthScreen>
   );
 }

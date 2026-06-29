@@ -1,4 +1,4 @@
-import { CheckCircle2, Lock, TriangleAlert } from 'lucide-react';
+import { CheckCircle2, TriangleAlert } from 'lucide-react';
 import { useMemo, useState, type FormEvent } from 'react';
 import { useLocation } from 'wouter';
 import { toast } from 'sonner';
@@ -6,7 +6,7 @@ import { resetPassword } from '../../lib/auth.ts';
 import { useOrgName } from '../../lib/branding.ts';
 import { Logo } from '../../components/Logo.tsx';
 import { Button } from '../../components/ui/button.tsx';
-import { InputWithIcon } from '../../components/ui/input.tsx';
+import { PasswordInput } from '../../components/ui/input.tsx';
 
 /**
  * Public landing page for the emailed "set your password" link. better-auth validates the token
@@ -92,9 +92,7 @@ export function ResetPassword() {
                 <label className="text-xs font-semibold uppercase tracking-wide text-slate-600">
                   New password
                 </label>
-                <InputWithIcon
-                  icon={<Lock />}
-                  type="password"
+                <PasswordInput
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   autoComplete="new-password"
@@ -106,9 +104,7 @@ export function ResetPassword() {
                 <label className="text-xs font-semibold uppercase tracking-wide text-slate-600">
                   Confirm password
                 </label>
-                <InputWithIcon
-                  icon={<Lock />}
-                  type="password"
+                <PasswordInput
                   value={confirm}
                   onChange={(e) => setConfirm(e.target.value)}
                   autoComplete="new-password"

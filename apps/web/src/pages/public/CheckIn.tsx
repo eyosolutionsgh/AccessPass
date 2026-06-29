@@ -162,12 +162,8 @@ export function CheckIn() {
 
   return (
     <>
-      <Shell>
-        <PostGate
-          deviceId={deviceId}
-          permission={{ checkin: ['process'] }}
-          postLabel="check-in desk"
-        >
+      <PostGate deviceId={deviceId} permission={{ checkin: ['process'] }} postLabel="check-in desk">
+        <Shell>
           {badge ? (
             <div className="text-center">
               <div className="mx-auto flex size-20 items-center justify-center rounded-full bg-emerald-50 ring-8 ring-emerald-100/60">
@@ -269,8 +265,8 @@ export function CheckIn() {
               </form>
             </div>
           )}
-        </PostGate>
-      </Shell>
+        </Shell>
+      </PostGate>
       <KioskSetupLink onClick={() => setSetup(true)} />
     </>
   );
