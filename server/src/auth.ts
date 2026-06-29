@@ -1,14 +1,37 @@
 import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { admin, bearer, jwt, organization } from 'better-auth/plugins';
+import { and, eq } from 'drizzle-orm';
 import { ROLES, ac, roles, schema } from '@vms/shared';
 import { db } from './db.ts';
 import { env } from './env.ts';
 import { getOrganizationName } from './services/admin.ts';
-import { sendPasswordSetupEmail } from './services/email/auth-emails.ts';
+import {
+  sendInvitationEmail,
+  sendPasswordChangedEmail,
+  sendPasswordResetEmail,
+} from './services/email/auth-emails.ts';
 
 /** How long a "set your password" / reset link stays valid (24h — friendly for invites). */
 const RESET_TOKEN_TTL_SECONDS = 60 * 60 * 24;
+
+/**
+ * better-auth fires `sendResetPassword` for two distinct user journeys — the admin-driven
+ * invitation (where the credential row was just minted with a throwaway secret) and a
+ * forgot-password request from someone who has used the system before. We want each journey
+ * to get its own email copy, so we peek at the credential `account` row: until the user
+ * completes the emailed link, its `updatedAt` still matches the row's `createdAt`. We allow
+ * 5 seconds of slack for clock skew / row-create latency — same heuristic the admin user
+ * list uses to show the "password set" badge.
+ */
+async function userHasSetOwnPassword(userId: string): Promise<boolean> {
+  const [credential] = await db
+    .select({ createdAt: schema.account.createdAt, updatedAt: schema.account.updatedAt })
+    .from(schema.account)
+    .where(and(eq(schema.account.userId, userId), eq(schema.account.providerId, 'credential')));
+  if (!credential) return false;
+  return credential.updatedAt.getTime() - credential.createdAt.getTime() > 5000;
+}
 
 /**
  * better-auth configuration.
@@ -44,14 +67,31 @@ export const auth = betterAuth({
     // Staff accounts are provisioned by an administrator (SRS FR-003), not self-signup.
     disableSignUp: false,
     // New accounts have no admin-set password — the user sets their own via this emailed link.
-    // The same flow backs "forgot password" / resend-invite.
+    // The same callback backs "forgot password"; we branch on credential state below so the
+    // user gets the right copy (invitation vs reset).
     resetPasswordTokenExpiresIn: RESET_TOKEN_TTL_SECONDS,
-    sendResetPassword: async ({ user, url }) =>
-      sendPasswordSetupEmail({
+    sendResetPassword: async ({ user, url }) => {
+      const [hasPassword, orgName] = await Promise.all([
+        userHasSetOwnPassword(user.id),
+        getOrganizationName(),
+      ]);
+      const payload = {
         to: user.email,
         name: user.name,
         url,
         expiresInHours: RESET_TOKEN_TTL_SECONDS / 3600,
+        orgName,
+      };
+      return hasPassword ? sendPasswordResetEmail(payload) : sendInvitationEmail(payload);
+    },
+    // Confirmation that a password was just changed — fires after the reset succeeds, so it
+    // covers both the invitation set-password flow and forgot-password resets. Failures are
+    // swallowed inside the email helper; the password change has already been committed and
+    // a confirmation that didn't send shouldn't fail the user-visible response.
+    onPasswordReset: async ({ user }) =>
+      sendPasswordChangedEmail({
+        to: user.email,
+        name: user.name,
         orgName: await getOrganizationName(),
       }),
   },
