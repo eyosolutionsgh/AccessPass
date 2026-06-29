@@ -5,6 +5,7 @@ import {
   CalendarClock,
   CheckCircle2,
   Footprints,
+  IdCard,
   Mail,
   MapPin,
   Phone,
@@ -146,6 +147,75 @@ function Row({ label, value, icon }: { label: string; value: ReactNode; icon?: R
       </span>
       <span className="text-right text-sm font-medium text-slate-900">{value}</span>
     </div>
+  );
+}
+
+/** A single pre-registration image thumbnail — fetches its bytes lazily and enlarges on click. */
+function DocumentThumb({
+  id,
+  type,
+  onEnlarge,
+}: {
+  id: string;
+  type: string;
+  onEnlarge: (src: string, label: string) => void;
+}) {
+  const doc = trpc.appointments.document.useQuery({ id });
+  const label = type === 'photo' ? 'Selfie' : 'ID document';
+  const src = doc.data ? `data:${doc.data.mime};base64,${doc.data.dataBase64}` : null;
+  return (
+    <div className="space-y-1.5">
+      <button
+        type="button"
+        disabled={!src}
+        onClick={() => src && onEnlarge(src, label)}
+        className="block size-28 overflow-hidden rounded-xl bg-slate-100 ring-1 ring-slate-200 transition-shadow hover:ring-brand-400 disabled:cursor-default"
+      >
+        {src ? (
+          <img src={src} alt={label} className="size-full object-cover" />
+        ) : (
+          <span className="flex size-full items-center justify-center text-slate-300">
+            <IdCard className="size-6 animate-pulse" />
+          </span>
+        )}
+      </button>
+      <p className="text-center text-xs font-medium text-slate-500">{label}</p>
+    </div>
+  );
+}
+
+/** Pre-registration identity images (selfie / ID) captured by the visitor before arrival. */
+function DocumentsSection({ visitId }: { visitId: string }) {
+  const docs = trpc.appointments.documents.useQuery({ visitId }, { enabled: Boolean(visitId) });
+  const [enlarged, setEnlarged] = useState<{ src: string; label: string } | null>(null);
+  if (!docs.data?.length) return null;
+  return (
+    <Card>
+      <CardHeader
+        icon={<IdCard />}
+        title="Pre-registration ID & selfie"
+        description="Identity images the visitor captured during pre-registration."
+      />
+      <div className="flex flex-wrap gap-4 p-5">
+        {docs.data.map((d) => (
+          <DocumentThumb
+            key={d.id}
+            id={d.id}
+            type={d.type}
+            onEnlarge={(src, label) => setEnlarged({ src, label })}
+          />
+        ))}
+      </div>
+      {enlarged && (
+        <Modal open onClose={() => setEnlarged(null)} title={enlarged.label} className="max-w-2xl">
+          <img
+            src={enlarged.src}
+            alt={enlarged.label}
+            className="mx-auto max-h-[70vh] rounded-lg object-contain"
+          />
+        </Modal>
+      )}
+    </Card>
   );
 }
 
@@ -427,6 +497,9 @@ export function AppointmentDetail() {
           </ol>
         </Card>
       )}
+
+      {/* Pre-registration identity images (selfie / ID), when the visitor uploaded any. */}
+      <DocumentsSection visitId={id} />
 
       {rescheduling && (
         <RescheduleModal

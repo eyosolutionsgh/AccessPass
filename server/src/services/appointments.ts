@@ -1,4 +1,4 @@
-import { and, desc, eq, gte, ilike, lte, or, sql } from 'drizzle-orm';
+import { and, desc, eq, gte, ilike, inArray, lte, or, sql } from 'drizzle-orm';
 import {
   schema,
   type CreateVisitInput,
@@ -15,6 +15,7 @@ import { issueInvitation, revokeInvitation } from './invitations.ts';
 import { notifyContact } from './notifications/notify.ts';
 import { findConflicts, SchedulingConflictError } from './conflicts.ts';
 import { assertSecretaryScope } from './scope.ts';
+import { getObject } from './storage.ts';
 
 type Actor = { id: string; role?: string | null };
 
@@ -405,4 +406,42 @@ export async function getVisit(visitId: string) {
       ? { checkpoint: location.checkpoint, kind: location.kind, at: location.at }
       : null,
   };
+}
+
+/**
+ * Identity images (selfie / ID) captured during pre-registration for a visit. Lists metadata only;
+ * the bytes are fetched one at a time via {@link getVisitDocument} (proxied — MinIO isn't reachable
+ * from staff browsers). Only image documents with a storage key are returned.
+ */
+export async function listVisitDocuments(visitId: string) {
+  const rows = await db
+    .select({
+      id: schema.documentRecord.id,
+      type: schema.documentRecord.type,
+      createdAt: schema.documentRecord.createdAt,
+    })
+    .from(schema.documentRecord)
+    .where(
+      and(
+        eq(schema.documentRecord.visitId, visitId),
+        inArray(schema.documentRecord.type, ['photo', 'id_document']),
+        eq(schema.documentRecord.status, 'active'),
+      ),
+    )
+    .orderBy(desc(schema.documentRecord.createdAt));
+  return rows;
+}
+
+/** Fetch a single visit document's bytes (base64) for inline display in the appointment detail. */
+export async function getVisitDocument(id: string) {
+  const [doc] = await db
+    .select({
+      type: schema.documentRecord.type,
+      storageReference: schema.documentRecord.storageReference,
+    })
+    .from(schema.documentRecord)
+    .where(eq(schema.documentRecord.id, id));
+  if (!doc?.storageReference) throw new Error('Document not found');
+  const { body, contentType } = await getObject(doc.storageReference);
+  return { mime: contentType, dataBase64: body.toString('base64'), type: doc.type };
 }

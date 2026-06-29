@@ -22,6 +22,7 @@ const PreRegister = lazy(() =>
 const ResetPassword = lazy(() =>
   import('./pages/public/ResetPassword.tsx').then((m) => ({ default: m.ResetPassword })),
 );
+const Policy = lazy(() => import('./pages/public/Policy.tsx').then((m) => ({ default: m.Policy })));
 const SignIn = lazy(() => import('./pages/SignIn.tsx').then((m) => ({ default: m.SignIn })));
 const Help = lazy(() => import('./pages/Help.tsx').then((m) => ({ default: m.Help })));
 const Appointments = lazy(() =>
@@ -66,6 +67,12 @@ const AdminOffices = lazy(() =>
 );
 const AdminCategories = lazy(() =>
   import('./pages/Admin.tsx').then((m) => ({ default: m.AdminCategories })),
+);
+const AdminSiteRules = lazy(() =>
+  import('./pages/Admin.tsx').then((m) => ({ default: m.AdminSiteRules })),
+);
+const AdminPrivacyNotice = lazy(() =>
+  import('./pages/Admin.tsx').then((m) => ({ default: m.AdminPrivacyNotice })),
 );
 
 /** Branded full-screen splash — shown while the session resolves or a public page chunk loads. */
@@ -118,6 +125,13 @@ export function App() {
     return (
       <Suspense fallback={<FullScreenLoader />}>
         <PreRegister />
+      </Suspense>
+    );
+  // Public, standalone visitor-policy reader (opened in a new tab from pre-registration).
+  if (location.startsWith('/policy'))
+    return (
+      <Suspense fallback={<FullScreenLoader />}>
+        <Policy />
       </Suspense>
     );
   // Public landing for the emailed "set your password" link (no session required).
@@ -177,6 +191,8 @@ function StaffApp() {
           <Route path="/admin/departments" component={AdminDepartments} />
           <Route path="/admin/offices" component={AdminOffices} />
           <Route path="/admin/categories" component={AdminCategories} />
+          <Route path="/admin/site-rules" component={AdminSiteRules} />
+          <Route path="/admin/privacy-notice" component={AdminPrivacyNotice} />
           <Route>
             <div className="flex flex-col items-center justify-center py-24 text-center">
               <p className="text-6xl font-black tracking-tight text-slate-200">404</p>

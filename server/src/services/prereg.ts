@@ -1,9 +1,18 @@
-import { eq } from 'drizzle-orm';
-import { schema, type PreRegSubmitInput } from '@vms/shared';
+import { and, eq } from 'drizzle-orm';
+import {
+  PREREG_IMAGE_ALLOWED_MIME,
+  PREREG_IMAGE_MAX_BYTES,
+  schema,
+  type PreRegSubmitInput,
+  type PreRegUploadInput,
+} from '@vms/shared';
 import { db } from '../db.ts';
 import { hashToken } from '../lib/crypto.ts';
 import { recordAudit } from '../lib/audit.ts';
 import { emitVisitEvent } from '../realtime.ts';
+import { getInstitutionContact, getOrganizationName, getPolicyContent } from './admin.ts';
+import { decodeDataUrl, putObject } from './storage.ts';
+import { randomUUID } from 'node:crypto';
 
 const CLOSED = ['cancelled', 'denied', 'checked_in', 'checked_out', 'no_show', 'expired'];
 
@@ -24,14 +33,25 @@ async function findVisitByToken(token: string) {
 export type PreRegContext = {
   visitId: string;
   visitorName: string;
+  visitorEmail: string | null;
+  visitorPhone: string | null;
+  /** The institution the visitor is coming to (admin-set organisation name). */
+  institutionName: string;
   hostName: string | null;
+  hostDepartment: string | null;
+  hostOffice: string | null;
   facilityName: string | null;
   facilityAddress: string | null;
+  purpose: string | null;
   expectedArrival: Date | null;
   requiredFields: string[];
   policies: string[];
+  /** Admin-maintained text for policies (e.g. site_rules, privacy_notice) the visitor can open. */
+  policyContent: Record<string, string>;
   status: string;
   completed: boolean;
+  /** Institution contact shown on the page so visitors can reach the organisation. */
+  contact: { email: string | null; phone: string | null };
 };
 
 /** Resolve the pre-registration context from an invitation token (SRS FR-030/031). */
@@ -49,6 +69,24 @@ export async function getPreReg(token: string): Promise<PreRegContext | null> {
     .from(schema.facility)
     .where(eq(schema.facility.id, visit.facilityId));
 
+  // The host's department/office give the visit its org context (mirrors getVisit, SRS FR-100).
+  let hostDepartment: string | null = null;
+  let hostOffice: string | null = null;
+  if (host?.departmentId) {
+    const [dep] = await db
+      .select({ name: schema.department.name })
+      .from(schema.department)
+      .where(eq(schema.department.id, host.departmentId));
+    hostDepartment = dep?.name ?? null;
+  }
+  if (host?.officeId) {
+    const [off] = await db
+      .select({ name: schema.office.name })
+      .from(schema.office)
+      .where(eq(schema.office.id, host.officeId));
+    hostOffice = off?.name ?? null;
+  }
+
   let requiredFields: string[] = [];
   const policies = ['privacy_notice', 'site_rules'];
   if (visit.categoryId) {
@@ -65,18 +103,74 @@ export async function getPreReg(token: string): Promise<PreRegContext | null> {
     .from(schema.preRegistration)
     .where(eq(schema.preRegistration.visitId, visit.id));
 
+  const contact = await getInstitutionContact();
+  const policyContent = await getPolicyContent();
+  const institutionName = await getOrganizationName();
+
   return {
     visitId: visit.id,
     visitorName: visitor?.fullName ?? 'Visitor',
+    visitorEmail: visitor?.email ?? null,
+    visitorPhone: visitor?.phone ?? null,
+    institutionName,
     hostName: host?.name ?? null,
+    hostDepartment,
+    hostOffice,
     facilityName: facility?.name ?? null,
     facilityAddress: facility?.address ?? null,
+    purpose: visit.purpose ?? null,
     expectedArrival: visit.expectedArrival,
     requiredFields,
     policies,
+    policyContent,
     status: visit.status,
     completed: prereg?.status === 'completed',
+    contact,
   };
+}
+
+/**
+ * Store an optional identity image (selfie / ID) captured during pre-registration. Resolves the
+ * visit by its invitation token (same CLOSED guard as the rest of the flow), validates + decodes
+ * the data URL, uploads the bytes to object storage, and upserts a `document_record` — replacing
+ * any prior image of the same kind for the visit so re-takes don't pile up.
+ */
+export async function uploadPreRegDocument(input: PreRegUploadInput) {
+  const visit = await findVisitByToken(input.token);
+  if (!visit || CLOSED.includes(visit.status))
+    throw new Error('This pre-registration link is no longer valid');
+
+  const { mime, bytes, ext } = decodeDataUrl(input.dataUrl, {
+    allowedMime: PREREG_IMAGE_ALLOWED_MIME,
+    maxBytes: PREREG_IMAGE_MAX_BYTES,
+  });
+
+  const docType = input.kind === 'selfie' ? 'photo' : 'id_document';
+  const key = `prereg/${visit.id}/${input.kind}-${randomUUID()}.${ext}`;
+  await putObject(key, bytes, mime);
+
+  // One image per kind per visit: drop any earlier row (and its storage key reference) first.
+  await db
+    .delete(schema.documentRecord)
+    .where(
+      and(eq(schema.documentRecord.visitId, visit.id), eq(schema.documentRecord.type, docType)),
+    );
+  await db.insert(schema.documentRecord).values({
+    visitId: visit.id,
+    visitorId: visit.visitorId,
+    type: docType,
+    storageReference: key,
+    status: 'active',
+  });
+
+  await recordAudit(db, {
+    action: 'prereg.document',
+    objectType: 'visit',
+    objectId: visit.id,
+    metadata: { kind: input.kind, bytes: bytes.length },
+  });
+
+  return { ok: true as const };
 }
 
 /** Submit pre-registration: persist field/consent state and mark the visit Pre-Registered (FR-035). */
