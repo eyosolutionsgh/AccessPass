@@ -2,10 +2,16 @@ package com.vms.kiosk;
 
 import android.Manifest;
 import android.app.Activity;
+import android.app.AlarmManager;
+import android.app.PendingIntent;
+import android.content.Context;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.Process;
+import android.os.SystemClock;
 import android.util.Log;
 import android.view.View;
 import android.view.WindowManager;
@@ -33,6 +39,8 @@ import java.io.File;
 public class MainActivity extends Activity {
     private static final String TAG = "VmsKiosk";
     private static final int REQ_CAMERA = 1001;
+    /** Below this uptime, a crash is treated as a persistent fault — don't auto-relaunch (loop guard). */
+    private static final long CRASH_MIN_UPTIME_MS = 15_000;
 
     private WebView webView;
     private KioskConfig config;
@@ -50,6 +58,7 @@ public class MainActivity extends Activity {
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
         config = KioskConfig.load(this);
+        installCrashRelaunch();
         nfc = new NfcReader(this);
         ensureCameraPermission();
 
@@ -161,6 +170,46 @@ public class MainActivity extends Activity {
         if (checkSelfPermission(Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
             requestPermissions(new String[]{Manifest.permission.CAMERA}, REQ_CAMERA);
         }
+    }
+
+    /**
+     * An unattended kiosk must survive a WebView/renderer crash or any uncaught exception without a
+     * technician walking over. On a fatal throw we schedule a fresh cold start (AlarmManager fires
+     * after the process dies) and kill ourselves so no half-broken state lingers.
+     *
+     * <p>Crash-loop guard: if the app died within {@link #CRASH_MIN_UPTIME_MS} of starting, the
+     * fault is persistent (bad config, unreachable server on first paint) — relaunching would just
+     * spin. In that case we defer to the platform's default handler so the failure is visible.
+     */
+    private void installCrashRelaunch() {
+        if (!config.relaunchOnCrash) return;
+        final long startedAt = SystemClock.elapsedRealtime();
+        final Thread.UncaughtExceptionHandler prior = Thread.getDefaultUncaughtExceptionHandler();
+        Thread.setDefaultUncaughtExceptionHandler(new Thread.UncaughtExceptionHandler() {
+            @Override public void uncaughtException(Thread thread, Throwable error) {
+                long alive = SystemClock.elapsedRealtime() - startedAt;
+                if (alive < CRASH_MIN_UPTIME_MS) {
+                    Log.e(TAG, "Fatal after only " + alive + "ms — not relaunching (crash-loop guard)", error);
+                    if (prior != null) prior.uncaughtException(thread, error);
+                    return;
+                }
+                Log.e(TAG, "Fatal after " + alive + "ms — relaunching kiosk", error);
+                try {
+                    Intent launch = new Intent(getApplicationContext(), MainActivity.class);
+                    launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+                    PendingIntent pi = PendingIntent.getActivity(getApplicationContext(), 0, launch,
+                            PendingIntent.FLAG_CANCEL_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+                    AlarmManager am = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
+                    if (am != null) {
+                        am.set(AlarmManager.ELAPSED_REALTIME, SystemClock.elapsedRealtime() + 1500, pi);
+                    }
+                } catch (Throwable t) {
+                    Log.e(TAG, "Failed to schedule relaunch: " + t.getMessage());
+                }
+                Process.killProcess(Process.myPid());
+                System.exit(10);
+            }
+        });
     }
 
     // ── Hardware events → resolve any armed JS request ─────────────────────────

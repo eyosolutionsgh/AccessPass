@@ -24,6 +24,8 @@ public final class KioskConfig {
     public final String deviceId;
     public final String facilityId;
     public final boolean lockTask;
+    public final boolean relaunchOnBoot;
+    public final boolean relaunchOnCrash;
 
     private KioskConfig(JSONObject o) {
         this.webUrl = o.optString("webUrl", "http://10.0.2.2:5173");
@@ -31,6 +33,11 @@ public final class KioskConfig {
         this.deviceId = o.optString("deviceId", "kiosk-android-1");
         this.facilityId = o.optString("facilityId", "");
         this.lockTask = o.optBoolean("lockTask", false);
+        // Availability hardening: a dedicated kiosk should heal itself after a reboot (power blip)
+        // or a WebView/renderer crash. On by default; a crash-loop guard in MainActivity keeps a
+        // persistently-failing device from spinning (see relaunchOnCrash use there).
+        this.relaunchOnBoot = o.optBoolean("relaunchOnBoot", true);
+        this.relaunchOnCrash = o.optBoolean("relaunchOnCrash", true);
     }
 
     public static KioskConfig load(Context ctx) {

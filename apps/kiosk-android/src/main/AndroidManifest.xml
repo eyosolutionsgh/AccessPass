@@ -14,6 +14,8 @@
     <uses-permission android:name="android.permission.CAMERA" />
     <!-- Contactless tag (NFC) issue/return. -->
     <uses-permission android:name="android.permission.NFC" />
+    <!-- Relaunch the kiosk after a device reboot (power blip). -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
     <uses-feature android:name="android.hardware.nfc" android:required="false" />
     <uses-feature android:name="android.hardware.camera" android:required="false" />
@@ -58,5 +60,17 @@
                 android:name="android.nfc.action.TECH_DISCOVERED"
                 android:resource="@xml/nfc_tech_filter" />
         </activity>
+
+        <!-- Cold-starts the kiosk after a reboot so the terminal never parks on the launcher. -->
+        <receiver
+            android:name="com.vms.kiosk.BootReceiver"
+            android:exported="true"
+            android:enabled="true">
+            <intent-filter android:priority="1000">
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.QUICKBOOT_POWERON" />
+                <action android:name="com.htc.intent.action.QUICKBOOT_POWERON" />
+            </intent-filter>
+        </receiver>
     </application>
 </manifest>
