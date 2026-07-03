@@ -3,5 +3,7 @@
   "startPath": "/check-in",
   "deviceId": "kiosk-android-1",
   "facilityId": "",
-  "lockTask": false
+  "lockTask": false,
+  "relaunchOnBoot": true,
+  "relaunchOnCrash": true
 }
