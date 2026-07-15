@@ -48,7 +48,7 @@ docker compose --profile dev up -d   # to also start Mailpit (dev SMTP UI on :80
 # 4. Create database schema (non-interactive: generate + migrate)
 pnpm db:generate && pnpm db:migrate
 
-# 5. Seed an admin + reference data (admin@vms.local / Admin123!)
+# 5. Seed an admin + reference data (aaodoom@gmail.com / Admin123!)
 pnpm --filter @vms/server seed
 
 # 6. Run the app (server :4000 + web :5173)

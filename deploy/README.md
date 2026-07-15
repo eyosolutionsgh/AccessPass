@@ -58,7 +58,7 @@ session cookie is same-site and CORS is configured to allow the SPA origin.
    ```
 
    The `server` container applies migrations and runs the idempotent seed
-   (`admin@vms.local` / `Admin123!`) on first boot.
+   (`aaodoom@gmail.com` / `Admin123!`) on first boot.
 
 5. **Verify:**
 

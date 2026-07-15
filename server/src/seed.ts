@@ -9,7 +9,7 @@ import { auth } from './auth.ts';
 import { db } from './db.ts';
 import { logger } from './logger.ts';
 
-const ADMIN_EMAIL = 'admin@vms.local';
+const ADMIN_EMAIL = 'aaodoom@gmail.com';
 const ADMIN_PASSWORD = 'Admin123!';
 
 async function seed() {
