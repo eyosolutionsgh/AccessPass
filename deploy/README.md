@@ -103,24 +103,20 @@ docker compose --env-file deploy/.env -f deploy/docker-compose.yml exec -T postg
   pg_dump -U vms vms | gzip > vms-$(date +%F).sql.gz
 ```
 
-## Email (MailerSend)
+## Email (MailerSend API)
 
-Mail is delivered through the MailerSend SMTP relay (no local sink). The `3dt.com.gh` domain is
-DKIM/SPF-verified in MailerSend, so the `From` **must** be `@3dt.com.gh`. Set in `deploy/.env`:
+Mail is sent via the MailerSend HTTP API (`https://api.mailersend.com/v1/email`) — no SMTP, no local
+sink. `MAILERSEND_FROM_EMAIL` must be on a MailerSend-verified domain (`3dt.com.gh` is DKIM/SPF
+verified). Set in `deploy/.env`:
 
 ```
-SMTP_HOST=smtp.mailersend.net
-SMTP_PORT=587          # submission port + STARTTLS — implicit-TLS 465 is blocked outbound on Hetzner
-SMTP_SECURE=false
-SMTP_USER=MS_xxxxxx@3dt.com.gh     # from the MailerSend dashboard
-SMTP_PASS=<mailersend-smtp-token>  # from the MailerSend dashboard
-SMTP_FROM="Visitor Management <vms@3dt.com.gh>"
+EMAIL_PROVIDER=mailersend
+MAILERSEND_API_TOKEN=<mlsn... token from the MailerSend dashboard>
+MAILERSEND_FROM_EMAIL=vms@3dt.com.gh
+MAILERSEND_FROM_NAME=vms
 ```
 
 then recreate the server: `docker compose --env-file deploy/.env -f deploy/docker-compose.yml up -d server`.
 
-> **Use port 587, not 465.** Hetzner blocks outbound implicit-TLS (465); on 587 nodemailer starts
-> plaintext and upgrades via STARTTLS (the server forces it whenever `SMTP_USER` is set).
->
 > **Don't test with `@mailinator.com`.** MailerSend blocklists it, so those messages are accepted
-> (`250 OK`) but never delivered. Verify with a real mailbox.
+> but never delivered. Verify with a real mailbox.

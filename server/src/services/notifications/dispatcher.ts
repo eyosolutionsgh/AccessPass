@@ -35,7 +35,7 @@ export type RenderedMessage = {
   html?: string;
   text: string;
   attachments?: NotificationAttachment[];
-  /** Optional sender override (e.g. an institution-branded From); defaults to SMTP_FROM. */
+  /** Optional sender override (e.g. an institution-branded From); defaults to MAILERSEND_FROM_*. */
   from?: string;
 };
 

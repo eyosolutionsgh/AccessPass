@@ -46,12 +46,13 @@ const envSchema = z.object({
   S3_BUCKET: z.string().default('vms-documents'),
   S3_FORCE_PATH_STYLE: envBool(true),
 
-  SMTP_HOST: z.string().default('localhost'),
-  SMTP_PORT: z.coerce.number().default(1025),
-  SMTP_SECURE: envBool(false),
-  SMTP_USER: z.string().optional(),
-  SMTP_PASS: z.string().optional(),
-  SMTP_FROM: z.string().default('Visitor Management <no-reply@vms.local>'),
+  // Email — MailerSend HTTP API (transactional). MAILERSEND_API_TOKEN is optional so the server
+  // still boots without it (sends then fail and are retried by the dispatcher until it's set).
+  // FROM_EMAIL must be on a MailerSend-verified domain (3dt.com.gh).
+  EMAIL_PROVIDER: z.enum(['mailersend']).default('mailersend'),
+  MAILERSEND_API_TOKEN: z.string().optional(),
+  MAILERSEND_FROM_EMAIL: z.string().default('vms@3dt.com.gh'),
+  MAILERSEND_FROM_NAME: z.string().default('vms'),
 
   // Product/portal name shown in transactional emails (e.g. "Set your <PLATFORM_NAME> password").
   // Distinct from the per-institution organisation name (admin-configurable, e.g. "Jubilee House").

@@ -1,55 +1,62 @@
-import nodemailer from 'nodemailer';
-import type { Attachment } from 'nodemailer/lib/mailer';
 import { env } from '../../env.ts';
 import { logger } from '../../logger.ts';
 
 /**
- * SMTP transport pointed at the MailerSend relay (smtp.mailersend.net; SRS §10.2). Auth is omitted
- * only when SMTP_USER is blank (an unauthenticated local sink).
- *
- * The relay is reached on the submission port (587, `SMTP_SECURE=false`): the connection starts
- * plaintext and upgrades via STARTTLS. We force STARTTLS whenever credentials are configured so the
- * login is never sent in the clear. (Implicit-TLS port 465 is firewall-blocked outbound on the
- * Hetzner host, so 587 is the only path.) Timeouts keep a wedged relay from hanging the request
- * that triggered the send.
+ * Email transport — the MailerSend HTTP API (transactional). SMTP is not used: mail is POSTed to
+ * https://api.mailersend.com/v1/email with a Bearer API token, which sidesteps outbound SMTP-port
+ * blocks on the host. The sender address is always MAILERSEND_FROM_EMAIL (a MailerSend-verified
+ * domain, so DKIM/SPF align); a `from` override only changes the display NAME.
  */
-export const mailer = nodemailer.createTransport({
-  host: env.SMTP_HOST,
-  port: env.SMTP_PORT,
-  secure: env.SMTP_SECURE,
-  requireTLS: env.SMTP_USER ? !env.SMTP_SECURE : false,
-  auth: env.SMTP_USER ? { user: env.SMTP_USER, pass: env.SMTP_PASS } : undefined,
-  connectionTimeout: 15_000,
-  greetingTimeout: 15_000,
-  socketTimeout: 30_000,
-});
+const MAILERSEND_API_URL = 'https://api.mailersend.com/v1/email';
+const SEND_TIMEOUT_MS = 30_000;
+
+/**
+ * Attachment for {@link sendMail}. `content` is a Buffer (or an already-base64 string); a `cid`
+ * marks an inline image referenced in the HTML as `<img src="cid:CID">` (MailerSend maps it via the
+ * attachment `id` + `disposition: inline`).
+ */
+export type MailAttachment = {
+  filename: string;
+  content: Buffer | string;
+  cid?: string;
+};
 
 export type SendMailInput = {
   to: string;
   subject: string;
   html: string;
   text?: string;
-  attachments?: Attachment[];
-  /** Optional sender override (e.g. to show the institution name); defaults to SMTP_FROM. */
+  attachments?: MailAttachment[];
+  /**
+   * Optional sender override — only the display NAME is honoured; the address is always
+   * MAILERSEND_FROM_EMAIL (the verified domain). Defaults to MAILERSEND_FROM_NAME.
+   */
   from?: string;
 };
 
 /**
- * Build a `From` header that keeps the configured sender address (for SPF/DKIM/deliverability) but
- * shows `displayName` so recipients recognise the institution. Reuses the address parsed from
- * SMTP_FROM, which may be either `Name <addr@host>` or a bare `addr@host`.
+ * Extract a display name from a `Name <addr>` (or bare) From string. The address is intentionally
+ * ignored — MailerSend requires the verified-domain sender — so we keep only the name.
  */
-export function fromWithName(displayName: string): string {
-  const match = env.SMTP_FROM.match(/<([^>]+)>/);
-  const address = (match?.[1] ?? env.SMTP_FROM).trim();
-  // Quote the display name and strip characters that could break the header.
-  const safe = displayName.replace(/["\\\r\n]/g, '').trim();
-  return safe ? `"${safe}" <${address}>` : env.SMTP_FROM;
+function displayName(from?: string): string {
+  if (!from) return env.MAILERSEND_FROM_NAME;
+  const lt = from.indexOf('<');
+  const raw = lt >= 0 ? from.slice(0, lt) : from;
+  return raw.replace(/["\\\r\n]/g, '').trim() || env.MAILERSEND_FROM_NAME;
+}
+
+/**
+ * Build a `"Display Name" <address>` string used by callers as the `from` override. Keeps the
+ * verified MAILERSEND_FROM_EMAIL address while showing `name`.
+ */
+export function fromWithName(name: string): string {
+  const safe = name.replace(/["\\\r\n]/g, '').trim();
+  return `${safe || env.MAILERSEND_FROM_NAME} <${env.MAILERSEND_FROM_EMAIL}>`;
 }
 
 /**
  * Plain branding label in the form `Institution Name (Platform Name)` — e.g. `Jubilee House
- * (Visitor Management System)` — for use in email subjects, body captions and footer signatures.
+ * (Visitor Management System)` — for email subjects, body captions and footer signatures.
  * Falls back to the platform name alone when no institution name is configured.
  */
 export function institutionLabel(orgName: string): string {
@@ -59,16 +66,55 @@ export function institutionLabel(orgName: string): string {
 
 /**
  * Sender display using {@link institutionLabel}, so recipients see both who invited them and the
- * product. Keeps the configured SMTP_FROM address (DKIM/SPF intact).
+ * product. The address stays MAILERSEND_FROM_EMAIL (DKIM/SPF intact).
  */
 export function institutionFrom(orgName: string): string {
   return fromWithName(institutionLabel(orgName));
 }
 
-/** Send an email; notification failures are surfaced to the caller (SRS FR-074, NFR-AVL-02). */
+const toBase64 = (content: Buffer | string): string =>
+  Buffer.isBuffer(content) ? content.toString('base64') : content;
+
+/** Send an email via the MailerSend API. Throws on failure (drives the notification retry path). */
 export async function sendMail(input: SendMailInput): Promise<string> {
-  const { from, ...rest } = input;
-  const info = await mailer.sendMail({ from: from ?? env.SMTP_FROM, ...rest });
-  logger.debug({ messageId: info.messageId, to: input.to }, 'email sent');
-  return info.messageId;
+  if (!env.MAILERSEND_API_TOKEN) {
+    throw new Error('MAILERSEND_API_TOKEN is not configured — cannot send email');
+  }
+
+  const body: Record<string, unknown> = {
+    from: { email: env.MAILERSEND_FROM_EMAIL, name: displayName(input.from) },
+    to: [{ email: input.to }],
+    subject: input.subject,
+    html: input.html,
+  };
+  if (input.text) body.text = input.text;
+  if (input.attachments?.length) {
+    body.attachments = input.attachments.map((a) => ({
+      filename: a.filename,
+      content: toBase64(a.content),
+      disposition: a.cid ? 'inline' : 'attachment',
+      ...(a.cid ? { id: a.cid } : {}),
+    }));
+  }
+
+  const res = await fetch(MAILERSEND_API_URL, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${env.MAILERSEND_API_TOKEN}`,
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+    },
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(SEND_TIMEOUT_MS),
+  });
+
+  if (!res.ok) {
+    const detail = await res.text().catch(() => '');
+    throw new Error(`MailerSend send failed (${res.status}): ${detail.slice(0, 500)}`);
+  }
+
+  // MailerSend returns 202 Accepted with the id in the X-Message-Id header (body is empty).
+  const messageId = res.headers.get('x-message-id') ?? '';
+  logger.debug({ messageId, to: input.to }, 'email sent');
+  return messageId;
 }
