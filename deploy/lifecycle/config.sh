@@ -57,10 +57,6 @@ REMOTE_DEPLOY_DIR="${REMOTE_DEPLOY_DIR:-/opt/vms/deploy}"
 COMPOSE_FILE="${COMPOSE_FILE:-docker-compose.yml}"
 COMPOSE_ENV_FILE="${COMPOSE_ENV_FILE:-.env}"
 
-# Images built on the box vs pulled from Docker Hub (used by box-restore --sync).
-BUILD_SERVICES="${BUILD_SERVICES:-server web}"
-PULL_SERVICES="${PULL_SERVICES:-caddy postgres redis minio createbuckets mailpit}"
-
 # Public hostnames (also set in deploy/.env). Used for smoke tests + the DNS
 # reminder printed by box-create.
 WEB_DOMAIN="${WEB_DOMAIN:-vms.3dt.com.gh}"

@@ -52,7 +52,14 @@ create_args=(
   --ssh-key "$SSH_KEY_NAME"
   --primary-ipv4 "$PRIMARY_IP_NAME"
 )
-[[ "$ENABLE_IPV6" == "1" ]] && create_args+=(--primary-ipv6 "$PRIMARY_IPV6_NAME")
+# Reattach the reserved IPv6 if enabled, otherwise create IPv4-only. Without
+# --without-ipv6, hcloud auto-allocates a NEW IPv6 primary IP, which fails on
+# projects with a tight primary-IP limit (DNS uses A records only anyway).
+if [[ "$ENABLE_IPV6" == "1" ]]; then
+  create_args+=(--primary-ipv6 "$PRIMARY_IPV6_NAME")
+else
+  create_args+=(--without-ipv6)
+fi
 [[ -n "${FIREWALL_NAME:-}" ]] && hc firewall describe "$FIREWALL_NAME" >/dev/null 2>&1 \
   && create_args+=(--firewall "$FIREWALL_NAME")
 hc server create "${create_args[@]}"
@@ -74,22 +81,20 @@ done
 
 if [[ $SYNC -eq 1 ]]; then
   echo "Syncing the box to the latest main (git pull + image pull/build + recreate)…"
-  # Positional args keep the heredoc fully quoted, so nothing expands locally —
-  # the remote shell does all the work. Args: deploy dir, env file, compose file,
-  # pull services, build services.
+  # Only SINGLE-WORD args are passed positionally: ssh concatenates its arguments
+  # into one command string that the remote shell re-splits on spaces, so a
+  # multi-word service list would fragment across $@ (a subtle bug). Instead
+  # `up --build` rebuilds every buildable service (server, web) and
+  # `pull --ignore-buildable` refreshes the image-only ones — no list needed.
   ssh "$SSH_USER@$ipv4" 'bash -s' \
-    "$REMOTE_DEPLOY_DIR" "$COMPOSE_ENV_FILE" "$COMPOSE_FILE" \
-    "$PULL_SERVICES" "$BUILD_SERVICES" <<'REMOTE'
+    "$REMOTE_DEPLOY_DIR" "$COMPOSE_ENV_FILE" "$COMPOSE_FILE" <<'REMOTE'
 set -euo pipefail
-DEPLOY_DIR="$1"; ENV="$2"; COMPOSE="$3"; PULL="$4"; BUILD="$5"
+DEPLOY_DIR="$1"; ENV="$2"; COMPOSE="$3"
 REPO_DIR="$(dirname "$DEPLOY_DIR")"
 cd "$DEPLOY_DIR"
 git -C "$REPO_DIR" pull --ff-only
-# shellcheck disable=SC2086
-docker compose --env-file "$ENV" -f "$COMPOSE" pull $PULL || true
-# shellcheck disable=SC2086
-docker compose --env-file "$ENV" -f "$COMPOSE" build $BUILD
-docker compose --env-file "$ENV" -f "$COMPOSE" up -d --force-recreate
+docker compose --env-file "$ENV" -f "$COMPOSE" pull --ignore-buildable || true
+docker compose --env-file "$ENV" -f "$COMPOSE" up -d --build --force-recreate
 REMOTE
 else
   echo "Booting the exact snapshot state (no sync)…"
