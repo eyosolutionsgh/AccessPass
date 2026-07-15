@@ -14,7 +14,6 @@ self-hosted on one box — no managed cloud services.
 | `postgres` | pgvector/pgvector:pg16      | internal | Primary database                         |
 | `redis`    | redis:7-alpine              | internal | Cache, rate-limit store, BullMQ queue    |
 | `minio`    | minio/minio                 | internal | S3-compatible object storage (documents) |
-| `mailpit`  | axllent/mailpit             | internal | Outbound-mail sink (swap for real SMTP)  |
 
 Two hostnames, both pointed at this server:
 
@@ -99,31 +98,29 @@ See [`lifecycle/README.md`](lifecycle/README.md) for details.
 # logs
 docker compose --env-file deploy/.env -f deploy/docker-compose.yml logs -f server
 
-# view captured email (Mailpit UI) over an SSH tunnel from your laptop:
-ssh -L 8025:localhost:8025 root@<server-ip> \
-  'docker compose --env-file /opt/vms/deploy/.env -f /opt/vms/deploy/docker-compose.yml exec -T mailpit true'
-# then open http://localhost:8025  (or simpler: ssh -L 8025: ... and `docker port`/network expose)
-
 # database backup
 docker compose --env-file deploy/.env -f deploy/docker-compose.yml exec -T postgres \
   pg_dump -U vms vms | gzip > vms-$(date +%F).sql.gz
 ```
 
-## Real email
+## Email (MailerSend)
 
-The default points SMTP at the internal Mailpit sink (captures, does not deliver). To deliver for
-real, set in `deploy/.env` and recreate the `server`:
+Mail is delivered through the MailerSend SMTP relay (no local sink). The `3dt.com.gh` domain is
+DKIM/SPF-verified in MailerSend, so the `From` **must** be `@3dt.com.gh`. Set in `deploy/.env`:
 
 ```
-SMTP_HOST=mail.3dt.com.gh
-SMTP_PORT=587          # submission port + STARTTLS — port 465 is firewall-blocked outbound here
+SMTP_HOST=smtp.mailersend.net
+SMTP_PORT=587          # submission port + STARTTLS — implicit-TLS 465 is blocked outbound on Hetzner
 SMTP_SECURE=false
-SMTP_USER=vms@3dt.com.gh
-SMTP_PASS=<relay-password>
+SMTP_USER=MS_xxxxxx@3dt.com.gh     # from the MailerSend dashboard
+SMTP_PASS=<mailersend-smtp-token>  # from the MailerSend dashboard
+SMTP_FROM="Visitor Management <vms@3dt.com.gh>"
 ```
+
+then recreate the server: `docker compose --env-file deploy/.env -f deploy/docker-compose.yml up -d server`.
 
 > **Use port 587, not 465.** Hetzner blocks outbound implicit-TLS (465); on 587 nodemailer starts
 > plaintext and upgrades via STARTTLS (the server forces it whenever `SMTP_USER` is set).
 >
-> **Don't test with `@mailinator.com`.** This relay's IP is on Mailinator's blocklist, so those
-> messages are accepted by the relay (`250 OK`) but never delivered. Verify with a real mailbox.
+> **Don't test with `@mailinator.com`.** MailerSend blocklists it, so those messages are accepted
+> (`250 OK`) but never delivered. Verify with a real mailbox.

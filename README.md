@@ -41,9 +41,8 @@ pnpm install
 # 2. Configure environment
 cp .env.example .env        # then edit secrets
 
-# 3. Start on-prem infrastructure (postgres, redis, minio, + dev mail sink)
-pnpm infra:up               # add `--profile dev` is implied via compose profiles
-docker compose --profile dev up -d   # to also start Mailpit (dev SMTP UI on :8025)
+# 3. Start on-prem infrastructure (postgres, redis, minio)
+pnpm infra:up
 
 # 4. Create database schema (non-interactive: generate + migrate)
 pnpm db:generate && pnpm db:migrate
@@ -58,7 +57,8 @@ pnpm dev
 KIOSK_FACILITY_ID=<facility-uuid> pnpm --filter @vms/kiosk dev
 ```
 
-Health check: `GET http://localhost:4000/health` · Dev mail UI: http://localhost:8025
+Health check: `GET http://localhost:4000/health`. Email is sent via the MailerSend SMTP relay
+(configure `SMTP_*` in `.env`); there is no local mail sink.
 
 The kiosk (`apps/kiosk`) is configured via env (`KIOSK_WEB_URL`, `KIOSK_DEVICE_ID`,
 `KIOSK_FACILITY_ID`, `KIOSK_PRINTER`); without `KIOSK_PRINTER` set, badges render to PDF in the

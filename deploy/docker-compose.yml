@@ -99,22 +99,6 @@ services:
     networks:
       - vms
 
-  # Dev/staging mail sink — captures all outbound invitation/notification email in a web UI
-  # (internal only, reachable via SSH tunnel to :8025). Swap SMTP_* in .env for the corporate
-  # relay to deliver mail for real.
-  mailpit:
-    image: axllent/mailpit:latest
-    restart: unless-stopped
-    environment:
-      MP_MAX_MESSAGES: '5000'
-      MP_DATABASE: /data/mailpit.db
-      MP_SMTP_AUTH_ACCEPT_ANY: 'true'
-      MP_SMTP_AUTH_ALLOW_INSECURE: 'true'
-    volumes:
-      - mailpit_data:/data
-    networks:
-      - vms
-
   server:
     build:
       context: ..
@@ -182,6 +166,5 @@ volumes:
   pgdata:
   redisdata:
   minio_data:
-  mailpit_data:
   caddy_data:
   caddy_config:
