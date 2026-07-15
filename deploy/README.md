@@ -77,6 +77,22 @@ cd /opt/vms && git pull
 docker compose --env-file deploy/.env -f deploy/docker-compose.yml up -d --build
 ```
 
+## Box lifecycle (create / destroy / restore)
+
+[`lifecycle/`](lifecycle/) is an `hcloud`-based toolkit to snapshot-and-park the
+box cheaply and bring it back on the **same IP** (no DNS change, data preserved):
+
+```bash
+cd deploy/lifecycle
+export HCLOUD_TOKEN=<vms project token>
+./box-create.sh     # first-time provisioning (server + firewall + reserved IP)
+./box-destroy.sh    # snapshot + delete server, KEEP the IP  (cheap idle)
+./box-restore.sh    # recreate from snapshot, reattach IP, converge to main
+./box-status.sh     # server/IP/snapshot/container health
+```
+
+See [`lifecycle/README.md`](lifecycle/README.md) for details.
+
 ## Operations
 
 ```bash

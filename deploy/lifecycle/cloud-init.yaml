@@ -1,0 +1,91 @@
+#cloud-config
+# First-boot provisioning for a fresh VMS box (Ubuntu 24.04 on Hetzner).
+# Installs Docker + the Compose plugin, adds swap, applies basic SSH hardening,
+# enables unattended security upgrades, caps container log growth, and prepares
+# /opt/vms for the repo clone. Consumed by box-create.sh via
+# `hcloud server create --user-data-from-file`.
+
+package_update: true
+package_upgrade: true
+
+packages:
+  - ca-certificates
+  - curl
+  - git
+  - jq
+  - fail2ban
+  - unattended-upgrades
+
+# 4 GB swap — headroom for the on-box image builds (Vite web + esbuild server,
+# pgvector) on the 8 GB box without risking the OOM killer mid-deploy.
+swap:
+  filename: /swapfile
+  size: 4G
+  maxsize: 4G
+
+write_files:
+  # Key-only SSH. The Hetzner Cloud Firewall keeps 22 reachable; disabling
+  # password auth removes the brute-force surface.
+  - path: /etc/ssh/sshd_config.d/99-vms.conf
+    permissions: '0644'
+    content: |
+      PasswordAuthentication no
+      PermitRootLogin prohibit-password
+      KbdInteractiveAuthentication no
+  # Enable automatic security updates.
+  - path: /etc/apt/apt.conf.d/20auto-upgrades
+    permissions: '0644'
+    content: |
+      APT::Periodic::Update-Package-Lists "1";
+      APT::Periodic::Unattended-Upgrade "1";
+  # Cap per-container log growth so JSON logs can't silently fill the disk.
+  - path: /etc/docker/daemon.json
+    permissions: '0644'
+    content: |
+      {
+        "log-driver": "json-file",
+        "log-opts": { "max-size": "20m", "max-file": "5" }
+      }
+  # Scheduled safety-net prune so failed deploys / manual pulls can't fill the
+  # disk (which would crash-loop Postgres on "No space left on device").
+  # Keeps the last week of tagged images for quick rollback.
+  - path: /etc/systemd/system/docker-prune.service
+    permissions: '0644'
+    content: |
+      [Unit]
+      Description=Reclaim unused Docker images and build cache
+      After=docker.service
+      Requires=docker.service
+      [Service]
+      Type=oneshot
+      ExecStart=/usr/bin/docker image prune -af --filter until=168h
+      ExecStart=/usr/bin/docker builder prune -af --filter until=168h
+  - path: /etc/systemd/system/docker-prune.timer
+    permissions: '0644'
+    content: |
+      [Unit]
+      Description=Daily Docker prune
+      [Timer]
+      OnCalendar=daily
+      Persistent=true
+      RandomizedDelaySec=1h
+      [Install]
+      WantedBy=timers.target
+
+runcmd:
+  # Docker CE + Compose plugin via the official convenience script.
+  - curl -fsSL https://get.docker.com -o /tmp/get-docker.sh
+  - sh /tmp/get-docker.sh
+  - systemctl enable --now docker
+  # Repo lives here; the deploy compose is cloned to /opt/vms.
+  - mkdir -p /opt/vms
+  # Apply the SSH hardening drop-in.
+  - systemctl restart ssh || systemctl restart sshd
+  - systemctl enable --now fail2ban
+  # Activate the daily Docker prune safety-net (units written above).
+  - systemctl daemon-reload
+  - systemctl enable --now docker-prune.timer
+
+# Marker the create script waits on (`cloud-init status --wait`) before
+# reporting the box ready.
+final_message: 'VMS cloud-init complete after $UPTIME s'
