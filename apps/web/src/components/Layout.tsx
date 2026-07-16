@@ -172,29 +172,29 @@ function NavLink({
   onNavigate?: () => void;
 }) {
   const Icon = item.icon;
+  // No tooltip here: the label is already visible, and a right-side tooltip renders inline
+  // (absolutely positioned past the sidebar edge), which gives the scrolling nav horizontal overflow.
   return (
-    <Tooltip content={`Open ${item.label}`} side="right" className="block">
-      <Link
-        href={item.href}
-        onClick={onNavigate}
+    <Link
+      href={item.href}
+      onClick={onNavigate}
+      className={cn(
+        'group flex items-center gap-3 rounded-lg py-2.5 text-sm transition-colors',
+        nested ? 'pl-11 pr-3' : 'px-3',
+        active
+          ? 'bg-brand-500/15 font-semibold text-brand-100'
+          : 'text-slate-400 hover:bg-white/[0.05] hover:text-slate-100',
+      )}
+    >
+      <Icon
         className={cn(
-          'group flex items-center gap-3 rounded-lg py-2.5 text-sm transition-colors',
-          nested ? 'pl-11 pr-3' : 'px-3',
-          active
-            ? 'bg-brand-500/15 font-semibold text-brand-100'
-            : 'text-slate-400 hover:bg-white/[0.05] hover:text-slate-100',
+          'shrink-0',
+          nested ? 'size-4' : 'size-[18px]',
+          active ? 'text-brand-300' : 'text-slate-500 group-hover:text-slate-300',
         )}
-      >
-        <Icon
-          className={cn(
-            'shrink-0',
-            nested ? 'size-4' : 'size-[18px]',
-            active ? 'text-brand-300' : 'text-slate-500 group-hover:text-slate-300',
-          )}
-        />
-        {item.label}
-      </Link>
-    </Tooltip>
+      />
+      {item.label}
+    </Link>
   );
 }
 
@@ -216,39 +216,35 @@ function NavGroup({
   }, [sectionActive]);
 
   const Icon = item.icon;
+  // No tooltip here (see NavLink): the label + chevron already convey the action, and an inline
+  // right-side tooltip would overflow the scrolling nav horizontally.
   return (
     <div>
-      <Tooltip
-        content={`${open ? 'Collapse' : 'Expand'} ${item.label}`}
-        side="right"
-        className="block"
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        className={cn(
+          'group flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors',
+          sectionActive
+            ? 'font-semibold text-white'
+            : 'text-slate-400 hover:bg-white/[0.05] hover:text-slate-100',
+        )}
       >
-        <button
-          type="button"
-          onClick={() => setOpen((o) => !o)}
-          aria-expanded={open}
+        <Icon
           className={cn(
-            'group flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors',
-            sectionActive
-              ? 'font-semibold text-white'
-              : 'text-slate-400 hover:bg-white/[0.05] hover:text-slate-100',
+            'size-[18px] shrink-0',
+            sectionActive ? 'text-white' : 'text-slate-500 group-hover:text-slate-300',
           )}
-        >
-          <Icon
-            className={cn(
-              'size-[18px] shrink-0',
-              sectionActive ? 'text-white' : 'text-slate-500 group-hover:text-slate-300',
-            )}
-          />
-          <span className="flex-1 text-left">{item.label}</span>
-          <ChevronDown
-            className={cn(
-              'size-4 shrink-0 text-slate-500 transition-transform',
-              open && 'rotate-180',
-            )}
-          />
-        </button>
-      </Tooltip>
+        />
+        <span className="flex-1 text-left">{item.label}</span>
+        <ChevronDown
+          className={cn(
+            'size-4 shrink-0 text-slate-500 transition-transform',
+            open && 'rotate-180',
+          )}
+        />
+      </button>
       {open && (
         <div className="mt-0.5 flex flex-col gap-0.5">
           {item.children!.map((child) => (
@@ -443,7 +439,9 @@ function SidebarContent({
         </Link>
       )}
 
-      <nav className="mt-4 flex flex-1 flex-col gap-0.5 overflow-y-auto">
+      {/* overflow-x-clip is load-bearing: `overflow-y-auto` alone makes the X axis compute to
+          `auto`, so anything a hair too wide turns the sidebar into a horizontal scroller. */}
+      <nav className="mt-4 flex flex-1 flex-col gap-0.5 overflow-y-auto overflow-x-clip">
         {sections.map((section) => (
           <div key={section.label} className="mb-1">
             <p className="px-3 pb-1 pt-3 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
