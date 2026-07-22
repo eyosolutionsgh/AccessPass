@@ -1,12 +1,12 @@
-import { LogOut, Lock, Mail, ShieldAlert, Wrench } from 'lucide-react';
-import { type FormEvent, type ReactNode, useEffect, useRef, useState } from 'react';
-import { toast } from 'sonner';
+import { LogOut, Lock, ShieldAlert, Wrench } from 'lucide-react';
+import { type ReactNode, useEffect, useRef, useState } from 'react';
+import { Redirect, useLocation } from 'wouter';
 import { anyRoleHasPermission, type PermissionRequest } from '@vms/shared';
-import { signIn, signOut, useSettledSession } from '../lib/auth.ts';
+import { signOut, useSettledSession } from '../lib/auth.ts';
+import { signInUrlFor } from '../lib/postRoutes.ts';
 import { trpc } from '../lib/trpc.ts';
 import { AuthScreen } from './AuthScreen.tsx';
 import { Button } from './ui/button.tsx';
-import { InputWithIcon, PasswordInput } from './ui/input.tsx';
 
 type Props = {
   /** The kiosk device this post is running on — gates sign-in and records the staffing session. */
@@ -28,21 +28,18 @@ type Props = {
  */
 export function PostGate({ deviceId, permission, postLabel, onSetup, children }: Props) {
   const { data: session, isPending } = useSettledSession();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [location] = useLocation();
   const [loggingOut, setLoggingOut] = useState(false);
   const postSignIn = trpc.checkin.postSignIn.useMutation();
   const postSignOut = trpc.checkin.postSignOut.useMutation();
 
-  // Pre-sign-in posting status: a paired device (registered + stationed at an active point) shows
-  // "Sign in to {pointName}"; an unpaired one shows a Point Setup CTA instead of the login form.
+  // Pre-sign-in posting status: a paired device (registered + stationed at an active point) sends
+  // an unstaffed post to the sign-in screen; an unpaired one shows a Point Setup CTA instead.
   const devicePost = trpc.checkin.devicePost.useQuery(
     { deviceId: deviceId ?? '' },
     { enabled: Boolean(deviceId), staleTime: 30_000 },
   );
   const paired = Boolean(deviceId) && Boolean(devicePost.data?.paired);
-  const pointName = devicePost.data?.pointName ?? null;
 
   const role = (session?.user as { role?: string | null } | undefined)?.role ?? null;
   const name = (session?.user as { name?: string | null } | undefined)?.name ?? null;
@@ -82,16 +79,6 @@ export function PostGate({ deviceId, permission, postLabel, onSetup, children }:
       );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authorizedByRole, deviceId, session?.user?.id]);
-
-  async function onSubmit(e: FormEvent) {
-    e.preventDefault();
-    setLoading(true);
-    const { error } = await signIn.email({ email, password });
-    setLoading(false);
-    if (error) return toast.error(error.message ?? 'Sign in failed');
-    setPassword('');
-    // The staffing session is opened by the effect above once the session resolves.
-  }
 
   async function onLogout() {
     setLoggingOut(true);
@@ -142,56 +129,8 @@ export function PostGate({ deviceId, permission, postLabel, onSetup, children }:
       );
     }
 
-    return (
-      <AuthScreen
-        place={devicePost.data?.facilityName ?? undefined}
-        title={`Sign in to ${pointName}`}
-        subtitle="Use your staff account to open this post for visitors."
-        footer={
-          <>
-            <Lock className="size-3.5" /> Authorized personnel only
-          </>
-        }
-      >
-        <form onSubmit={onSubmit} className="space-y-4 text-left">
-          <div className="space-y-1.5">
-            <label className="text-xs font-semibold uppercase tracking-wide text-slate-600">
-              Email
-            </label>
-            <InputWithIcon
-              icon={<Mail />}
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              autoComplete="username"
-              className="h-12 rounded-xl text-[15px]"
-              required
-            />
-          </div>
-          <div className="space-y-1.5">
-            <label className="text-xs font-semibold uppercase tracking-wide text-slate-600">
-              Password
-            </label>
-            <PasswordInput
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              autoComplete="current-password"
-              placeholder="••••••••"
-              className="h-12 rounded-xl text-[15px]"
-              required
-            />
-          </div>
-          <Button
-            type="submit"
-            size="lg"
-            loading={loading}
-            className="w-full bg-gradient-to-r from-brand-600 to-brand-500 shadow-[var(--shadow-brand)] hover:from-brand-700 hover:to-brand-600"
-          >
-            {loading ? 'Signing in…' : 'Sign in'}
-          </Button>
-        </form>
-      </AuthScreen>
-    );
+    // Paired but nobody at post → the single sign-in screen, which brings them back here.
+    return <Redirect to={signInUrlFor(location)} replace />;
   }
 
   // Signed in, but the account's role can't operate this kind of post at all.

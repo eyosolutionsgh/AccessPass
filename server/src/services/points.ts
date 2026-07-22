@@ -7,6 +7,7 @@ import { TRPCError } from '@trpc/server';
 import { and, desc, eq, gt, isNull, sql } from 'drizzle-orm';
 import {
   anyRoleHasPermission,
+  type PermissionRequest,
   PAIRING_CODE_TTL_MINUTES,
   schema,
   type PointAssignInput,
@@ -186,6 +187,69 @@ export async function assertDeviceLogin(
     );
   }
   return { pointId: d.pointId, pointName: pt.name };
+}
+
+/**
+ * Which post screen serves each kind of point, and the permission that screen's PostGate demands.
+ * `other` has no dedicated screen, so a user assigned only to an "other" point simply lands in the
+ * normal staff app. Keep the permissions in step with the `<PostGate permission=…>` on each page —
+ * landing someone on a post their role can't operate would just show them "No access to this post".
+ */
+const POST_BY_POINT_KIND: Record<string, { route: string; permission: PermissionRequest } | null> =
+  {
+    reception: { route: '/front-desk', permission: { checkin: ['process'] } },
+    security: { route: '/checkpoint', permission: { checkin: ['override'] } },
+    checkpoint: { route: '/checkpoint', permission: { checkin: ['override'] } },
+    exit: { route: '/check-out', permission: { checkin: ['checkout'] } },
+    other: null,
+  };
+
+/**
+ * Where a staff member should land straight after signing in: there is a single sign-in URL, so a
+ * user who is assigned to a post is taken to that post's screen instead of the staff app.
+ *
+ * The device wins when it's stationed somewhere — a tablet bolted to the front desk defines the
+ * post — but only if the user is actually assigned to that point; otherwise the post would just
+ * deny them on arrival, so we send them nowhere. Off a paired device (a desktop, a phone) the
+ * user's own assignment decides.
+ */
+export async function resolveLandingPost(
+  actor: Actor,
+  deviceId?: string,
+): Promise<{ route: string | null; pointName: string | null }> {
+  const none = { route: null, pointName: null };
+  const assigned = await db
+    .select({
+      pointId: schema.point.id,
+      name: schema.point.name,
+      kind: schema.point.kind,
+    })
+    .from(schema.pointAssignment)
+    .innerJoin(schema.point, eq(schema.point.id, schema.pointAssignment.pointId))
+    .where(and(eq(schema.pointAssignment.userId, actor.id), eq(schema.point.isActive, true)));
+  // Only posts this role can actually operate — otherwise the landing is a "No access" dead end.
+  const operable = assigned.filter((a) => {
+    const post = POST_BY_POINT_KIND[a.kind];
+    return post ? anyRoleHasPermission(actor.role ?? null, post.permission) : false;
+  });
+  if (operable.length === 0) return none;
+
+  let chosen = operable[0]!;
+  if (deviceId) {
+    const [d] = await db
+      .select({ pointId: schema.deviceProfile.pointId })
+      .from(schema.deviceProfile)
+      .where(
+        and(eq(schema.deviceProfile.deviceId, deviceId), eq(schema.deviceProfile.isActive, true)),
+      );
+    if (d?.pointId) {
+      const match = operable.find((a) => a.pointId === d.pointId);
+      // Stationed device the user can't operate → no landing post rather than a dead end.
+      if (!match) return none;
+      chosen = match;
+    }
+  }
+  return { route: POST_BY_POINT_KIND[chosen.kind]?.route ?? null, pointName: chosen.name };
 }
 
 /**

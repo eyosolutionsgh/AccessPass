@@ -1419,15 +1419,17 @@ export function Help() {
             lead="Once a tablet is paired and you are assigned to its point, signing into the post is a one-tap action that opens the post for visitors."
           >
             <p>
-              The four post addresses — <code>/check-in</code>, <code>/check-out</code>,{' '}
-              <code>/checkpoint</code> and <code>/front-desk</code> — all share the same lock
-              screen, called the Post gate. The post is closed until a staff member with the right
-              permission signs in there, so visitors can never scan or type a code unattended.
+              There is only one sign-in page in VMS, at the site address itself. The four post
+              addresses — <code>/check-in</code>, <code>/check-out</code>, <code>/checkpoint</code>{' '}
+              and <code>/front-desk</code> — are closed until a staff member with the right
+              permission is signed in there, so visitors can never scan or type a code unattended.
+              You do not need to remember which address to open: sign in normally and, if you are
+              assigned to a post, VMS takes you straight to it.
             </p>
             <Procedure
               steps={[
-                'On the tablet, open the matching station address. The Post gate shows “Sign in to {Point name}” with the facility above and a small Kiosk setup link in the bottom-left.',
-                'Enter your VMS email and password, then tap Sign in. The system checks that you are assigned to the point this tablet lives at, and opens the post if you are.',
+                'On the tablet, open the VMS address. If the post is unattended you land on the normal sign-in screen; a small Kiosk setup link sits in the bottom-left.',
+                'Enter your VMS email and password, then tap Sign in. The system checks that you are assigned to the point this tablet lives at, and opens that post for you automatically.',
                 'A small signed-in chip appears in the top-right (●  Your name · Facility · Point). The bottom-left Kiosk setup link disappears once you are inside a flow.',
                 'Process visitors normally. Every scan and every code-entry is attributed to you in the audit log.',
                 'When your shift ends, tap the logout arrow in the signed-in chip. The post returns to the locked Sign-in screen and the next person can take over.',
@@ -1436,9 +1438,9 @@ export function Help() {
             <div className="grid gap-4 sm:grid-cols-2">
               <Shot
                 src="/screenshots/guide/post-checkin-signin.png"
-                url="VMS · Check in (locked)"
-                alt="Check-in post locked screen showing 'Sign in to Main Reception' with email and password fields."
-                caption="Post gate — every post is locked until a staff member with the right permission signs in."
+                url="VMS · Sign in"
+                alt="The single VMS sign-in screen, with email and password fields."
+                caption="One sign-in screen for the whole system — an unattended post sends you here and brings you back."
               />
               <Shot
                 src="/screenshots/guide/post-checkin.png"

@@ -3,6 +3,9 @@ import { Loader2, ShieldCheck } from 'lucide-react';
 import { Redirect, Route, Switch, useLocation } from 'wouter';
 import { Layout } from './components/Layout.tsx';
 import { useSettledSession } from './lib/auth.ts';
+import { getLocalDeviceId } from './lib/deviceProfile.ts';
+import { nextPostPath } from './lib/postRoutes.ts';
+import { trpc } from './lib/trpc.ts';
 
 // Route pages are code-split so the public kiosk and each staff screen load on
 // demand, keeping the initial bundle small. Chunks are served locally by the
@@ -165,8 +168,29 @@ export function App() {
   return <StaffApp />;
 }
 
+/**
+ * Where a just-signed-in user goes. Sign-in lives at exactly one url, so this is what makes a post
+ * assignment feel like a dedicated station: a user assigned to a post (or standing at a device
+ * stationed there) is dropped straight into it. `?next=` — set when an unstaffed post bounced them
+ * here — wins, so signing in at the front desk returns to the front desk.
+ *
+ * This only runs at `/`, so a post user can still walk into the rest of the app afterwards.
+ */
+function Landing() {
+  const next = nextPostPath(window.location.search);
+  const landing = trpc.lookups.myLandingPost.useQuery(
+    { deviceId: getLocalDeviceId() },
+    { enabled: !next, staleTime: 60_000, retry: false },
+  );
+
+  if (next) return <Redirect to={next} replace />;
+  if (landing.isPending) return <FullScreenLoader />;
+  return <Redirect to={landing.data?.route ?? '/appointments'} replace />;
+}
+
 function StaffApp() {
   const { data: session, isPending } = useSettledSession();
+  const [location] = useLocation();
 
   if (isPending) return <FullScreenLoader />;
 
@@ -177,6 +201,9 @@ function StaffApp() {
       </Suspense>
     );
 
+  // Resolved outside the app shell so a post user never sees the staff sidebar flash past.
+  if (location === '/') return <Landing />;
+
   const role = (session.user as { role?: string | null }).role ?? null;
   const name = (session.user as { name?: string | null }).name ?? null;
 
@@ -184,7 +211,6 @@ function StaffApp() {
     <Layout name={name} email={session.user.email} role={role}>
       <Suspense fallback={<PageLoader />}>
         <Switch>
-          <Route path="/">{() => <Redirect to="/appointments" />}</Route>
           <Route path="/appointments" component={Appointments} />
           <Route path="/appointments/new" component={NewAppointment} />
           <Route path="/appointments/:id" component={AppointmentDetail} />
