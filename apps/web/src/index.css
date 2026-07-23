@@ -11,6 +11,10 @@
     'Helvetica Neue', Arial, sans-serif;
   --font-mono:
     ui-monospace, 'SF Mono', 'JetBrains Mono', 'Cascadia Code', Menlo, Consolas, monospace;
+  /* Premium display serif — renders Apple 'New York', then Georgia/Cambria. No CDN dependency. */
+  --font-serif:
+    ui-serif, 'New York', 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, Cambria,
+    'Times New Roman', Times, serif;
 
   /* Brand — confident indigo/iris. Conveys trust for a security-ops product. */
   --color-brand-50: oklch(0.97 0.014 274);

@@ -2,7 +2,7 @@ import { apiBase } from './api.ts';
 import { trpc } from './trpc.ts';
 
 /** Shown when an administrator hasn't set the institution name yet (staff-facing screens). */
-export const APP_NAME_FALLBACK = 'Visitor Management System';
+export const APP_NAME_FALLBACK = 'Access Pass';
 
 /** Bundled fallback emblem (Ghana coat of arms) shown until/unless a logo is uploaded. */
 export const DEFAULT_LOGO_SRC = '/brand/ghana-coat-of-arms.svg';

@@ -38,11 +38,7 @@ export function SignIn() {
     setForgotSent(true);
   }
 
-  const title = forgotSent
-    ? 'Check your email'
-    : forgotMode
-      ? 'Reset your password'
-      : 'Welcome back';
+  const title = forgotSent ? 'Check your email' : forgotMode ? 'Reset your password' : undefined;
   const subtitle = forgotSent
     ? `If an account exists for ${email}, a secure reset link is on its way.`
     : forgotMode

@@ -14,4 +14,4 @@ export const invitationPolicy = {
 };
 
 /** Display name used in invitation emails when a facility has no better label. */
-export const ORGANIZATION_NAME = 'Visitor Management System';
+export const ORGANIZATION_NAME = 'Access Pass';
