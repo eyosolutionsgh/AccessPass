@@ -13,6 +13,7 @@
     "dev:server": "pnpm --filter @vms/server dev",
     "dev:web": "pnpm --filter @vms/web dev",
     "build": "pnpm -r build",
+    "vercel-build": "pnpm --filter @vms/web build && pnpm --filter @vms/server build:serverless",
     "check": "pnpm -r check",
     "lint": "eslint .",
     "format": "prettier --write .",

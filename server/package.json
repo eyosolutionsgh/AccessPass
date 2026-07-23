@@ -11,6 +11,7 @@
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "build": "esbuild src/index.ts src/migrate.ts src/seed.ts --platform=node --packages=external --bundle --format=esm --outdir=dist",
+    "build:serverless": "esbuild src/serverless.ts --platform=node --packages=external --bundle --format=esm --outfile=dist/serverless.js",
     "start": "NODE_ENV=production node dist/index.js",
     "seed": "tsx src/seed.ts",
     "check": "tsc --noEmit",
@@ -20,7 +21,9 @@
     "@aws-sdk/client-s3": "^3.1075.0",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "@trpc/server": "^11.6.0",
+    "@upstash/qstash": "^2.11.2",
     "@vms/shared": "workspace:*",
+    "ably": "^2.6.0",
     "better-auth": "^1.6.11",
     "bullmq": "^5.34.0",
     "cors": "^2.8.5",
