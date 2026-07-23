@@ -57,11 +57,15 @@ export function fromWithName(name: string): string {
 /**
  * Plain branding label in the form `Institution Name (Platform Name)` — e.g. `Jubilee House
  * (Access Pass)` — for email subjects, body captions and footer signatures.
- * Falls back to the platform name alone when no institution name is configured.
+ * Falls back to the platform name alone when no institution name is configured, or when the
+ * institution name is the platform name itself (avoids `Access Pass (Access Pass)`).
  */
 export function institutionLabel(orgName: string): string {
   const inst = orgName?.trim();
-  return inst ? `${inst} (${env.PLATFORM_NAME})` : env.PLATFORM_NAME;
+  if (!inst || inst.toLowerCase() === env.PLATFORM_NAME.trim().toLowerCase()) {
+    return env.PLATFORM_NAME;
+  }
+  return `${inst} (${env.PLATFORM_NAME})`;
 }
 
 /**
