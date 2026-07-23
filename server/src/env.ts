@@ -39,6 +39,23 @@ const envSchema = z.object({
   DATABASE_URL: z.string().min(1),
   REDIS_URL: z.string().min(1).default('redis://localhost:6379'),
 
+  // Real-time transport. `socketio` (default) = the in-process Socket.IO server used on-prem.
+  // `ably` = publish contentless "refetch" pokes via Ably REST — the only transport that works on
+  // serverless (Vercel), where no long-lived Socket.IO server can run. ABLY_API_KEY unset while
+  // REALTIME_PROVIDER=ably degrades to no live pokes (clients fall back to polling); on-prem leaves
+  // both unset and keeps Socket.IO.
+  REALTIME_PROVIDER: z.enum(['socketio', 'ably']).default('socketio'),
+  ABLY_API_KEY: z.string().optional(),
+
+  // Upstash QStash — serverless replacement for the BullMQ repeatable sweeps (expiry/retention).
+  // On-prem leaves these unset and the in-process BullMQ worker runs instead. QSTASH_TOKEN registers
+  // the cron schedules; the two signing keys verify the signed callbacks. API_PUBLIC_URL is the
+  // stable public origin QStash POSTs back to (e.g. https://vms-demo.vercel.app).
+  QSTASH_TOKEN: z.string().optional(),
+  QSTASH_CURRENT_SIGNING_KEY: z.string().optional(),
+  QSTASH_NEXT_SIGNING_KEY: z.string().optional(),
+  API_PUBLIC_URL: z.string().optional(),
+
   S3_ENDPOINT: z.string().optional(),
   S3_REGION: z.string().default('us-east-1'),
   S3_ACCESS_KEY: z.string().optional(),

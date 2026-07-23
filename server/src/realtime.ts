@@ -1,8 +1,14 @@
 import type { Server as SocketIOServer } from 'socket.io';
+import { isAblyEnabled, publishAblyPoke } from './lib/ably.ts';
 
 /**
  * Thin indirection so services can emit real-time events without importing the HTTP server
- * (avoids a circular import). `index.ts` calls `setIo(io)` at startup.
+ * (avoids a circular import). `index.ts` calls `setIo(io)` at startup (on-prem Socket.IO path).
+ *
+ * Two backends, selected by `REALTIME_PROVIDER`:
+ *  - `socketio` (default, on-prem): emit the named event + payload to a scoped room.
+ *  - `ably` (serverless demo): publish a contentless poke to the matching channel; the client
+ *    treats any message as "refetch". No payload/PII crosses Ably (see lib/ably.ts).
  *
  * Events power the security/reception dashboards and host arrival alerts (SRS §5.4, FR-070/91).
  */
@@ -10,6 +16,18 @@ let io: SocketIOServer | null = null;
 
 export function setIo(server: SocketIOServer): void {
   io = server;
+}
+
+/**
+ * Deliver one event to one room/channel. On Ably the event name/payload collapse to a poke (the
+ * client refetches regardless of type); on Socket.IO the exact event + payload are emitted as before.
+ */
+function deliver(room: string, event: string, payload: { at: string }): void {
+  if (isAblyEnabled()) {
+    publishAblyPoke(room, payload.at);
+    return;
+  }
+  io?.to(room).emit(event, payload);
 }
 
 export type VisitEvent = {
@@ -27,17 +45,17 @@ export type VisitEvent = {
  * so it must never reach an unauthenticated or non-dashboard socket.
  */
 export function emitVisitEvent(event: VisitEvent): void {
-  io?.to('dashboard').emit('visit:event', event);
+  deliver('dashboard', 'visit:event', event);
 }
 
 /** Notify a specific host of their visitor's arrival (the host joins their own room server-side). */
 export function emitHostAlert(hostId: string, event: VisitEvent): void {
-  io?.to(`host:${hostId}`).emit('host:alert', event);
+  deliver(`host:${hostId}`, 'host:alert', event);
 }
 
 /** Emit a security event to the `security` room (security staff only). */
 export function emitSecurityAlert(event: VisitEvent): void {
-  io?.to('security').emit('security:alert', event);
+  deliver('security', 'security:alert', event);
 }
 
 export type VisitLocationEvent = {
@@ -58,8 +76,8 @@ export type VisitLocationEvent = {
  * room — never global, since it carries the visitor name.
  */
 export function emitVisitLocation(event: VisitLocationEvent): void {
-  io?.to('dashboard').emit('visit:location', event);
-  if (event.hostId) io?.to(`host:${event.hostId}`).emit('visit:location', event);
+  deliver('dashboard', 'visit:location', event);
+  if (event.hostId) deliver(`host:${event.hostId}`, 'visit:location', event);
 }
 
 export type AiAlert = { kind: string; message: string; visitId?: string; at: string };
@@ -69,5 +87,5 @@ export type AiAlert = { kind: string; message: string; visitId?: string; at: str
  * `security` room; never global. Any future AI emit MUST go through a scoped helper like this.
  */
 export function emitAiAlert(event: AiAlert, room = 'security'): void {
-  io?.to(room).emit('ai:alert', event);
+  deliver(room, 'ai:alert', event);
 }
