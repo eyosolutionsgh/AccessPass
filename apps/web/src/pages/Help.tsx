@@ -50,7 +50,9 @@ const currentOrigin = typeof window === 'undefined' ? undefined : window.locatio
 // is unset OR baked in empty (e.g. the deploy build arg was never provided). Use
 // `||` not `??` so an empty string also falls through to window.location.origin.
 const internalWebOrigin =
-  trimOrigin(import.meta.env.VITE_INTERNAL_WEB_ORIGIN) || currentOrigin || 'your VMS web address';
+  trimOrigin(import.meta.env.VITE_INTERNAL_WEB_ORIGIN) ||
+  currentOrigin ||
+  'your Access Pass web address';
 const stationAddress = (path: string) => `${internalWebOrigin}${path}`;
 
 const SECTIONS: Section[] = [
@@ -333,7 +335,7 @@ function FlowDiagram() {
     .join(' ');
 
   return (
-    <Frame url="VMS · Visitor journey">
+    <Frame url="Access Pass · Visitor journey">
       <div className="grid items-center gap-8 lg:grid-cols-[minmax(0,1fr)_300px]">
         {/* left: numbered milestones */}
         <ol className="relative">
@@ -540,8 +542,8 @@ const ACCESS_GUIDE = [
     term: 'Start work',
     detail: (
       <>
-        Open VMS, sign in with your staff account, then use the sidebar to choose the area you need.
-        The sidebar only shows pages your role is allowed to use.
+        Open Access Pass, sign in with your staff account, then use the sidebar to choose the area
+        you need. The sidebar only shows pages your role is allowed to use.
       </>
     ),
     flag: <Chip tone="slate">staff</Chip>,
@@ -765,7 +767,7 @@ const DEVICE_SETUP = [
       <>
         In Administration, open Devices and choose the scanner source for that point: built-in
         camera, USB scanner, NFC/tag reader or manual code entry. If the browser asks for camera
-        access, allow it for VMS, then test with a real invitation QR code.
+        access, allow it for Access Pass, then test with a real invitation QR code.
       </>
     ),
   },
@@ -956,7 +958,7 @@ export function Help() {
             Getting started
           </p>
           <h1 className="mt-2 max-w-2xl text-4xl font-bold tracking-tight">
-            How the Visitor Management System works
+            How Access Pass works
           </h1>
           <p className="mt-3 max-w-2xl text-[15px] leading-relaxed text-brand-100">
             A complete guide to booking appointments, checking visitors in at reception and security
@@ -1076,11 +1078,11 @@ export function Help() {
             id="sign-in"
             icon={LogIn}
             title="Signing in"
-            lead="Every staff page and every post requires you to sign in first with your VMS account."
+            lead="Every staff page and every post requires you to sign in first with your Access Pass account."
           >
             <Procedure
               steps={[
-                'Open VMS in your browser. The sign-in screen shows the institution logo and a Welcome back card.',
+                'Open Access Pass in your browser. The sign-in screen shows the institution logo and a Welcome back card.',
                 'Enter your work email address and the password you chose when you activated your account. If you have never signed in, see “Activating your account” below.',
                 'Tap Sign in. The system loads the sidebar with only the pages your role is allowed to use.',
                 'If you forgot your password, tap Forgot password? — the system emails you a fresh link to set a new one.',
@@ -1089,14 +1091,14 @@ export function Help() {
             />
             <Shot
               src="/screenshots/guide/public-signin.png"
-              url="VMS · Sign in"
-              alt="The VMS sign-in card with email and password fields, a Forgot password link, and a Help button in the top right."
-              caption="Sign in to VMS — use your work email and the password you chose during account activation."
+              url="Access Pass · Sign in"
+              alt="The Access Pass sign-in card with email and password fields, a Forgot password link, and a Help button in the top right."
+              caption="Sign in to Access Pass — use your work email and the password you chose during account activation."
             />
 
             <h3 className="pt-4 text-base font-semibold text-slate-900">Activating your account</h3>
             <p>
-              When an administrator invites you to VMS, you receive an email titled{' '}
+              When an administrator invites you to Access Pass, you receive an email titled{' '}
               <em>Set your Visitor Management password</em> with a one-time link. Open the link to
               choose your own password — administrators never see or set it for you.
             </p>
@@ -1110,7 +1112,7 @@ export function Help() {
             />
             <Shot
               src="/screenshots/guide/public-reset-password.png"
-              url="VMS · Set your password"
+              url="Access Pass · Set your password"
               alt="The Set your password screen with two password fields and a Set password & continue button."
               caption="Activate your account by choosing your own password — the same screen is also used when you reset a forgotten one."
             />
@@ -1120,7 +1122,7 @@ export function Help() {
             id="first-setup"
             icon={Rocket}
             title="First-time setup (administrator)"
-            lead="A short ordered checklist for the very first time you install VMS — the same steps later become routine maintenance."
+            lead="A short ordered checklist for the very first time you install Access Pass — the same steps later become routine maintenance."
           >
             <p>
               Configure the platform in the same order people move through it. Each step unblocks
@@ -1170,19 +1172,19 @@ export function Help() {
             />
             <Shot
               src="/screenshots/guide/admin-settings.png"
-              url="VMS · System settings"
+              url="Access Pass · System settings"
               alt="System settings screen with institution name, logo, color scheme, contact details, country, date format and timezone fields."
               caption="System settings — set institution name, branding, country, date format and timezone before inviting anyone."
             />
             <Shot
               src="/screenshots/guide/admin-facilities.png"
-              url="VMS · Facilities"
+              url="Access Pass · Facilities"
               alt="Facilities admin screen listing Procurement Office, Annex Building and Headquarters with their codes and Africa/Accra timezone."
               caption="Facilities — every visit is anchored to a facility; add yours first."
             />
             <Shot
               src="/screenshots/guide/admin-categories.png"
-              url="VMS · Visitor categories"
+              url="Access Pass · Visitor categories"
               alt="Visitor categories screen showing VIP (approval), Contractor (approval, escort, induction) and Guest (no requirements)."
               caption="Visitor categories — pick which entry requirements apply to each type of visit."
             />
@@ -1202,7 +1204,7 @@ export function Help() {
               steps={[
                 'Enter the user’s full name, work email and select a role from the dropdown.',
                 'Optionally attach a department and office — required for hosts and secretaries so their bookings and scope work correctly.',
-                'Tap Send invite. VMS creates the account and emails the person a link to set their own password (valid for 24 hours).',
+                'Tap Send invite. Access Pass creates the account and emails the person a link to set their own password (valid for 24 hours).',
                 'The new account appears in the Staff users table with a Pending status until the recipient completes the password link, at which point it flips to Active.',
                 'To resend the link to a Pending user — or to start a password reset for an Active one — open the row’s Actions menu and choose Resend reset link.',
                 'Use the same Actions menu to Edit the name, email or role, or to Ban an account that should no longer have access.',
@@ -1210,15 +1212,15 @@ export function Help() {
             />
             <Shot
               src="/screenshots/guide/admin-users.png"
-              url="VMS · User management"
+              url="Access Pass · User management"
               alt="User management screen with stat cards (10 total, 5 active, 5 pending, 0 banned), the Invite a user form and a Staff users table showing demo accounts with role badges and status badges."
               caption="User management — invite users, assign roles, and watch the Pending → Active flip when they activate."
             />
             <h3 className="pt-4 text-base font-semibold text-slate-900">Choosing the right role</h3>
             <p>
-              VMS is intentionally least-privilege — pick the smallest role that lets the person do
-              their job. The Roles &amp; who can book section below has the full table; the most
-              common assignments are:
+              Access Pass is intentionally least-privilege — pick the smallest role that lets the
+              person do their job. The Roles &amp; who can book section below has the full table;
+              the most common assignments are:
             </p>
             <InfoGrid
               columns="sm:grid-cols-2 lg:grid-cols-3"
@@ -1295,7 +1297,7 @@ export function Help() {
             </p>
             <Shot
               src="/screenshots/points-devices.png"
-              url="VMS · Points & devices"
+              url="Access Pass · Points & devices"
               alt="Admin Points and devices screen showing a Main Reception point and three devices, with the Lobby device signed in by Demo Receptionist."
               caption="Points & devices: each point lists its devices and assigned staff; each device shows its point and a status dot for who is currently signed in."
             />
@@ -1317,7 +1319,7 @@ export function Help() {
             />
             <Shot
               src="/screenshots/guide/admin-points.png"
-              url="VMS · Points"
+              url="Access Pass · Points"
               alt="Admin Points screen with the Add form (Point name, kind, facility) and one existing point row 'Main Reception' showing 1 device and Staff (1)."
               caption="Points — fixed operating locations. Add the place first, then the tablet, then the staff."
             />
@@ -1335,7 +1337,7 @@ export function Help() {
             />
             <Shot
               src="/screenshots/guide/admin-devices.png"
-              url="VMS · Devices"
+              url="Access Pass · Devices"
               alt="Admin Devices screen with the Add/update form, three registered devices (Exit, Lobby and Main Entrance) and per-row Pair, Edit, deactivate actions."
               caption="Devices — register each physical tablet, attach it to a point, and pick its scanner / badge behaviour."
             />
@@ -1349,7 +1351,7 @@ export function Help() {
             </p>
             <Procedure
               steps={[
-                'On the Devices screen, find the device row and tap Pair. VMS shows a one-time code that is valid for 15 minutes and can be redeemed only once.',
+                'On the Devices screen, find the device row and tap Pair. Access Pass shows a one-time code that is valid for 15 minutes and can be redeemed only once.',
                 'On the physical tablet, open the matching station address (/check-in, /check-out, /checkpoint or /front-desk) and tap Kiosk setup in the bottom-left.',
                 'Enter the pairing code and tap Pair. The tablet binds itself to the device record and is ready to be signed in.',
                 'If the code expires before you use it, just tap Pair again to mint a fresh one.',
@@ -1357,13 +1359,13 @@ export function Help() {
             />
             <Shot
               src="/screenshots/guide/admin-devices-pair.png"
-              url="VMS · Pair device"
+              url="Access Pass · Pair device"
               alt="Pair Exit modal showing a one-time pairing code SK2GSNR8, a 15-minute validity note, Copy code and Done buttons."
               caption="Pairing (admin side) — open the device row, tap Pair, then read out the code to whoever is setting up the tablet."
             />
             <Shot
               src="/screenshots/guide/kiosk-setup.png"
-              url="VMS · Kiosk setup"
+              url="Access Pass · Kiosk setup"
               alt="Kiosk setup screen on a tablet with a key icon, a pairing code input, a Pair device button and a Configure camera link."
               caption="Kiosk setup (tablet side) — open from the bottom-left link on any post, type the pairing code, tap Pair device. The Configure camera link picks between the front and rear cameras."
             />
@@ -1396,7 +1398,7 @@ export function Help() {
             </p>
             <Shot
               src="/screenshots/staff-modal.png"
-              url="VMS · Points & devices"
+              url="Access Pass · Points & devices"
               alt="The Staff for Main Reception dialog with Demo Receptionist selected."
               caption="Assigning staff to a point — only the people ticked here can sign a device in at that point."
             />
@@ -1419,17 +1421,17 @@ export function Help() {
             lead="Once a tablet is paired and you are assigned to its point, signing into the post is a one-tap action that opens the post for visitors."
           >
             <p>
-              There is only one sign-in page in VMS, at the site address itself. The four post
-              addresses — <code>/check-in</code>, <code>/check-out</code>, <code>/checkpoint</code>{' '}
-              and <code>/front-desk</code> — are closed until a staff member with the right
-              permission is signed in there, so visitors can never scan or type a code unattended.
-              You do not need to remember which address to open: sign in normally and, if you are
-              assigned to a post, VMS takes you straight to it.
+              There is only one sign-in page in Access Pass, at the site address itself. The four
+              post addresses — <code>/check-in</code>, <code>/check-out</code>,{' '}
+              <code>/checkpoint</code> and <code>/front-desk</code> — are closed until a staff
+              member with the right permission is signed in there, so visitors can never scan or
+              type a code unattended. You do not need to remember which address to open: sign in
+              normally and, if you are assigned to a post, Access Pass takes you straight to it.
             </p>
             <Procedure
               steps={[
-                'On the tablet, open the VMS address. If the post is unattended you land on the normal sign-in screen; a small Kiosk setup link sits in the bottom-left.',
-                'Enter your VMS email and password, then tap Sign in. The system checks that you are assigned to the point this tablet lives at, and opens that post for you automatically.',
+                'On the tablet, open the Access Pass address. If the post is unattended you land on the normal sign-in screen; a small Kiosk setup link sits in the bottom-left.',
+                'Enter your Access Pass email and password, then tap Sign in. The system checks that you are assigned to the point this tablet lives at, and opens that post for you automatically.',
                 'A small signed-in chip appears in the top-right (●  Your name · Facility · Point). The bottom-left Kiosk setup link disappears once you are inside a flow.',
                 'Process visitors normally. Every scan and every code-entry is attributed to you in the audit log.',
                 'When your shift ends, tap the logout arrow in the signed-in chip. The post returns to the locked Sign-in screen and the next person can take over.',
@@ -1438,13 +1440,13 @@ export function Help() {
             <div className="grid gap-4 sm:grid-cols-2">
               <Shot
                 src="/screenshots/guide/post-checkin-signin.png"
-                url="VMS · Sign in"
-                alt="The single VMS sign-in screen, with email and password fields."
+                url="Access Pass · Sign in"
+                alt="The single Access Pass sign-in screen, with email and password fields."
                 caption="One sign-in screen for the whole system — an unattended post sends you here and brings you back."
               />
               <Shot
                 src="/screenshots/guide/post-checkin.png"
-                url="VMS · Check in (open)"
+                url="Access Pass · Check in (open)"
                 alt="Check-in post unlocked, with Scan QR code button, invitation code field, and a top-right chip showing Demo Receptionist · Headquarters · Main Reception."
                 caption="Post open — visitors can now scan their QR or enter an invitation code."
               />
@@ -1553,14 +1555,14 @@ export function Help() {
             />
             <Shot
               src="/screenshots/guide/host-new-appointment.png"
-              url="VMS · New appointment"
+              url="Access Pass · New appointment"
               alt="New appointment screen with Visitor, Visit details, 'Book this visit for myself' toggle, Officer, Category, Appointment date and time fields."
               caption="New appointment — capture the visitor, the officer and the time; the invitation is sent automatically when you submit."
             />
             <Callout>
               <strong>Officers booking their own visits</strong> can tap{' '}
               <em>Book this visit for myself</em> to skip the department/office/officer pickers —
-              VMS sets you as the host automatically.
+              Access Pass sets you as the host automatically.
             </Callout>
             <h3 className="pt-4 text-base font-semibold text-slate-900">
               Secretaries booking for officers
@@ -1584,7 +1586,7 @@ export function Help() {
             </p>
             <Shot
               src="/screenshots/guide/admin-appointments.png"
-              url="VMS · Appointments"
+              url="Access Pass · Appointments"
               alt="Appointments page with All / Past / Today / Upcoming tabs, search input, status, facility and host filter dropdowns, FROM and TO date inputs, and a list of visits with visitor avatar, officer, location, date/time and status badge."
               caption="Appointments — filters across the top combine; tap a row to open the visit's detail page."
             />
@@ -1623,7 +1625,7 @@ export function Help() {
             </p>
             <Shot
               src="/screenshots/guide/host-appt-detail.png"
-              url="VMS · Appointment detail"
+              url="Access Pass · Appointment detail"
               alt="Appointment detail for Guide Demo Visitor (status Invitation Sent) with Visit details, Invitation (Active) and action buttons Reschedule, Book again, Resend invitation, Revoke invitation, Cancel appointment."
               caption="Appointment detail — the action row at the bottom reveals every workflow step available for this visit."
             />
@@ -1696,7 +1698,7 @@ export function Help() {
             />
             <Shot
               src="/screenshots/guide/public-pre-register.png"
-              url="VMS · Visitor pre-registration"
+              url="Access Pass · Visitor pre-registration"
               alt="Pre-registration screen reading 'Hello, Guide Demo Visitor — you're invited to visit Republic of Ghana (Headquarters) on Monday 29 June 2026 at 14:01' with visit and visitor details, and an Identity (optional) section to capture a selfie or ID photo."
               caption="Pre-registration — visitors review the visit details, confirm their contact, optionally capture a selfie or ID, then save."
             />
@@ -1789,7 +1791,7 @@ export function Help() {
             </p>
             <Shot
               src="/screenshots/guide/post-checkpoint.png"
-              url="VMS · Checkpoint"
+              url="Access Pass · Checkpoint"
               alt="The /checkpoint post showing the institution logo, a 'Scan QR code' button and an invitation-code input."
               caption="A security checkpoint — scan the visitor's QR or type the short invitation code, then allow, deny or escalate."
             />
@@ -1805,13 +1807,13 @@ export function Help() {
             <div className="grid gap-4 sm:grid-cols-2">
               <Shot
                 src="/screenshots/checkpoint-denied.png"
-                url="VMS · Checkpoint"
+                url="Access Pass · Checkpoint"
                 alt="A checkpoint post showing 'Not assigned to this post' for a guard who is not assigned to Main Reception."
                 caption="Not assigned: a staff member who isn’t assigned to the device’s point is turned away."
               />
               <Shot
                 src="/screenshots/checkin-granted.png"
-                url="VMS · Check in"
+                url="Access Pass · Check in"
                 alt="A check-in post open for Demo Receptionist at Main Reception."
                 caption="Assigned: the post opens, showing the staff member and the point they are operating."
               />
@@ -1846,15 +1848,15 @@ export function Help() {
             />
             <Shot
               src="/screenshots/guide/recep-dashboard.png"
-              url="VMS · Reception"
+              url="Access Pass · Reception"
               alt="Reception dashboard with KPI cards (On-site 6, Pre-registered 0, Expected 11, Pending approval 0), an Assisted check-in card with invitation code field and Scan QR button, a Walk-in / enquiry card, and an On-site now table."
               caption="Reception dashboard — KPI cards, assisted check-in, walk-in registration and the live on-site list, all on one page."
             />
             <Shot
               src="/screenshots/guide/recep-checkin-preview.png"
-              url="VMS · Reception — preview"
+              url="Access Pass · Reception — preview"
               alt="Reception page after entering an invitation code: shows a preview of the appointment (Guide Demo Visitor, host Demo Host Officer, Headquarters, 29 Jun 2026 14:01) with Back and Check in buttons."
-              caption="Assisted check-in — VMS previews the appointment so you can verify the person before tapping Check in."
+              caption="Assisted check-in — Access Pass previews the appointment so you can verify the person before tapping Check in."
             />
             <InfoGrid
               items={[
@@ -1905,13 +1907,13 @@ export function Help() {
             <div className="grid gap-4 sm:grid-cols-2">
               <Shot
                 src="/screenshots/guide/post-frontdesk.png"
-                url="VMS · Front desk"
+                url="Access Pass · Front desk"
                 alt="Front desk home with three tiles: Check in (scan a QR or enter an invitation code), Walk-in / enquiry (register a visitor without an appointment), Check out (sign a visitor out)."
                 caption="Front desk home — three tiles for the three things reception does on the floor."
               />
               <Shot
                 src="/screenshots/guide/post-frontdesk-walkin.png"
-                url="VMS · Front desk — Walk-in"
+                url="Access Pass · Front desk — Walk-in"
                 alt="Front desk walk-in form with visitor search, Scan ID button, full name, organization, email, phone, department, office, officer, purpose and Register walk-in button."
                 caption="Walk-in tile — capture the visitor on the spot; tap Scan ID to read a printed ID with the tablet camera."
               />
@@ -1942,7 +1944,7 @@ export function Help() {
             />
             <Shot
               src="/screenshots/guide/recep-walkin.png"
-              url="VMS · Reception — Walk-in"
+              url="Access Pass · Reception — Walk-in"
               alt="The expanded Walk-in / enquiry card on the Reception page with visitor search, name, organisation, email, phone, facility and department fields."
               caption="Reception's walk-in card — searches the directory first, then captures any missing details."
             />
@@ -1985,7 +1987,7 @@ export function Help() {
             />
             <Shot
               src="/screenshots/guide/post-checkout.png"
-              url="VMS · Check out"
+              url="Access Pass · Check out"
               alt="The /check-out post screen showing the institution logo, a 'Scan QR code' button and an invitation-code input."
               caption="Check-out post — the same Scan-QR / type-code flow as check-in, but it closes the visit instead of opening it."
             />
@@ -1994,9 +1996,9 @@ export function Help() {
             </h3>
             <p>
               When the device profile is set to <em>Reusable tag / NFC</em>, returning the tag IS
-              the check-out: on the check-out screen, scan or type the tag ID. VMS frees the tag for
-              the next visitor and closes the visit in one step. See the next section for tag
-              issuing and reconciliation.
+              the check-out: on the check-out screen, scan or type the tag ID. Access Pass frees the
+              tag for the next visitor and closes the visit in one step. See the next section for
+              tag issuing and reconciliation.
             </p>
             <Callout>
               Visitors who left without checking out show up under <em>Overstays</em> on the
@@ -2010,7 +2012,7 @@ export function Help() {
             id="tags"
             icon={Tags}
             title="Badges, tags & NFC"
-            lead="VMS supports three credential modes per device — printed paper badges, QR-only (no physical credential) and reusable tags or NFC cards. Pick the mode per point."
+            lead="Access Pass supports three credential modes per device — printed paper badges, QR-only (no physical credential) and reusable tags or NFC cards. Pick the mode per point."
           >
             <DefinitionTable
               rows={[
@@ -2037,7 +2039,7 @@ export function Help() {
             <Procedure
               steps={[
                 'Complete assisted check-in as usual. On the badge screen, the device profile triggers a tag-issue prompt instead of the badge print.',
-                "Type the number printed on the card, or tap the card on the tablet's NFC reader. VMS rejects the tag if it is already out with another visitor.",
+                "Type the number printed on the card, or tap the card on the tablet's NFC reader. Access Pass rejects the tag if it is already out with another visitor.",
                 'Hand the tag to the visitor. The On-site list now shows their tag number alongside their name.',
               ]}
             />
@@ -2047,7 +2049,7 @@ export function Help() {
             <Procedure
               steps={[
                 'At Reception or the check-out post, the visitor presents the tag.',
-                'Scan or type the tag ID. VMS frees the tag and closes the visit in one step.',
+                'Scan or type the tag ID. Access Pass frees the tag and closes the visit in one step.',
                 'If a visitor leaves without returning their tag, find them under Reception → Tags out (a card that only renders when at least one tag is unreturned) and tap Mark returned after recovering the physical credential.',
               ]}
             />
@@ -2073,7 +2075,7 @@ export function Help() {
             </p>
             <Shot
               src="/screenshots/guide/admin-appointment-detail.png"
-              url="VMS · Appointment detail"
+              url="Access Pass · Appointment detail"
               alt="An appointment detail page for Trail Test Visitor showing Visit details, Invitation (Used) and a Checkpoint trail card with Main Entrance (Entry, device entrance-1, qr) and Lobby (Passage, device lobby-1, qr)."
               caption="The checkpoint trail — every post the visitor presented their credential at, in order, with the device that read it."
             />
@@ -2120,13 +2122,13 @@ export function Help() {
             />
             <Shot
               src="/screenshots/guide/mgr-security.png"
-              url="VMS · Security"
+              url="Access Pass · Security"
               alt="Security console for a security manager: KPI cards (On-site 6, Open incidents 18, Overstays 1, Denied 0) and an Open incidents table with Watchlist Match, Overstay and Invalid Code rows."
               caption="Security console — KPIs across the top, then an open-incidents queue with a Resolve action on each row."
             />
             <Shot
               src="/screenshots/guide/guard-scan.png"
-              url="VMS · Checkpoint scan"
+              url="Access Pass · Checkpoint scan"
               alt="The Checkpoint scan page for a security guard with a large Scan QR code button, an invitation-code input and a Verify code button."
               caption="Checkpoint scan — guards scan the visitor's QR or type the code; verified visitors get a green confirmation, denials raise an incident."
             />
@@ -2140,9 +2142,9 @@ export function Help() {
           >
             <p>
               Add an identity to the watchlist when a person should be denied entry — disputed
-              contractor, ejected visitor, persona non grata. VMS stores only the secure hash of the
-              blocked value, never the raw email / phone / name, so the watchlist screen never
-              becomes a leak risk on its own.
+              contractor, ejected visitor, persona non grata. Access Pass stores only the secure
+              hash of the blocked value, never the raw email / phone / name, so the watchlist screen
+              never becomes a leak risk on its own.
             </p>
             <Procedure
               steps={[
@@ -2155,7 +2157,7 @@ export function Help() {
             />
             <Shot
               src="/screenshots/guide/mgr-watchlist.png"
-              url="VMS · Security — Watchlist"
+              url="Access Pass · Security — Watchlist"
               alt="Watchlist card on the Security console showing the description 'Blocked identities are matched by secure hash — raw values are never stored', a search box, and the add form with Match type, Value to block, Reason and Add button."
               caption="Watchlist — managers add by match type + value; matches at any post raise a high-severity incident."
             />
@@ -2191,7 +2193,7 @@ export function Help() {
             />
             <Shot
               src="/screenshots/guide/mgr-muster.png"
-              url="VMS · Emergency muster"
+              url="Access Pass · Emergency muster"
               alt="Emergency muster screen with live headcount, search box and a list of currently-checked-in visitors with their hosts and badge numbers."
               caption="Emergency muster — tap each visitor's row as the muster point confirms them; the progress bar updates live."
             />
@@ -2213,7 +2215,7 @@ export function Help() {
             </p>
             <Shot
               src="/screenshots/guide/admin-insights-detail.png"
-              url="VMS · Visitor insights"
+              url="Access Pass · Visitor insights"
               alt="Visitor insights showing Akua Mensah (Global Logistics Ltd, akua.frequent@mailinator.com) with 10 total visits, 10 attended, first seen 29 Oct 2025, last seen 2 Jun 2026, a Visit frequency bar chart over twelve months and a Purpose of visits breakdown (Quarterly audit re… 4, Maintenance con… 3, Vendor demo 2, Contract signing 1)."
               caption="Visitor insights — pick a visitor and see how often they come, when they came last and what they came for."
             />
@@ -2261,7 +2263,7 @@ export function Help() {
             </p>
             <Shot
               src="/screenshots/guide/admin-audit.png"
-              url="VMS · Audit log"
+              url="Access Pass · Audit log"
               alt="Audit log page listing audit events with their action, actor, object type and post columns."
               caption="Audit log — search by action or actor, filter by date or post, and export only what the audit period requires."
             />
@@ -2281,7 +2283,7 @@ export function Help() {
             </p>
             <Shot
               src="/screenshots/guide/admin-visitor-log.png"
-              url="VMS · Visitor log"
+              url="Access Pass · Visitor log"
               alt="Visitor log page showing visits across the facility with visitor, host, facility, status and check-in/out columns."
               caption="Visitor log — the searchable operational record. Use it for day-to-day reporting; use the Audit log for compliance."
             />
@@ -2420,7 +2422,7 @@ export function Help() {
             </p>
             <Shot
               src="/screenshots/guide/admin-site-rules.png"
-              url="VMS · Site rules"
+              url="Access Pass · Site rules"
               alt="Site rules admin editor where the privacy notice and any extra policies shown to visitors are authored."
               caption="Site rules — anything you publish here surfaces on the pre-registration page; visitors must acknowledge before submitting."
             />

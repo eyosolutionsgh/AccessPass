@@ -21,7 +21,7 @@ export function AuthScreen({
 }: {
   /** Small uppercase label above the title (e.g. "Staff sign in") for extra context. */
   eyebrow?: ReactNode;
-  title: string;
+  title?: string;
   subtitle?: ReactNode;
   /** Replaces the default institution logo above the title (e.g. a success / alert badge). */
   icon?: ReactNode;
@@ -45,7 +45,9 @@ export function AuthScreen({
             <Logo className="size-20 rounded-3xl shadow-[var(--shadow-brand)] ring-1 ring-white/20" />
           )}
           {/* Institution name under the logo — consistent across every auth/login surface. */}
-          <span className="mt-3 text-sm font-semibold tracking-tight text-white/90">{orgName}</span>
+          <span className="mt-4 font-serif text-4xl font-semibold tracking-[-0.01em] text-white [text-shadow:0_1px_20px_oklch(0.575_0.214_268/0.35)]">
+            {orgName}
+          </span>
           {place && (
             <span className="mt-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-brand-300">
               {place}
@@ -56,12 +58,10 @@ export function AuthScreen({
               {eyebrow}
             </p>
           )}
-          <h1
-            className={`font-bold tracking-tight text-white ${eyebrow ? 'mt-1.5 text-3xl' : 'mt-3 text-2xl'}`}
-          >
-            {title}
-          </h1>
-          {subtitle && <p className="mt-1.5 text-sm text-slate-300">{subtitle}</p>}
+          {title && (
+            <h1 className="mt-4 text-lg font-semibold tracking-tight text-slate-100">{title}</h1>
+          )}
+          {subtitle && <p className="mt-1 text-sm text-slate-300">{subtitle}</p>}
         </div>
 
         {/* Card */}
