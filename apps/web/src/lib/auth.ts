@@ -18,7 +18,8 @@ export const authClient = createAuthClient({
   plugins: [adminClient({ ac, roles }), organizationClient({ ac, roles })],
 });
 
-export const { signIn, signOut, useSession, resetPassword, requestPasswordReset } = authClient;
+export const { signIn, signOut, useSession, resetPassword, requestPasswordReset, changePassword } =
+  authClient;
 
 /**
  * Like {@link useSession}, but `isPending` is only ever true for the FIRST session

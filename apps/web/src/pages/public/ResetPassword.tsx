@@ -1,10 +1,11 @@
 import { CheckCircle2, Lock, TriangleAlert } from 'lucide-react';
 import { useMemo, useState, type FormEvent } from 'react';
 import { useLocation } from 'wouter';
-import { toast } from 'sonner';
 import { resetPassword } from '../../lib/auth.ts';
 import { useOrgName } from '../../lib/branding.ts';
+import { useAsyncStatus } from '../../lib/hooks.ts';
 import { AuthScreen } from '../../components/AuthScreen.tsx';
+import { AsyncButton, AsyncStatusMessage } from '../../components/ui/async-button.tsx';
 import { Button } from '../../components/ui/button.tsx';
 import { PasswordInput } from '../../components/ui/input.tsx';
 
@@ -23,23 +24,25 @@ export function ResetPassword() {
 
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
-  const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
+  const { status, error, run } = useAsyncStatus();
   const orgName = useOrgName();
 
   const invalid = !token || !!linkError;
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
-    if (password.length < 8) return toast.error('Password must be at least 8 characters.');
-    if (password !== confirm) return toast.error('Passwords do not match.');
-    setLoading(true);
-    const { error } = await resetPassword({ newPassword: password, token: token! });
-    setLoading(false);
-    if (error) return toast.error(error.message ?? 'Could not set your password. Try again.');
-    setDone(true);
-    toast.success('Password set — you can now sign in.');
-    setTimeout(() => navigate('/'), 1200);
+    if (status === 'pending') return;
+    await run(async () => {
+      // Validation failures throw so they surface through the same status/live-region path.
+      if (password.length < 8) throw new Error('Password must be at least 8 characters.');
+      if (password !== confirm) throw new Error('Passwords do not match.');
+      const { error: err } = await resetPassword({ newPassword: password, token: token! });
+      if (err) throw new Error(err.message ?? 'Could not set your password. Try again.');
+      // Success swaps to the "All set" screen below, then bounces to sign-in.
+      setDone(true);
+      setTimeout(() => navigate('/'), 1200);
+    });
   }
 
   if (done) {
@@ -119,14 +122,23 @@ export function ResetPassword() {
             required
           />
         </div>
-        <Button
-          type="submit"
+        <AsyncButton
+          status={status}
           size="lg"
-          loading={loading}
+          labels={{
+            idle: 'Set password & continue',
+            pending: 'Saving…',
+            success: 'All set!',
+            error: 'Try again',
+          }}
           className="w-full bg-gradient-to-r from-brand-600 to-brand-500 shadow-[var(--shadow-brand)] hover:from-brand-700 hover:to-brand-600"
-        >
-          {loading ? 'Saving…' : 'Set password & continue'}
-        </Button>
+        />
+        <AsyncStatusMessage
+          status={status}
+          error={error}
+          successMessage="Password set."
+          className="text-center"
+        />
       </form>
     </AuthScreen>
   );

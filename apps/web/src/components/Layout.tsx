@@ -17,6 +17,7 @@ import {
   Sliders,
   Sparkles,
   Tags,
+  UserRound,
   UsersRound,
   X,
 } from 'lucide-react';
@@ -341,6 +342,17 @@ function UserCard({
           role="menu"
           className="absolute inset-x-0 top-full z-10 mt-1.5 animate-scale-in rounded-xl border border-white/10 bg-slate-900 p-1 shadow-lg"
         >
+          <Link
+            href="/account"
+            role="menuitem"
+            onClick={() => {
+              setOpen(false);
+              onNavigate?.();
+            }}
+            className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-slate-300 transition-colors hover:bg-white/10 hover:text-white"
+          >
+            <UserRound className="size-4" /> Account settings
+          </Link>
           <a
             href="/help"
             target="_blank"

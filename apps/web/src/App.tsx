@@ -53,6 +53,7 @@ const VisitorLog = lazy(() =>
   import('./pages/VisitorLog.tsx').then((m) => ({ default: m.VisitorLog })),
 );
 const Audit = lazy(() => import('./pages/Audit.tsx').then((m) => ({ default: m.Audit })));
+const Account = lazy(() => import('./pages/Account.tsx').then((m) => ({ default: m.Account })));
 // The Administration screens share one lazily-loaded chunk; each named export is a
 // focused sub-page reached via its own nested sidebar item.
 const AdminSettings = lazy(() =>
@@ -223,6 +224,8 @@ function StaffApp() {
           {/* Legacy /reports → the consolidated Visitor log report. */}
           <Route path="/reports">{() => <Redirect to="/visitor-log" />}</Route>
           <Route path="/audit" component={Audit} />
+          {/* Self-service account settings (change your own password) — every signed-in user. */}
+          <Route path="/account" component={Account} />
           <Route path="/admin">{() => <Redirect to="/admin/settings" />}</Route>
           <Route path="/admin/settings" component={AdminSettings} />
           <Route path="/admin/users" component={AdminUsers} />
