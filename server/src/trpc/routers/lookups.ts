@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { schema } from '@vms/shared';
 import { db } from '../../db.ts';
 import { getLogoVersion, getPolicyContent, getSettings } from '../../services/admin.ts';
+import { resolveLandingPost } from '../../services/points.ts';
 import { actorOfficeId, isSecretaryOnly } from '../../services/scope.ts';
 import { protectedProcedure, publicProcedure, router } from '../trpc.ts';
 
@@ -104,6 +105,19 @@ export const lookupsRouter = router({
       posts: posts.map((p) => p.name),
     };
   }),
+
+  /**
+   * The post screen this user should land on right after signing in (null = the normal staff app).
+   * Sign-in happens at ONE url; this is what turns a post assignment into a destination.
+   */
+  myLandingPost: protectedProcedure
+    .input(z.object({ deviceId: z.string().max(120).optional() }))
+    .query(({ input, ctx }) =>
+      resolveLandingPost(
+        { id: ctx.user.id, role: (ctx.user as { role?: string | null }).role ?? null },
+        input.deviceId,
+      ),
+    ),
 
   hosts: protectedProcedure
     .input(z.object({ q: z.string().max(120).optional() }))
